@@ -1,15 +1,18 @@
 {
-  "name": "render-express-deployment",
+  "name": "your-project-name",
   "version": "1.0.0",
+  "description": "A brief description of your project",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "express": "^4.17.1"
+    "ws": "^8.0.0" 
+    
   },
-  "engines": {
-    "node": ">=14.0.0"
-  }
+  "devDependencies": {} 
 }
