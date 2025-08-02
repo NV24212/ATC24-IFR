@@ -11,8 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "ws": "^8.0.0" 
-    
-  },
-  "devDependencies": {} 
+    "express": "^4.21.2",
+    "ws": "^8.0.0"
+  }
 }
