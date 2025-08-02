@@ -69,7 +69,7 @@ app.get("/", (req, res) => {
   res.send(`<!DOCTYPE html>
 <html>
 <head>
-  <title>ATC IFR Clearance Generator</title>
+  <title>ATC24 IFR Clearance Generator</title>
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -478,7 +478,7 @@ app.get("/", (req, res) => {
 <body>
 <div class="container">
   <div class="header">
-    <h1>ATC IFR Clearance Generator</h1>
+    <h1>ATC24 IFR Clearance Generator</h1>
   </div>
 
   <div class="main-grid">
@@ -534,42 +534,7 @@ app.get("/", (req, res) => {
     }
   }
 
-  // Removed updateRunwayOptions function as it's no longer needed.
-  // function updateRunwayOptions() {
-  //   const activeRunwaysInput = document.getElementById("activeRunways");
-  //   const departureRunwayInput = document.getElementById("departureRunway");
-  //   const activeRunwaysText = activeRunwaysInput.value;
-  //   
-  //   const allRunways = new Set();
-  //   
-  //   // Match both Arrival and Departure runways from Active Runways text
-  //   const arrivalMatch = activeRunwaysText.match(/Arrival Runway\\s*(?:\\(s\\))?\\s*:\\s*\\(([^)]+)\\)/i);
-  //   const departureMatch = activeRunwaysText.match(/Departure Runway\\s*(?:\\(s\\))?\\s*:\\s*\\(([^)]+)\\)/i);
-  //   
-  //   // Process arrival runways
-  //   if (arrivalMatch && arrivalMatch[1]) {
-  //     const runways = arrivalMatch[1].split(/[,\/]|\s+and\s+/i)
-  //       .map(runway => runway.trim())
-  //       .filter(runway => runway.length > 0);
-  //     runways.forEach(runway => allRunways.add(runway));
-  //   }
-  //   
-  //   // Process departure runways
-  //   if (departureMatch && departureMatch[1]) {
-  //     const runways = departureMatch[1].split(/[,\/]|\s+and\s+/i)
-  //       .map(runway => runway.trim())
-  //       .filter(runway => runway.length > 0);
-  //     runways.forEach(runway => allRunways.add(runway));
-  //   }
-  //   
-  //   // Update the departure runway input placeholder if runways found
-  //   if (allRunways.size > 0) {
-  //     const runwayList = Array.from(allRunways).sort().join(', ');
-  //     departureRunwayInput.placeholder = \`Available: \${runwayList}\`;
-  //   } else {
-  //     departureRunwayInput.placeholder = "e.g., 25L"; // Reset if no runways found
-  //   }
-  // }
+  
 
   async function loadFlightPlans() {
     try {
@@ -596,17 +561,17 @@ app.get("/", (req, res) => {
       return;
     }
 
-    container.innerHTML = flightPlans.map((plan, index) => `
-      <div class="flight-plan ${selectedFlightPlan === plan ? 'selected' : ''}" onclick="selectFlightPlan(${index})">
-        <div class="flight-plan-callsign">${plan.callsign || 'Unknown'}</div>
+    container.innerHTML = flightPlans.map((plan, index) => \`
+      <div class="flight-plan \${selectedFlightPlan === plan ? 'selected' : ''}\" onclick="selectFlightPlan(\${index})">
+        <div class="flight-plan-callsign">\${plan.callsign || 'Unknown'}</div>
         <div class="flight-plan-details">
-          Destination: ${plan.arriving || 'N/A'}<br>
-          Route: ${plan.route || 'GPS Direct'}<br>
-          FL: ${plan.flightlevel || 'N/A'}<br>
-          Source: ${plan.source || 'Main'}
+          Destination: \${plan.arriving || 'N/A'}<br>
+          Route: \${plan.route || 'GPS Direct'}<br>
+          FL: \${plan.flightlevel || 'N/A'}<br>
+          Source: \${plan.source || 'Main'}
         </div>
       </div>
-    `).join('');
+    \`).join('');
   }
 
   function selectFlightPlan(index) {
@@ -636,7 +601,7 @@ app.get("/", (req, res) => {
       return;
     }
 
-    const clearance = `${selectedFlightPlan.callsign || 'UNKNOWN'} cleared IFR to ${selectedFlightPlan.arriving || 'destination'} Via ${selectedFlightPlan.route || 'GPS direct'}. Departure runway is ${departureRW}. Climb IFL ${ifl}. FL is ${flightLevel}. Squawking is ${squawk}.`;
+    const clearance = \`\${selectedFlightPlan.callsign || 'UNKNOWN'} cleared IFR to \${selectedFlightPlan.arriving || 'destination'} Via \${selectedFlightPlan.route || 'GPS direct'}. Departure runway is \${departureRW}. Climb IFL \${ifl}. FL is \${flightLevel}. Squacking is \${squawk}.\`;
 
     document.getElementById("clearanceOutput").textContent = clearance;
   }
@@ -644,7 +609,6 @@ app.get("/", (req, res) => {
   // Initial load of flight plans when the page loads
   document.addEventListener('DOMContentLoaded', () => {
     loadFlightPlans();
-    // No need to call updateRunwayOptions here, it's called oninput for the textarea
   });
 </script>
 
