@@ -344,23 +344,57 @@ QNH: 1013</textarea>
     const atis = document.getElementById("atis").value;
     const runwaySelect = document.getElementById("runway");
     
-    // More flexible regex: allow optional space before (s), and before colon
-    const departureMatch = atis.match(/Departure Runway\s*(?:\(s\))?\s*:\s*\(([^)]+)\)/i);
+    // Debug: log the ATIS text
+    console.log("ATIS text:", atis);
     
     runwaySelect.innerHTML = '<option value="">Select Runway</option>';
     
-    if (departureMatch) {
-      const runwaysText = departureMatch[1];
+    const allRunways = new Set(); // Use Set to avoid duplicates
+    
+    // Match both Arrival and Departure runways
+    const arrivalMatch = atis.match(/Arrival Runway\s*(?:\(s\))?\s*:\s*\(([^)]+)\)/i);
+    const departureMatch = atis.match(/Departure Runway\s*(?:\(s\))?\s*:\s*\(([^)]+)\)/i);
+    
+    console.log("Arrival match:", arrivalMatch);
+    console.log("Departure match:", departureMatch);
+    
+    // Process arrival runways
+    if (arrivalMatch) {
+      const runwaysText = arrivalMatch[1];
+      console.log("Arrival runways text found:", runwaysText);
+      
       const runways = runwaysText.split(/[,\/]|\s+and\s+/i)
         .map(runway => runway.trim())
         .filter(runway => runway.length > 0);
       
-      runways.forEach(runway => {
-        const option = document.createElement('option');
-        option.value = runway;
-        option.textContent = runway;
-        runwaySelect.appendChild(option);
-      });
+      runways.forEach(runway => allRunways.add(runway));
+    }
+    
+    // Process departure runways
+    if (departureMatch) {
+      const runwaysText = departureMatch[1];
+      console.log("Departure runways text found:", runwaysText);
+      
+      const runways = runwaysText.split(/[,\/]|\s+and\s+/i)
+        .map(runway => runway.trim())
+        .filter(runway => runway.length > 0);
+      
+      runways.forEach(runway => allRunways.add(runway));
+    }
+    
+    console.log("All unique runways:", Array.from(allRunways));
+    
+    // Add all unique runways to dropdown
+    Array.from(allRunways).sort().forEach(runway => {
+      const option = document.createElement('option');
+      option.value = runway;
+      option.textContent = runway;
+      runwaySelect.appendChild(option);
+      console.log("Added runway option:", runway);
+    });
+    
+    if (allRunways.size === 0) {
+      console.log("No runway matches found in ATIS");
     }
   }
 
