@@ -248,12 +248,7 @@ app.get("/", (req, res) => {
       <div class="config-group">
         <label class="config-label">Departure Runway</label>
         <select id="runway">
-          <option>07L</option>
-          <option>07R</option>
-          <option>25L</option>
-          <option>25R</option>
-          <option>30L</option>
-          <option>30R</option>
+          <option value="">Select Runway</option>
         </select>
       </div>
 
@@ -269,7 +264,7 @@ app.get("/", (req, res) => {
 
       <div class="config-group">
         <label class="config-label">ATIS Information</label>
-        <textarea id="atis" rows="8">∎ (IRFD ATIS Information A) ∎
+        <textarea id="atis" rows="8" onchange="updateRunwayOptions()" oninput="updateRunwayOptions()">∎ (IRFD ATIS Information A) ∎
 Controller Callsign: (IRFD_GND)
 Aerodrome: IRFD
 Max Taxi Speed: 25KTS
@@ -345,6 +340,32 @@ QNH: 1013</textarea>
     document.getElementById('generateBtn').disabled = false;
   }
 
+  function updateRunwayOptions() {
+    const atis = document.getElementById("atis").value;
+    const runwaySelect = document.getElementById("runway");
+    
+    // Extract departure runways from ATIS text
+    const departureMatch = atis.match(/Departure Runway\(s\):\s*\(([^)]+)\)/i);
+    
+    // Clear existing options
+    runwaySelect.innerHTML = '<option value="">Select Runway</option>';
+    
+    if (departureMatch) {
+      const runwaysText = departureMatch[1];
+      // Split by comma, slash, or "and" to handle multiple runways
+      const runways = runwaysText.split(/[,\/]|\s+and\s+/i)
+        .map(runway => runway.trim())
+        .filter(runway => runway.length > 0);
+      
+      runways.forEach(runway => {
+        const option = document.createElement('option');
+        option.value = runway;
+        option.textContent = runway;
+        runwaySelect.appendChild(option);
+      });
+    }
+  }
+
   function generateClearance() {
     if (!selectedFlightPlan) {
       alert('Please select a flight plan first');
@@ -353,17 +374,22 @@ QNH: 1013</textarea>
 
     const atis = document.getElementById("atis").value;
     const ifl = document.getElementById("ifl").value;
-    const runwayMatch = atis.match(/Departure Runway\\(s\\):\\s*\\(([^)]+)\\)/i);
-    const departureRW = runwayMatch ? runwayMatch[1] : "Unknown";
+    const departureRW = document.getElementById("runway").value || "Unknown";
     const squawk = generateSquawk();
+    
+    // Get FL from flight plan
+    const flightLevel = selectedFlightPlan.flightlevel || 'N/A';
 
-    const clearance = \`\${selectedFlightPlan.callsign || 'UNKNOWN'} cleared IFR to \${selectedFlightPlan.arriving || 'destination'} Via \${selectedFlightPlan.route || 'GPS direct'}. Departure RW is \${departureRW}. Climb IFL \${ifl}. Squacking is \${squawk}\`;
+    const clearance = \`\${selectedFlightPlan.callsign || 'UNKNOWN'} cleared IFR to \${selectedFlightPlan.arriving || 'destination'} Via \${selectedFlightPlan.route || 'GPS direct'}. Departure RW is \${departureRW}. Climb IFL \${ifl}. FL is \${flightLevel}. Squacking is \${squawk}.\`;
 
     document.getElementById("clearanceOutput").textContent = clearance;
   }
 
   setInterval(loadFlightPlans, 5000);
   loadFlightPlans();
+  
+  // Initialize runway options on page load
+  updateRunwayOptions();
 </script>
 
 </body>
