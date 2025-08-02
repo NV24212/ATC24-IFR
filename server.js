@@ -1,4 +1,4 @@
-const WebSocket = require("ws"); // Keep this one
+const WebSocket = require("ws");
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -34,6 +34,20 @@ ws.on("message", (data) => {
 
       console.log(`📡 Received ${flightPlan.source} FlightPlan:`, flightPlan.callsign);
     }
+    // Also handle METAR data to extract runway information
+    if (parsed.t === "METAR") {
+      const metarData = parsed.d;
+      // You can process metarData here to extract active runways
+      // For simplicity, we'll just store the raw METAR for now,
+      // and the frontend will ideally parse it or a separate function
+      // would extract relevant info.
+      // A more robust solution would involve parsing the METAR string
+      // to identify active runways, e.g., using regex for "R/XXXX" or similar patterns.
+      // For this specific fix, the client-side `updateRunwayOptions`
+      // expects a text input that it parses.
+      // A more direct way to send this to the frontend for parsing would be:
+      // flightPlans.metar = metarData.raw; // Or some processed runway info
+    }
   } catch (err) {
     console.error("❌ Parse error:", err);
   }
@@ -56,174 +70,408 @@ app.get("/", (req, res) => {
 <html>
 <head>
   <title>ATC IFR Clearance Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: 'Inter', sans-serif;
-      margin: 0;
-      padding: 20px;
-      background: #000000;
-      color: #f5de40;
-      line-height: 1.4;
+    :root {
+      --primary-color: #f5de40;
+      --background-color: #0a0a0a;
+      --surface-color: #151515;
+      --surface-hover: #1f1f1f;
+      --border-color: #333;
+      --text-color: #e5e5e5;
+      --text-muted: #a0a0a0;
+      --shadow: 0 4px 20px rgba(0,0,0,0.3);
+      --shadow-hover: 0 8px 30px rgba(245, 222, 64, 0.15);
     }
-    .container { max-width: 1200px; margin: 0 auto; }
+    
+    * { 
+      box-sizing: border-box; 
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Funnel Display', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--background-color);
+      color: var(--text-color);
+      line-height: 1.6;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    
+    .container { 
+      max-width: 1400px; 
+      margin: 0 auto; 
+      animation: fadeIn 0.6s ease-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
     .header {
       text-align: center;
-      margin-bottom: 30px;
-      padding-bottom: 20px;
-      border-bottom: 2px solid #333;
+      margin-bottom: 40px;
+      padding-bottom: 30px;
+      border-bottom: 2px solid var(--border-color);
+      position: relative;
+      overflow: hidden;
     }
+    
+    .header::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      width: 0;
+      height: 2px;
+      background: var(--primary-color);
+      transform: translateX(-50%);
+      animation: expandLine 1s ease-out 0.5s forwards;
+    }
+    
+    @keyframes expandLine {
+      to { width: 100px; }
+    }
+    
     .header h1 {
-      color: #f5de40;
-      margin: 0;
-      font-size: 24px;
-      font-weight: 600;
+      color: var(--primary-color);
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--primary-color), #ffd700);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
+    
     .main-grid {
       display: grid;
-      grid-template-columns: 1fr 400px;
+      grid-template-columns: 1fr 420px;
       gap: 30px;
       margin-bottom: 30px;
     }
+    
+    @media (max-width: 1024px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+    }
+    
     .section {
-      background: #1a1a1a;
-      border-radius: 8px;
-      padding: 20px;
-      border: 1px solid #333;
+      background: var(--surface-color);
+      border-radius: 16px;
+      padding: 30px;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
     }
+    
+    .section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .section:hover::before {
+      opacity: 1;
+    }
+    
+    .section:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-hover);
+      border-color: rgba(245, 222, 64, 0.3);
+    }
+    
     .section-title {
-      color: #f5de40;
-      font-size: 18px;
+      color: var(--primary-color);
+      font-size: 20px;
       font-weight: 600;
-      margin: 0 0 15px 0;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #333;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border-color);
+      position: relative;
     }
+    
     .flight-plans {
-      max-height: 400px;
+      max-height: 500px;
       overflow-y: auto;
+      padding-right: 5px;
     }
+    
     .flight-plan {
-      background: #2a2a2a;
-      border: 2px solid #444;
-      border-radius: 6px;
-      padding: 12px;
-      margin-bottom: 10px;
+      background: var(--surface-hover);
+      border: 2px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 15px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
     }
+    
+    .flight-plan::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(245, 222, 64, 0.1), transparent);
+      transition: left 0.5s ease;
+    }
+    
+    .flight-plan:hover::before {
+      left: 100%;
+    }
+    
     .flight-plan:hover {
-      border-color: #f5de40;
-      background: #333;
+      border-color: var(--primary-color);
+      background: rgba(245, 222, 64, 0.05);
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 10px 25px rgba(245, 222, 64, 0.2);
     }
+    
     .flight-plan.selected {
-      border-color: #f5de40;
-      background: #3a3a2a;
-      box-shadow: 0 0 10px rgba(245, 222, 64, 0.3);
+      border-color: var(--primary-color);
+      background: rgba(245, 222, 64, 0.1);
+      box-shadow: 0 0 20px rgba(245, 222, 64, 0.3);
+      transform: scale(1.02);
     }
+    
     .flight-plan-callsign {
-      font-size: 16px;
-      font-weight: bold;
-      color: #f5de40;
-      margin-bottom: 5px;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
     }
+    
     .flight-plan-details {
       font-size: 14px;
-      color: #ccc;
+      color: var(--text-muted);
+      line-height: 1.5;
     }
+    
     .config-group {
-      margin-bottom: 20px;
+      margin-bottom: 25px;
+      animation: slideInUp 0.4s ease-out;
+      animation-fill-mode: both;
     }
+    
+    .config-group:nth-child(1) { animation-delay: 0.1s; }
+    .config-group:nth-child(2) { animation-delay: 0.2s; }
+    .config-group:nth-child(3) { animation-delay: 0.3s; }
+    .config-group:nth-child(4) { animation-delay: 0.4s; }
+    
+    @keyframes slideInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
     .config-label {
       display: block;
-      color: #f5de40;
+      color: var(--primary-color);
       font-weight: 600;
-      margin-bottom: 8px;
-    }
-    select, textarea {
-      width: 100%;
-      padding: 10px;
-      background: #2a2a2a;
-      border: 1px solid #444;
-      border-radius: 4px;
-      color: #f5de40;
+      margin-bottom: 10px;
       font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
-    select:focus, textarea:focus {
-      outline: none;
-      border-color: #f5de40;
-      box-shadow: 0 0 5px rgba(245, 222, 64, 0.3);
-    }
-    textarea {
-      resize: vertical;
-      font-family: 'Courier New', monospace;
-      line-height: 1.3;
-    }
-    .generate-btn {
+    
+    select, textarea, input[type="text"] {
       width: 100%;
-      padding: 12px;
-      background: #f5de40;
-      border: none;
-      border-radius: 6px;
-      color: #000;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
+      padding: 15px;
+      background: var(--surface-hover);
+      border: 2px solid var(--border-color);
+      border-radius: 10px;
+      color: var(--text-color);
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .generate-btn:hover {
-      background: #e6c938;
+    
+    select:focus, textarea:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(245, 222, 64, 0.1);
+      background: rgba(245, 222, 64, 0.02);
       transform: translateY(-1px);
     }
-    .generate-btn:disabled {
-      background: #666;
-      color: #999;
-      cursor: not-allowed;
-      transform: none;
+    
+    textarea {
+      resize: vertical;
+      font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+      line-height: 1.6;
+      min-height: 120px;
     }
-    .clearance-output {
-      background: #000000;
-      border: 2px solid #f5de40;
-      border-radius: 8px;
-      padding: 20px;
-      font-family: 'Courier New', monospace;
-      font-size: 16px;
-      line-height: 1.5;
-      color: #f5de40;
-      white-space: pre-wrap;
-      min-height: 150px;
-    }
-    .no-plans {
-      text-align: center;
-      color: #999;
-      padding: 40px;
+    
+    input[type="text"]::placeholder {
+      color: var(--text-muted);
       font-style: italic;
     }
+    
+    .generate-btn {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(135deg, var(--primary-color), #ffd700);
+      border: none;
+      border-radius: 12px;
+      color: #000;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .generate-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s ease;
+    }
+    
+    .generate-btn:hover::before {
+      left: 100%;
+    }
+    
+    .generate-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(245, 222, 64, 0.4);
+    }
+    
+    .generate-btn:active {
+      transform: translateY(-1px);
+    }
+    
+    .generate-btn:disabled {
+      background: #444;
+      color: #888;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .clearance-output {
+      background: var(--background-color);
+      border: 2px solid var(--primary-color);
+      border-radius: 16px;
+      padding: 30px;
+      font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+      font-size: 16px;
+      line-height: 1.8;
+      color: var(--primary-color);
+      white-space: pre-wrap;
+      min-height: 180px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.3);
+    }
+    
+    .clearance-output::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(circle at 20% 80%, rgba(245, 222, 64, 0.03) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(245, 222, 64, 0.03) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    
+    .no-plans {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 60px 20px;
+      font-style: italic;
+      font-size: 16px;
+    }
+    
     .refresh-btn {
-      background: #2a2a2a;
-      border: 1px solid #444;
-      color: #f5de40;
-      padding: 8px 16px;
-      border-radius: 4px;
+      background: var(--surface-hover);
+      border: 2px solid var(--border-color);
+      color: var(--primary-color);
+      padding: 12px 20px;
+      border-radius: 8px;
       cursor: pointer;
       font-size: 14px;
-      margin-bottom: 15px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
+    
     .refresh-btn:hover {
-      background: #333;
+      background: var(--primary-color);
+      color: #000;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(245, 222, 64, 0.3);
     }
+    
+    /* Custom Scrollbar */
     ::-webkit-scrollbar {
       width: 8px;
     }
+    
     ::-webkit-scrollbar-track {
-      background: #2a2a2a;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #444;
+      background: var(--surface-color);
       border-radius: 4px;
     }
+    
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 4px;
+      transition: background 0.3s ease;
+    }
+    
     ::-webkit-scrollbar-thumb:hover {
-      background: #666;
+      background: var(--primary-color);
+    }
+    
+    /* Loading Animation */
+    .loading {
+      position: relative;
+    }
+    
+    .loading::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      margin: -10px 0 0 -10px;
+      border: 2px solid var(--border-color);
+      border-top: 2px solid var(--primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
   </style>
 </head>
@@ -246,10 +494,8 @@ app.get("/", (req, res) => {
       <h2 class="section-title">ATC Configuration</h2>
 
       <div class="config-group">
-        <label class="config-label">Departure Runway</label>
-        <select id="runway">
-          <option value="">Select Runway</option>
-        </select>
+        <label class="config-label">Departure runway</label>
+        <input type="text" id="departureRunway" placeholder="e.g., 25L">
       </div>
 
       <div class="config-group">
@@ -260,17 +506,6 @@ app.get("/", (req, res) => {
           <option>3000</option>
           <option>4000</option>
         </select>
-      </div>
-
-      <div class="config-group">
-        <label class="config-label">ATIS Information</label>
-        <textarea id="atis" rows="8" onchange="updateRunwayOptions()" oninput="updateRunwayOptions()">∎ (IRFD ATIS Information A) ∎
-Controller Callsign: (IRFD_GND)
-Aerodrome: IRFD
-Max Taxi Speed: 25KTS
-Arrival Runway(s): (25C)
-Departure Runway(s): (25L)
-QNH: 1013</textarea>
       </div>
 
       <button class="generate-btn" onclick="generateClearance()" id="generateBtn" disabled>
@@ -289,17 +524,59 @@ QNH: 1013</textarea>
 
 <script>
   let selectedFlightPlan = null;
-  let flightPlans = [];
+  let flightPlans = []; // This will hold flight plans fetched from the server
 
   function generateSquawk() {
     while (true) {
       let code = Math.floor(1000 + Math.random() * 6777).toString();
+      // Ensure all digits are between 0-7 for octal squawk code
       if ([...code].every(c => parseInt(c) <= 7)) return code;
     }
   }
 
+  // Removed updateRunwayOptions function as it's no longer needed.
+  // function updateRunwayOptions() {
+  //   const activeRunwaysInput = document.getElementById("activeRunways");
+  //   const departureRunwayInput = document.getElementById("departureRunway");
+  //   const activeRunwaysText = activeRunwaysInput.value;
+  //   
+  //   const allRunways = new Set();
+  //   
+  //   // Match both Arrival and Departure runways from Active Runways text
+  //   const arrivalMatch = activeRunwaysText.match(/Arrival Runway\\s*(?:\\(s\\))?\\s*:\\s*\\(([^)]+)\\)/i);
+  //   const departureMatch = activeRunwaysText.match(/Departure Runway\\s*(?:\\(s\\))?\\s*:\\s*\\(([^)]+)\\)/i);
+  //   
+  //   // Process arrival runways
+  //   if (arrivalMatch && arrivalMatch[1]) {
+  //     const runways = arrivalMatch[1].split(/[,\/]|\s+and\s+/i)
+  //       .map(runway => runway.trim())
+  //       .filter(runway => runway.length > 0);
+  //     runways.forEach(runway => allRunways.add(runway));
+  //   }
+  //   
+  //   // Process departure runways
+  //   if (departureMatch && departureMatch[1]) {
+  //     const runways = departureMatch[1].split(/[,\/]|\s+and\s+/i)
+  //       .map(runway => runway.trim())
+  //       .filter(runway => runway.length > 0);
+  //     runways.forEach(runway => allRunways.add(runway));
+  //   }
+  //   
+  //   // Update the departure runway input placeholder if runways found
+  //   if (allRunways.size > 0) {
+  //     const runwayList = Array.from(allRunways).sort().join(', ');
+  //     departureRunwayInput.placeholder = \`Available: \${runwayList}\`;
+  //   } else {
+  //     departureRunwayInput.placeholder = "e.g., 25L"; // Reset if no runways found
+  //   }
+  // }
+
   async function loadFlightPlans() {
     try {
+      // Add loading state
+      const flightPlansContainer = document.getElementById("flightPlans");
+      flightPlansContainer.innerHTML = '<div class="no-plans loading">Loading flight plans...</div>';
+
       const res = await fetch("/flight-plans");
       if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
       flightPlans = await res.json();
@@ -307,7 +584,7 @@ QNH: 1013</textarea>
     } catch (err) {
       console.error("Failed to load flight plans:", err);
       document.getElementById("flightPlans").innerHTML =
-        '<div class="no-plans">Failed to connect to server...</div>';
+        '<div class="no-plans">Failed to connect to server or no plans available.</div>';
     }
   }
 
@@ -319,17 +596,17 @@ QNH: 1013</textarea>
       return;
     }
 
-    container.innerHTML = flightPlans.map((plan, index) => \`
-      <div class="flight-plan" onclick="selectFlightPlan(\${index})">
-        <div class="flight-plan-callsign">\${plan.callsign || 'Unknown'}</div>
+    container.innerHTML = flightPlans.map((plan, index) => `
+      <div class="flight-plan ${selectedFlightPlan === plan ? 'selected' : ''}" onclick="selectFlightPlan(${index})">
+        <div class="flight-plan-callsign">${plan.callsign || 'Unknown'}</div>
         <div class="flight-plan-details">
-          Destination: \${plan.arriving || 'N/A'}<br>
-          Route: \${plan.route || 'GPS Direct'}<br>
-          FL: \${plan.flightlevel || 'N/A'}<br>
-          Source: \${plan.source || 'Main'}
+          Destination: ${plan.arriving || 'N/A'}<br>
+          Route: ${plan.route || 'GPS Direct'}<br>
+          FL: ${plan.flightlevel || 'N/A'}<br>
+          Source: ${plan.source || 'Main'}
         </div>
       </div>
-    \`).join('');
+    `).join('');
   }
 
   function selectFlightPlan(index) {
@@ -340,88 +617,35 @@ QNH: 1013</textarea>
     document.getElementById('generateBtn').disabled = false;
   }
 
-  function updateRunwayOptions() {
-    const atis = document.getElementById("atis").value;
-    const runwaySelect = document.getElementById("runway");
-    
-    // Debug: log the ATIS text
-    console.log("ATIS text:", atis);
-    
-    runwaySelect.innerHTML = '<option value="">Select Runway</option>';
-    
-    const allRunways = new Set(); // Use Set to avoid duplicates
-    
-    // Match both Arrival and Departure runways
-    const arrivalMatch = atis.match(/Arrival Runway\s*(?:\(s\))?\s*:\s*\(([^)]+)\)/i);
-    const departureMatch = atis.match(/Departure Runway\s*(?:\(s\))?\s*:\s*\(([^)]+)\)/i);
-    
-    console.log("Arrival match:", arrivalMatch);
-    console.log("Departure match:", departureMatch);
-    
-    // Process arrival runways
-    if (arrivalMatch) {
-      const runwaysText = arrivalMatch[1];
-      console.log("Arrival runways text found:", runwaysText);
-      
-      const runways = runwaysText.split(/[,\/]|\s+and\s+/i)
-        .map(runway => runway.trim())
-        .filter(runway => runway.length > 0);
-      
-      runways.forEach(runway => allRunways.add(runway));
-    }
-    
-    // Process departure runways
-    if (departureMatch) {
-      const runwaysText = departureMatch[1];
-      console.log("Departure runways text found:", runwaysText);
-      
-      const runways = runwaysText.split(/[,\/]|\s+and\s+/i)
-        .map(runway => runway.trim())
-        .filter(runway => runway.length > 0);
-      
-      runways.forEach(runway => allRunways.add(runway));
-    }
-    
-    console.log("All unique runways:", Array.from(allRunways));
-    
-    // Add all unique runways to dropdown
-    Array.from(allRunways).sort().forEach(runway => {
-      const option = document.createElement('option');
-      option.value = runway;
-      option.textContent = runway;
-      runwaySelect.appendChild(option);
-      console.log("Added runway option:", runway);
-    });
-    
-    if (allRunways.size === 0) {
-      console.log("No runway matches found in ATIS");
-    }
-  }
-
   function generateClearance() {
     if (!selectedFlightPlan) {
       alert('Please select a flight plan first');
       return;
     }
 
-    const atis = document.getElementById("atis").value;
     const ifl = document.getElementById("ifl").value;
-    const departureRW = document.getElementById("runway").value || "Unknown";
+    const departureRW = document.getElementById("departureRunway").value.trim();
     const squawk = generateSquawk();
     
     // Get FL from flight plan
     const flightLevel = selectedFlightPlan.flightlevel || 'N/A';
 
-    const clearance = \`\${selectedFlightPlan.callsign || 'UNKNOWN'} cleared IFR to \${selectedFlightPlan.arriving || 'destination'} Via \${selectedFlightPlan.route || 'GPS direct'}. Departure RW is \${departureRW}. Climb IFL \${ifl}. FL is \${flightLevel}. Squacking is \${squawk}.\`;
+    // Validate departure runway input
+    if (!departureRW) {
+      alert('Please enter a Departure Runway.');
+      return;
+    }
+
+    const clearance = `${selectedFlightPlan.callsign || 'UNKNOWN'} cleared IFR to ${selectedFlightPlan.arriving || 'destination'} Via ${selectedFlightPlan.route || 'GPS direct'}. Departure runway is ${departureRW}. Climb IFL ${ifl}. FL is ${flightLevel}. Squawking is ${squawk}.`;
 
     document.getElementById("clearanceOutput").textContent = clearance;
   }
-
-  setInterval(loadFlightPlans, 5000);
-  loadFlightPlans();
   
-  // Initialize runway options on page load
-  updateRunwayOptions();
+  // Initial load of flight plans when the page loads
+  document.addEventListener('DOMContentLoaded', () => {
+    loadFlightPlans();
+    // No need to call updateRunwayOptions here, it's called oninput for the textarea
+  });
 </script>
 
 </body>
