@@ -344,15 +344,13 @@ QNH: 1013</textarea>
     const atis = document.getElementById("atis").value;
     const runwaySelect = document.getElementById("runway");
     
-    // Extract departure runways from ATIS text
-    const departureMatch = atis.match(/Departure Runway\(s\):\s*\(([^)]+)\)/i);
+    // More flexible regex: allow optional space before (s), and before colon
+    const departureMatch = atis.match(/Departure Runway\s*(?:\(s\))?\s*:\s*\(([^)]+)\)/i);
     
-    // Clear existing options
     runwaySelect.innerHTML = '<option value="">Select Runway</option>';
     
     if (departureMatch) {
       const runwaysText = departureMatch[1];
-      // Split by comma, slash, or "and" to handle multiple runways
       const runways = runwaysText.split(/[,\/]|\s+and\s+/i)
         .map(runway => runway.trim())
         .filter(runway => runway.length > 0);
