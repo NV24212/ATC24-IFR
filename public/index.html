@@ -8,6 +8,12 @@
 <body>
 <div class="container">
   <div class="header">
+    <div class="header-top">
+      <div></div> <!-- Empty div for spacing -->
+      <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">
+        🌙 Dark Mode
+      </button>
+    </div>
     <h1>ATC24 IFR Clearance Generator</h1>
     <p style="color: var(--text-muted); margin-top: 10px; font-size: 14px;">
       ICAO Standard Phraseology Format | Professional ATC Communications
@@ -122,6 +128,36 @@
 <script>
   let selectedFlightPlan = null;
   let flightPlans = []; // This will hold flight plans fetched from the server
+
+  // Theme toggle functionality
+  function toggleTheme() {
+    const root = document.documentElement;
+    const themeToggle = document.getElementById('themeToggle');
+    
+    if (root.getAttribute('data-theme') === 'light') {
+      root.removeAttribute('data-theme');
+      themeToggle.textContent = '🌙 Dark Mode';
+      localStorage.setItem('theme', 'dark');
+    } else {
+      root.setAttribute('data-theme', 'light');
+      themeToggle.textContent = '☀️ Light Mode';
+      localStorage.setItem('theme', 'light');
+    }
+  }
+
+  // Load saved theme on page load
+  function loadTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    const root = document.documentElement;
+    const themeToggle = document.getElementById('themeToggle');
+    
+    if (savedTheme === 'light') {
+      root.setAttribute('data-theme', 'light');
+      themeToggle.textContent = '☀️ Light Mode';
+    } else {
+      themeToggle.textContent = '🌙 Dark Mode';
+    }
+  }
 
   function handleRoutingTypeChange() {
     const routingType = document.getElementById("routingType").value;
@@ -264,6 +300,7 @@
 
   // Initial load of flight plans when the page loads
   document.addEventListener('DOMContentLoaded', () => {
+    loadTheme();
     loadFlightPlans();
   });
 </script>
