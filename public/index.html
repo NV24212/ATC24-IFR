@@ -13,7 +13,7 @@
       ICAO Standard Phraseology Format | Professional ATC Communications
     </p>
     <p style="color: var(--text-muted); margin-top: 15px; font-size: 12px;">
-      All rights reserved, Hasan Mahmood © | <a href="#" onclick="showLicense()" style="color: var(--primary-color); text-decoration: none; cursor: pointer;">License</a>
+      All rights reserved, Hasan Mahmood © | <a href="https://atc24-ifr.hasmah.xyz/license" style="color: var(--primary-color); text-decoration: none;">License</a>
     </p>
   </div>
 
@@ -256,8 +256,8 @@
     }
 
     // Generate clearance in the new format
-    // Format: "CALLSIGN, ATC_STATION, good day. Startup approved. You have Information LETTER. Cleared to DESTINATION via [route], runway RWY. Initial climb ALTft, expect further climb to Flight Level FL. Squawk SQUAWK."
-    const clearance = `${callsign}, ${groundCallsign}, good day. Startup approved. You have Information ${atisInfo}. Cleared to ${destination} via ${routePhrase}, runway ${departureRW}. Initial climb ${ifl}FT, expect further climb to Flight Level ${flightLevel.replace('FL', '').padStart(3, '0')}. Squawk ${squawk}.`;
+    // Format: "CALLSIGN, ATC_STATION, good day. Startup approved. Information LETTER is correct. Cleared to DESTINATION via [route], runway RWY. Initial climb ALTft, expect further climb to Flight Level FL. Squawk SQUAWK."
+    const clearance = `${callsign}, ${groundCallsign}, good day. Startup approved. Information ${atisInfo} is correct. Cleared to ${destination} via ${routePhrase}, runway ${departureRW}. Initial climb ${ifl}FT, expect further climb to Flight Level ${flightLevel.replace('FL', '').padStart(3, '0')}. Squawk ${squawk}.`;
 
     document.getElementById("clearanceOutput").textContent = clearance;
   }
