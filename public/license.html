@@ -3,7 +3,8 @@
 <head>
   <title>License - ATC24 IFR Clearance Generator</title>
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css"> <style>
+  <link rel="stylesheet" href="styles.css">
+<style>
     /* Specific styles for the license page to override/supplement shared styles */
     .license-content {
       background: var(--surface-color);
@@ -27,6 +28,20 @@
       line-height: 1.8;
       color: var(--text-color);
       margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .contact-info {
+      background: var(--surface-hover);
+      border: 2px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      text-align: center;
+    }
+
+    .contact-info strong {
+      color: var(--primary-color);
     }
 
     .back-btn {
@@ -63,39 +78,16 @@
   </div>
 
   <div class="license-content">
-    <div class="license-title">End User License Agreement</div>
+    <div class="license-title">License Agreement</div>
 
     <div class="license-text">
-      <strong>Copyright Notice:</strong><br>
-      All rights reserved, Hasan Mahmood © ${new Date().getFullYear()}
+      You can use this software only once you get approval from Hasan Mahmood.
     </div>
 
-    <div class="license-text">
-      <strong>License Terms:</strong><br>
-      This software and its associated documentation files (the "Software") are the exclusive property of Hasan Mahmood. The Software is protected by copyright laws and international copyright treaties.
-    </div>
-
-    <div class="license-text">
-      <strong>Restrictions:</strong><br>
-      • Copying, reproducing, or distributing this Software is strictly prohibited<br>
-      • Reverse engineering, decompiling, or disassembling the Software is forbidden<br>
-      • Creating derivative works based on this Software is not permitted<br>
-      • Commercial use without explicit written permission is prohibited
-    </div>
-
-    <div class="license-text">
-      <strong>Permitted Use:</strong><br>
-      This Software is provided for authorized use only. Any use outside the scope of this license requires explicit written permission from the copyright holder.
-    </div>
-
-    <div class="license-text">
-      <strong>Disclaimer:</strong><br>
-      This Software is provided "as is" without warranty of any kind. The author shall not be liable for any damages arising from the use of this Software.
-    </div>
-
-    <div class="license-text">
-      <strong>Contact:</strong><br>
-      For licensing inquiries or permissions, please contact Hasan Mahmood.
+    <div class="contact-info">
+      <strong>Contact Hasan Mahmood:</strong><br><br>
+      📧 Email: <span style="color: var(--primary-color);">nv24212@nvtc.edu.bh</span><br>
+      💬 Discord: <span style="color: var(--primary-color);">h.a.s2</span>
     </div>
 
     <a href="/" class="back-btn">← Back to Application</a>
