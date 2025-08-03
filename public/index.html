@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ATC24 IFR Clearance Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>ATC24 IFR Clearance Generator</h1>
+    <p style="color: var(--text-muted); margin-top: 10px; font-size: 14px;">
+      ICAO Standard Phraseology Format | Professional ATC Communications
+    </p>
+    <p style="color: var(--text-muted); margin-top: 15px; font-size: 12px;">
+      All rights reserved, Hasan Mahmood © | <a href="/license" style="color: var(--primary-color); text-decoration: none;">License</a>
+    </p>
+  </div>
+
+  <div class="main-grid">
+    <div class="section">
+      <h2 class="section-title">Flight Plans</h2>
+      <button class="refresh-btn" onclick="loadFlightPlans()">Refresh Plans</button>
+      <div class="flight-plans" id="flightPlans">
+        <div class="no-plans">No flight plans received yet...</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title">ATC Configuration</h2>
+
+      <div class="config-group">
+        <label class="config-label">ATC Call Sign</label>
+        <input type="text" id="groundCallsign" placeholder="e.g., EBBR_GND">
+      </div>
+
+      <div class="config-group">
+        <label class="config-label">ATIS Information Letter</label>
+        <select id="atisInfo">
+          <option value="A">Information A</option>
+          <option value="B">Information B</option>
+          <option value="C">Information C</option>
+          <option value="D">Information D</option>
+          <option value="E">Information E</option>
+          <option value="F">Information F</option>
+          <option value="G">Information G</option>
+          <option value="H">Information H</option>
+          <option value="I">Information I</option>
+          <option value="J">Information J</option>
+          <option value="K">Information K</option>
+          <option value="L">Information L</option>
+          <option value="M">Information M</option>
+          <option value="N">Information N</option>
+          <option value="O">Information O</option>
+          <option value="P">Information P</option>
+          <option value="Q">Information Q</option>
+          <option value="R">Information R</option>
+          <option value="S">Information S</option>
+          <option value="T">Information T</option>
+          <option value="U">Information U</option>
+          <option value="V">Information V</option>
+          <option value="W">Information W</option>
+          <option value="X">Information X</option>
+          <option value="Y">Information Y</option>
+          <option value="Z">Information Z</option>
+        </select>
+      </div>
+
+      <div class="config-group">
+        <label class="config-label">Routing Type</label>
+        <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 10px;">
+          Select departure routing method. As Filed uses the original flight plan route.
+        </p>
+        <select id="routingType" onchange="handleRoutingTypeChange()">
+          <option value="AS_FILED">As Filed (Use original filed route)</option>
+          <option value="SID">SID (Standard Instrument Departure)</option>
+          <option value="RDV">Radar Vectors (Controller guidance)</option>
+          <option value="DIRECT">Direct (Navigation to specific waypoint)</option>
+        </select>
+
+        <div id="sidInput" style="display: none; margin-top: 15px;">
+          <input type="text" id="sidName" placeholder="Enter SID (e.g., CIV1K)">
+        </div>
+
+        <div id="directInput" style="display: none; margin-top: 15px;">
+          <input type="text" id="directWaypoint" placeholder="Enter directed waypoint(s) (e.g., BIMBO, ALPHA)">
+        </div>
+      </div>
+
+      <div class="config-group">
+        <label class="config-label">Departure Runway</label>
+        <input type="text" id="departureRunway" placeholder="e.g., 25R">
+      </div>
+
+      <div class="config-group">
+        <label class="config-label">Initial Climb Altitude</label>
+        <select id="ifl">
+          <option value="1000">1000</option>
+          <option value="2000">2000</option>
+          <option value="3000">3000</option>
+        </select>
+      </div>
+
+      <button class="generate-btn" onclick="generateClearance()" id="generateBtn" disabled>
+        Generate IFR Clearance
+      </button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">IFR Clearance</h2>
+    <div class="clearance-output" id="clearanceOutput">
+      Select a flight plan and configure ATC settings to generate clearance...
+    </div>
+  </div>
+</div>
+
+<script>
+  let selectedFlightPlan = null;
+  let flightPlans = []; // This will hold flight plans fetched from the server
+
+  function handleRoutingTypeChange() {
+    const routingType = document.getElementById("routingType").value;
+    const sidInput = document.getElementById("sidInput");
+    const directInput = document.getElementById("directInput");
+
+    // Hide all inputs first
+    sidInput.style.display = "none";
+    directInput.style.display = "none";
+
+    // Show relevant input based on selection
+    if (routingType === "SID") {
+      sidInput.style.display = "block";
+    } else if (routingType === "DIRECT") {
+      directInput.style.display = "block";
+    }
+  }
+
+  function generateSquawk() {
+    while (true) {
+      let code = Math.floor(1000 + Math.random() * 6777).toString();
+      // Ensure all digits are between 0-7 for octal squawk code
+      if ([...code].every(c => parseInt(c) <= 7)) return code;
+    }
+  }
+
+  async function loadFlightPlans() {
+    try {
+      // Add loading state
+      const flightPlansContainer = document.getElementById("flightPlans");
+      flightPlansContainer.innerHTML = '<div class="no-plans loading">Loading flight plans...</div>';
+
+      const res = await fetch("/flight-plans");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      flightPlans = await res.json();
+      displayFlightPlans();
+    } catch (err) {
+      console.error("Failed to load flight plans:", err);
+      document.getElementById("flightPlans").innerHTML =
+        '<div class="no-plans">Failed to connect to server or no plans available.</div>';
+    }
+  }
+
+  function displayFlightPlans() {
+    const container = document.getElementById("flightPlans");
+
+    if (flightPlans.length === 0) {
+      container.innerHTML = '<div class="no-plans">No flight plans received yet...</div>';
+      return;
+    }
+
+    container.innerHTML = flightPlans.map((plan, index) => `
+      <div class="flight-plan ${selectedFlightPlan === plan ? 'selected' : ''}" onclick="selectFlightPlan(${index})">
+        <div class="flight-plan-callsign">${plan.callsign || 'Unknown'}</div>
+        <div class="flight-plan-details">
+          Destination: ${plan.arriving || 'N/A'}<br>
+          Route: ${plan.route || 'Direct'}<br>
+          FL: ${plan.flightlevel || 'N/A'}<br>
+          Source: ${plan.source || 'Main'}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function selectFlightPlan(index) {
+    selectedFlightPlan = flightPlans[index];
+    document.querySelectorAll('.flight-plan').forEach((el, i) => {
+      el.classList.toggle('selected', i === index);
+    });
+    document.getElementById('generateBtn').disabled = false;
+  }
+
+  function generateClearance() {
+    if (!selectedFlightPlan) {
+      alert('Please select a flight plan first');
+      return;
+    }
+
+    const groundCallsign = document.getElementById("groundCallsign").value.trim() || "GROUND";
+    const atisInfo = document.getElementById("atisInfo").value;
+    const ifl = document.getElementById("ifl").value;
+    const departureRW = document.getElementById("departureRunway").value.trim();
+    const routingType = document.getElementById("routingType").value;
+    const squawk = generateSquawk();
+
+    // Get details from flight plan
+    const callsign = selectedFlightPlan.callsign || 'UNKNOWN';
+    const destination = selectedFlightPlan.arriving || 'UNKNOWN';
+    const planRoute = selectedFlightPlan.route || '';
+
+    // Validate inputs
+    if (!groundCallsign || groundCallsign === "GROUND") {
+      alert('Please enter an ATC Call Sign.');
+      return;
+    }
+
+    if (!departureRW) {
+      alert('Please enter a Departure Runway.');
+      return;
+    }
+
+    // Handle routing based on type
+    let routePhrase = '';
+    switch (routingType) {
+      case 'SID':
+        const sidName = document.getElementById("sidName").value.trim();
+        if (sidName) {
+          routePhrase = `via the ${sidName} departure`;
+        } else {
+          alert('Please enter a SID name.');
+          return;
+        }
+        break;
+      case 'RDV':
+        routePhrase = 'via radar vectors';
+        break;
+      case 'DIRECT':
+        const directWaypoint = document.getElementById("directWaypoint").value.trim();
+        if (directWaypoint) {
+          routePhrase = `direct ${directWaypoint}`;
+        } else {
+          alert('Please enter a direct waypoint.');
+          return;
+        }
+        break;
+      case 'AS_FILED':
+        routePhrase = 'as filed';
+        break;
+      default:
+        routePhrase = 'as filed';
+    }
+
+    // Generate clearance in proper ICAO phraseology format
+    // Format: "[CALLSIGN], [ATC_STATION] [greeting], information [LETTER] is correct, startup approved, you are cleared to [DESTINATION] [ROUTE], runway [RWY], climb initially [ALT], squawk [SQUAWK]"
+    const clearance = `${callsign}, ${groundCallsign} hiya, information ${atisInfo} is correct, startup approved, you are cleared to ${destination} ${routePhrase}, runway ${departureRW}, climb initially ${ifl}, squawk ${squawk}`;
+
+    document.getElementById("clearanceOutput").textContent = clearance;
+  }
+
+  // Initial load of flight plans when the page loads
+  document.addEventListener('DOMContentLoaded', () => {
+    loadFlightPlans();
+  });
+</script>
+
+</body>
+</html>

@@ -3,69 +3,107 @@
 <head>
   <title>License - ATC24 IFR Clearance Generator</title>
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css"> <style>
-    /* Specific styles for license page if needed, otherwise rely on main style.css */
+  <link rel="stylesheet" href="styles.css"> <style>
+    /* Specific styles for the license page to override/supplement shared styles */
     .license-content {
       background: var(--surface-color);
       border-radius: 16px;
-      padding: 30px;
+      padding: 40px;
       border: 1px solid var(--border-color);
       box-shadow: var(--shadow);
-      max-width: 800px;
-      margin: 40px auto;
-      color: var(--text-color);
-      line-height: 1.8;
-      font-size: 15px;
+      margin-bottom: 30px;
     }
-    .license-content h2 {
+
+    .license-title {
       color: var(--primary-color);
-      margin-bottom: 20px;
       font-size: 24px;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 10px;
-    }
-    .license-content p {
-      margin-bottom: 15px;
-    }
-    .license-content strong {
-      color: var(--primary-color);
-    }
-    .back-link {
-      display: inline-block;
-      margin-top: 30px;
-      padding: 10px 20px;
-      background: var(--primary-color);
-      color: #000;
-      text-decoration: none;
-      border-radius: 8px;
       font-weight: 600;
-      transition: background 0.3s ease, transform 0.2s ease;
+      margin-bottom: 30px;
+      text-align: center;
     }
-    .back-link:hover {
-      background: #ffd700;
+
+    .license-text {
+      font-size: 16px;
+      line-height: 1.8;
+      color: var(--text-color);
+      margin-bottom: 20px;
+    }
+
+    .back-btn {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--primary-color), #ffd700);
+      color: #000;
+      padding: 15px 30px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      text-align: center;
+      transition: all 0.3s ease;
+      margin-top: 20px;
+    }
+
+    .back-btn:hover {
       transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(245, 222, 64, 0.3);
+    }
+
+    .copyright {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 30px;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>License Information</h1>
-    </div>
-
-    <div class="license-content">
-      <h2>ATC24 IFR Clearance Generator License</h2>
-      <p>This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.</p>
-      <p><strong>Developed by:</strong> Hasan Mahmood</p>
-      <p><strong>Contact:</strong> [Your Contact Information Here, if you wish]</p>
-      <p><strong>Purpose:</strong> This tool is designed to assist virtual air traffic controllers with generating IFR clearances according to ICAO standard phraseology for use in flight simulation networks (e.g., VATSIM, IVAO).</p>
-      <p><strong>Disclaimer:</strong> This tool is for simulation purposes only and should not be used for real-world aviation.</p>
-      <p>All rights reserved. © 2025 Hasan Mahmood.</p>
-    </div>
-
-    <p style="text-align: center;">
-      <a href="index.html" class="back-link">← Back to Generator</a>
-    </p>
+<div class="container">
+  <div class="header">
+    <h1>Software License</h1>
+    <p style="color: var(--text-muted); margin-top: 10px;">ATC24 IFR Clearance Generator</p>
   </div>
+
+  <div class="license-content">
+    <div class="license-title">End User License Agreement</div>
+
+    <div class="license-text">
+      <strong>Copyright Notice:</strong><br>
+      All rights reserved, Hasan Mahmood © ${new Date().getFullYear()}
+    </div>
+
+    <div class="license-text">
+      <strong>License Terms:</strong><br>
+      This software and its associated documentation files (the "Software") are the exclusive property of Hasan Mahmood. The Software is protected by copyright laws and international copyright treaties.
+    </div>
+
+    <div class="license-text">
+      <strong>Restrictions:</strong><br>
+      • Copying, reproducing, or distributing this Software is strictly prohibited<br>
+      • Reverse engineering, decompiling, or disassembling the Software is forbidden<br>
+      • Creating derivative works based on this Software is not permitted<br>
+      • Commercial use without explicit written permission is prohibited
+    </div>
+
+    <div class="license-text">
+      <strong>Permitted Use:</strong><br>
+      This Software is provided for authorized use only. Any use outside the scope of this license requires explicit written permission from the copyright holder.
+    </div>
+
+    <div class="license-text">
+      <strong>Disclaimer:</strong><br>
+      This Software is provided "as is" without warranty of any kind. The author shall not be liable for any damages arising from the use of this Software.
+    </div>
+
+    <div class="license-text">
+      <strong>Contact:</strong><br>
+      For licensing inquiries or permissions, please contact Hasan Mahmood.
+    </div>
+
+    <a href="/" class="back-btn">← Back to Application</a>
+  </div>
+
+  <div class="copyright">
+    © ${new Date().getFullYear()} Hasan Mahmood. All rights reserved.
+  </div>
+</div>
 </body>
 </html>
