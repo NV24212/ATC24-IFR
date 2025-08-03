@@ -479,6 +479,9 @@ app.get("/", (req, res) => {
 <div class="container">
   <div class="header">
     <h1>ATC24 IFR Clearance Generator</h1>
+    <p style="color: var(--text-muted); margin-top: 10px; font-size: 14px;">
+      Following CRAFT format (Clearance, Route, Altitude, Frequency, Transponder) | RDV default for safety
+    </p>
   </div>
 
   <div class="main-grid">
@@ -496,8 +499,13 @@ app.get("/", (req, res) => {
 
 
       <div class="config-group">
-        <label class="config-label">Departure Runway</label>
-        <input type="text" id="departureRunway" placeholder="e.g., 25L">
+        <label class="config-label">Routing Type</label>
+        <select id="routingType">
+          <option value="RDV">RDV (Radar Vectors - Default for Safety)</option>
+          <option value="SID">SID (Standard Instrument Departure)</option>
+          <option value="DIRECT">Direct (Navigation to Fix/Waypoint)</option>
+          <option value="AS_FILED">As Filed (Filed Route)</option>
+        </select>
       </div>
 
 
@@ -599,6 +607,7 @@ app.get("/", (req, res) => {
     const ifl = document.getElementById("ifl").value;
     const departureRW = document.getElementById("departureRunway").value.trim();
     const departureFreq = document.getElementById("departureFreq").value.trim();
+    const routingType = document.getElementById("routingType").value;
     const squawk = generateSquawk();
     
     // Get details from flight plan
@@ -618,12 +627,41 @@ app.get("/", (req, res) => {
       return;
     }
 
-    // Handle routing - default to RDV when route is N/A or empty
+    // Handle routing based on CRAFT format (Clearance, Route, Altitude, Frequency, Transponder)
     let route = '';
-    if (!planRoute || planRoute === 'N/A' || planRoute === 'GPS Direct' || planRoute.toLowerCase() === 'direct') {
-      route = 'radar vectors';
-    } else {
-      route = planRoute;
+    switch (routingType) {
+      case 'RDV':
+        // Default to radar vectors for safety - controller maintains positive control
+        route = 'radar vectors';
+        break;
+      case 'SID':
+        // Standard Instrument Departure for system enhancement and workload reduction
+        if (!planRoute || planRoute === 'N/A' || planRoute === 'GPS Direct' || planRoute.toLowerCase() === 'direct') {
+          route = 'WOBUN1 departure'; // Example SID
+        } else {
+          // Use actual SID from flight plan if available
+          route = planRoute.includes('departure') ? planRoute : \`\${planRoute} departure\`;
+        }
+        break;
+      case 'DIRECT':
+        // Direct navigation to fix/waypoint
+        if (!planRoute || planRoute === 'N/A' || planRoute === 'GPS Direct' || planRoute.toLowerCase() === 'direct') {
+          route = 'direct BIMBO'; // Example waypoint
+        } else {
+          route = \`direct \${planRoute}\`;
+        }
+        break;
+      case 'AS_FILED':
+        // Use filed route as-is
+        if (!planRoute || planRoute === 'N/A') {
+          route = 'as filed'; // Fallback
+        } else {
+          route = planRoute;
+        }
+        break;
+      default:
+        // Safety default - always use radar vectors when uncertain
+        route = 'radar vectors';
     }
 
     // Generate all three clearance formats exactly as specified
