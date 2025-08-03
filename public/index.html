@@ -230,14 +230,14 @@
       case 'SID':
         const sidName = document.getElementById("sidName").value.trim();
         if (sidName) {
-          routePhrase = `via the ${sidName} departure`;
+          routePhrase = `the ${sidName} departure`;
         } else {
           alert('Please enter a SID name.');
           return;
         }
         break;
       case 'RDV':
-        routePhrase = 'via radar vectors';
+        routePhrase = 'radar vectors';
         break;
       case 'DIRECT':
         const directWaypoint = document.getElementById("directWaypoint").value.trim();
@@ -249,15 +249,15 @@
         }
         break;
       case 'AS_FILED':
-        routePhrase = 'as filed';
+        routePhrase = planRoute || 'as filed';
         break;
       default:
-        routePhrase = 'as filed';
+        routePhrase = planRoute || 'as filed';
     }
 
     // Generate clearance in the new format
-    // Format: "CALLSIGN, ATC_STATION hiya, information LETTER is correct, startup approved, you are cleared to DESTINATION via the ROUTE, runway RWY, climb initially ALTft, expect flightlevel FL. squawk SQUAWK"
-    const clearance = `${callsign}, ${groundCallsign} hiya, information ${atisInfo} is correct, startup approved, you are cleared to ${destination} ${routePhrase}, runway ${departureRW}, climb initially ${ifl}ft, expect flightlevel ${flightLevel.replace('FL', '').padStart(3, '0')}. squawk ${squawk}`;
+    // Format: "CALLSIGN, ATC_STATION, good day. Startup approved. You have Information LETTER. Cleared to DESTINATION via [route], runway RWY. Initial climb ALTft, expect further climb to Flight Level FL. Squawk SQUAWK."
+    const clearance = `${callsign}, ${groundCallsign}, good day. Startup approved. You have Information ${atisInfo}. Cleared to ${destination} via ${routePhrase}, runway ${departureRW}. Initial climb ${ifl}FT, expect further climb to Flight Level ${flightLevel.replace('FL', '').padStart(3, '0')}. Squawk ${squawk}.`;
 
     document.getElementById("clearanceOutput").textContent = clearance;
   }
