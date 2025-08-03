@@ -95,9 +95,9 @@
       <div class="config-group">
         <label class="config-label">Initial Climb Altitude</label>
         <select id="ifl">
-          <option value="1000">1000</option>
-          <option value="2000">2000</option>
-          <option value="3000">3000</option>
+          <option value="1000">1000FT</option>
+          <option value="2000">2000FT</option>
+          <option value="3000">3000FT</option>
         </select>
       </div>
 
@@ -207,6 +207,7 @@
     const callsign = selectedFlightPlan.callsign || 'UNKNOWN';
     const destination = selectedFlightPlan.arriving || 'UNKNOWN';
     const planRoute = selectedFlightPlan.route || '';
+    const flightLevel = selectedFlightPlan.flightlevel || 'N/A';
 
     // Validate inputs
     if (!groundCallsign || groundCallsign === "GROUND") {
@@ -250,9 +251,9 @@
         routePhrase = 'as filed';
     }
 
-    // Generate clearance in proper ICAO phraseology format
-    // Format: "[CALLSIGN], [ATC_STATION] [greeting], information [LETTER] is correct, startup approved, you are cleared to [DESTINATION] [ROUTE], runway [RWY], climb initially [ALT], squawk [SQUAWK]"
-    const clearance = `${callsign}, ${groundCallsign} hiya, information ${atisInfo} is correct, startup approved, you are cleared to ${destination} ${routePhrase}, runway ${departureRW}, climb initially ${ifl}, squawk ${squawk}`;
+    // Generate clearance in the new format
+    // Format: "CALLSIGN, ATC_STATION hiya, information LETTER is correct, startup approved, you are cleared to DESTINATION via the ROUTE, runway RWY, climb initially ALTft, expect flightlevel FL. squawk SQUAWK"
+    const clearance = `${callsign}, ${groundCallsign} hiya, information ${atisInfo} is correct, startup approved, you are cleared to ${destination} ${routePhrase}, runway ${departureRW}, climb initially ${ifl}ft, expect flightlevel ${flightLevel.replace('FL', '').padStart(3, '0')}. squawk ${squawk}`;
 
     document.getElementById("clearanceOutput").textContent = clearance;
   }
