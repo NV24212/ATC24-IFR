@@ -261,16 +261,23 @@ select:focus {
 
 /* Dropdown options styling */
 select option {
-  background: var(--surface-hover);
-  color: var(--text-color);
+  background: var(--surface-hover) !important;
+  color: var(--text-color) !important;
   padding: 10px 15px;
   border: none;
 }
 
 select option:hover,
 select option:focus {
-  background: var(--primary-color);
-  color: #000;
+  background: var(--primary-color) !important;
+  background-color: #f5de40 !important;
+  color: #000 !important;
+}
+
+select option:selected {
+  background: var(--primary-color) !important;
+  background-color: #f5de40 !important;
+  color: #000 !important;
 }
 
 select option:checked {
