@@ -1,8 +1,25 @@
 {
+  "name": "your-project-name",
+  "version": "1.0.0",
+  "description": "A brief description of your project",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
+<<<<<<< HEAD
     "express": "^5.1.0",
     "path": "^0.12.7",
     "ws": "^8.18.3"
+=======
+    "express": "^4.21.2",
+    "path": "^0.12.7",
+    "ws": "^8.0.0"
+>>>>>>> 199076bf638d578d6962963945c52a88ddb67d4c
   }
 }
