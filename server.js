@@ -493,10 +493,14 @@ app.get("/", (req, res) => {
     <div class="section">
       <h2 class="section-title">ATC Configuration</h2>
 
+
+
       <div class="config-group">
-        <label class="config-label">Departure runway</label>
+        <label class="config-label">Departure Runway</label>
         <input type="text" id="departureRunway" placeholder="e.g., 25L">
       </div>
+
+
 
       <div class="config-group">
         <label class="config-label">IFL (Initial Flight Level)</label>
@@ -505,7 +509,13 @@ app.get("/", (req, res) => {
           <option>2000</option>
           <option>3000</option>
           <option>4000</option>
+          <option>5000</option>
         </select>
+      </div>
+
+      <div class="config-group">
+        <label class="config-label">Departure Frequency</label>
+        <input type="text" id="departureFreq" placeholder="e.g., 123.1">
       </div>
 
       <button class="generate-btn" onclick="generateClearance()" id="generateBtn" disabled>
@@ -533,8 +543,6 @@ app.get("/", (req, res) => {
       if ([...code].every(c => parseInt(c) <= 7)) return code;
     }
   }
-
-  
 
   async function loadFlightPlans() {
     try {
@@ -566,7 +574,7 @@ app.get("/", (req, res) => {
         <div class="flight-plan-callsign">\${plan.callsign || 'Unknown'}</div>
         <div class="flight-plan-details">
           Destination: \${plan.arriving || 'N/A'}<br>
-          Route: \${plan.route || 'GPS Direct'}<br>
+          Route: \${plan.route || 'Direct'}<br>
           FL: \${plan.flightlevel || 'N/A'}<br>
           Source: \${plan.source || 'Main'}
         </div>
@@ -590,20 +598,51 @@ app.get("/", (req, res) => {
 
     const ifl = document.getElementById("ifl").value;
     const departureRW = document.getElementById("departureRunway").value.trim();
+    const departureFreq = document.getElementById("departureFreq").value.trim();
     const squawk = generateSquawk();
     
-    // Get FL from flight plan
-    const flightLevel = selectedFlightPlan.flightlevel || 'N/A';
+    // Get details from flight plan
+    const callsign = selectedFlightPlan.callsign || 'UNKNOWN';
+    const destination = selectedFlightPlan.arriving || 'UNKNOWN';
+    const planRoute = selectedFlightPlan.route || '';
+    const flightLevel = selectedFlightPlan.flightlevel || 'FL350';
 
-    // Validate departure runway input
+    // Validate inputs
     if (!departureRW) {
       alert('Please enter a Departure Runway.');
       return;
     }
+    
+    if (!departureFreq) {
+      alert('Please enter a Departure Frequency.');
+      return;
+    }
 
-    const clearance = \`\${selectedFlightPlan.callsign || 'UNKNOWN'} cleared IFR to \${selectedFlightPlan.arriving || 'destination'} Via \${selectedFlightPlan.route || 'GPS direct'}. Departure runway is \${departureRW}. Climb IFL \${ifl}. FL is \${flightLevel}. Squacking is \${squawk}.\`;
+    // Handle routing - default to RDV when route is N/A or empty
+    let route = '';
+    if (!planRoute || planRoute === 'N/A' || planRoute === 'GPS Direct' || planRoute.toLowerCase() === 'direct') {
+      route = 'radar vectors';
+    } else {
+      route = planRoute;
+    }
 
-    document.getElementById("clearanceOutput").textContent = clearance;
+    // Generate all three clearance formats exactly as specified
+    const caaFormat = \`CAA:
+\${callsign} cleared \${destination} \${route} \${squawk}\`;
+
+    const icaoFormat = \`ICAO:
+\${callsign} cleared \${destination} \${route} \${departureRW} climb \${ifl} \${squawk}\`;
+
+    const faaFormat = \`FAA:
+\${callsign} cleared \${destination} \${route} as filed \${ifl} \${flightLevel} \${departureFreq} \${squawk}\`;
+
+    const allFormats = \`\${caaFormat}
+
+\${icaoFormat}
+
+\${faaFormat}\`;
+
+    document.getElementById("clearanceOutput").textContent = allFormats;
   }
   
   // Initial load of flight plans when the page loads
