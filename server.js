@@ -83,13 +83,13 @@ app.get("/", (req, res) => {
       --shadow: 0 4px 20px rgba(0,0,0,0.3);
       --shadow-hover: 0 8px 30px rgba(245, 222, 64, 0.15);
     }
-
+    
     * { 
       box-sizing: border-box; 
       margin: 0;
       padding: 0;
     }
-
+    
     body {
       font-family: 'Funnel Display', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--background-color);
@@ -98,18 +98,18 @@ app.get("/", (req, res) => {
       padding: 20px;
       min-height: 100vh;
     }
-
+    
     .container { 
       max-width: 1400px; 
       margin: 0 auto; 
       animation: fadeIn 0.6s ease-out;
     }
-
+    
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(20px); }
       to { opacity: 1; transform: translateY(0); }
     }
-
+    
     .header {
       text-align: center;
       margin-bottom: 40px;
@@ -118,7 +118,7 @@ app.get("/", (req, res) => {
       position: relative;
       overflow: hidden;
     }
-
+    
     .header::before {
       content: '';
       position: absolute;
@@ -130,11 +130,11 @@ app.get("/", (req, res) => {
       transform: translateX(-50%);
       animation: expandLine 1s ease-out 0.5s forwards;
     }
-
+    
     @keyframes expandLine {
       to { width: 100px; }
     }
-
+    
     .header h1 {
       color: var(--primary-color);
       font-size: 32px;
@@ -145,21 +145,21 @@ app.get("/", (req, res) => {
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
-
+    
     .main-grid {
       display: grid;
       grid-template-columns: 1fr 420px;
       gap: 30px;
       margin-bottom: 30px;
     }
-
+    
     @media (max-width: 1024px) {
       .main-grid {
         grid-template-columns: 1fr;
         gap: 20px;
       }
     }
-
+    
     .section {
       background: var(--surface-color);
       border-radius: 16px;
@@ -170,7 +170,7 @@ app.get("/", (req, res) => {
       position: relative;
       overflow: hidden;
     }
-
+    
     .section::before {
       content: '';
       position: absolute;
@@ -182,17 +182,17 @@ app.get("/", (req, res) => {
       opacity: 0;
       transition: opacity 0.3s ease;
     }
-
+    
     .section:hover::before {
       opacity: 1;
     }
-
+    
     .section:hover {
       transform: translateY(-2px);
       box-shadow: var(--shadow-hover);
       border-color: rgba(245, 222, 64, 0.3);
     }
-
+    
     .section-title {
       color: var(--primary-color);
       font-size: 20px;
@@ -202,13 +202,13 @@ app.get("/", (req, res) => {
       border-bottom: 1px solid var(--border-color);
       position: relative;
     }
-
+    
     .flight-plans {
       max-height: 500px;
       overflow-y: auto;
       padding-right: 5px;
     }
-
+    
     .flight-plan {
       background: var(--surface-hover);
       border: 2px solid var(--border-color);
@@ -220,7 +220,7 @@ app.get("/", (req, res) => {
       position: relative;
       overflow: hidden;
     }
-
+    
     .flight-plan::before {
       content: '';
       position: absolute;
@@ -231,25 +231,25 @@ app.get("/", (req, res) => {
       background: linear-gradient(90deg, transparent, rgba(245, 222, 64, 0.1), transparent);
       transition: left 0.5s ease;
     }
-
+    
     .flight-plan:hover::before {
       left: 100%;
     }
-
+    
     .flight-plan:hover {
       border-color: var(--primary-color);
       background: rgba(245, 222, 64, 0.05);
       transform: translateY(-3px) scale(1.02);
       box-shadow: 0 10px 25px rgba(245, 222, 64, 0.2);
     }
-
+    
     .flight-plan.selected {
       border-color: var(--primary-color);
       background: rgba(245, 222, 64, 0.1);
       box-shadow: 0 0 20px rgba(245, 222, 64, 0.3);
       transform: scale(1.02);
     }
-
+    
     .flight-plan-callsign {
       font-size: 18px;
       font-weight: 700;
@@ -257,29 +257,29 @@ app.get("/", (req, res) => {
       margin-bottom: 10px;
       letter-spacing: 0.5px;
     }
-
+    
     .flight-plan-details {
       font-size: 14px;
       color: var(--text-muted);
       line-height: 1.5;
     }
-
+    
     .config-group {
       margin-bottom: 25px;
       animation: slideInUp 0.4s ease-out;
       animation-fill-mode: both;
     }
-
+    
     .config-group:nth-child(1) { animation-delay: 0.1s; }
     .config-group:nth-child(2) { animation-delay: 0.2s; }
     .config-group:nth-child(3) { animation-delay: 0.3s; }
     .config-group:nth-child(4) { animation-delay: 0.4s; }
-
+    
     @keyframes slideInUp {
       from { opacity: 0; transform: translateY(20px); }
       to { opacity: 1; transform: translateY(0); }
     }
-
+    
     .config-label {
       display: block;
       color: var(--primary-color);
@@ -289,7 +289,7 @@ app.get("/", (req, res) => {
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-
+    
     select, textarea, input[type="text"] {
       width: 100%;
       padding: 15px;
@@ -301,7 +301,7 @@ app.get("/", (req, res) => {
       font-family: inherit;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-
+    
     select:focus, textarea:focus, input[type="text"]:focus {
       outline: none;
       border-color: var(--primary-color);
@@ -309,19 +309,19 @@ app.get("/", (req, res) => {
       background: rgba(245, 222, 64, 0.02);
       transform: translateY(-1px);
     }
-
+    
     textarea {
       resize: vertical;
       font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
       line-height: 1.6;
       min-height: 120px;
     }
-
+    
     input[type="text"]::placeholder {
       color: var(--text-muted);
       font-style: italic;
     }
-
+    
     .generate-btn {
       width: 100%;
       padding: 18px;
@@ -338,7 +338,7 @@ app.get("/", (req, res) => {
       position: relative;
       overflow: hidden;
     }
-
+    
     .generate-btn::before {
       content: '';
       position: absolute;
@@ -349,20 +349,20 @@ app.get("/", (req, res) => {
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
       transition: left 0.5s ease;
     }
-
+    
     .generate-btn:hover::before {
       left: 100%;
     }
-
+    
     .generate-btn:hover {
       transform: translateY(-3px);
       box-shadow: 0 10px 30px rgba(245, 222, 64, 0.4);
     }
-
+    
     .generate-btn:active {
       transform: translateY(-1px);
     }
-
+    
     .generate-btn:disabled {
       background: #444;
       color: #888;
@@ -370,7 +370,7 @@ app.get("/", (req, res) => {
       transform: none;
       box-shadow: none;
     }
-
+    
     .clearance-output {
       background: var(--background-color);
       border: 2px solid var(--primary-color);
@@ -386,7 +386,7 @@ app.get("/", (req, res) => {
       overflow: hidden;
       box-shadow: inset 0 2px 10px rgba(0,0,0,0.3);
     }
-
+    
     .clearance-output::before {
       content: '';
       position: absolute;
@@ -399,7 +399,7 @@ app.get("/", (req, res) => {
         radial-gradient(circle at 80% 20%, rgba(245, 222, 64, 0.03) 0%, transparent 50%);
       pointer-events: none;
     }
-
+    
     .no-plans {
       text-align: center;
       color: var(--text-muted);
@@ -407,7 +407,7 @@ app.get("/", (req, res) => {
       font-style: italic;
       font-size: 16px;
     }
-
+    
     .refresh-btn {
       background: var(--surface-hover);
       border: 2px solid var(--border-color);
@@ -422,39 +422,39 @@ app.get("/", (req, res) => {
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-
+    
     .refresh-btn:hover {
       background: var(--primary-color);
       color: #000;
       transform: translateY(-2px);
       box-shadow: 0 5px 15px rgba(245, 222, 64, 0.3);
     }
-
+    
     /* Custom Scrollbar */
     ::-webkit-scrollbar {
       width: 8px;
     }
-
+    
     ::-webkit-scrollbar-track {
       background: var(--surface-color);
       border-radius: 4px;
     }
-
+    
     ::-webkit-scrollbar-thumb {
       background: var(--border-color);
       border-radius: 4px;
       transition: background 0.3s ease;
     }
-
+    
     ::-webkit-scrollbar-thumb:hover {
       background: var(--primary-color);
     }
-
+    
     /* Loading Animation */
     .loading {
       position: relative;
     }
-
+    
     .loading::after {
       content: '';
       position: absolute;
@@ -468,7 +468,7 @@ app.get("/", (req, res) => {
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
-
+    
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
@@ -508,12 +508,12 @@ app.get("/", (req, res) => {
           <option value="SID">SID (Standard Instrument Departure)</option>
           <option value="DIRECT">Direct (Navigation to specific waypoint)</option>
         </select>
-
+        
         <!-- SID input field (hidden by default) -->
         <div id="sidInput" style="display: none; margin-top: 15px;">
           <input type="text" id="sidName" placeholder="Enter SID (e.g., WOBUN1)">
         </div>
-
+        
         <!-- Direct waypoint input field (hidden by default) -->
         <div id="directInput" style="display: none; margin-top: 15px;">
           <input type="text" id="directWaypoint" placeholder="Enter directed waypoint(s) (e.g., BIMBO, ALPHA)">
@@ -563,11 +563,11 @@ app.get("/", (req, res) => {
     const routingType = document.getElementById("routingType").value;
     const sidInput = document.getElementById("sidInput");
     const directInput = document.getElementById("directInput");
-
+    
     // Hide all inputs first
     sidInput.style.display = "none";
     directInput.style.display = "none";
-
+    
     // Show relevant input based on selection
     if (routingType === "SID") {
       sidInput.style.display = "block";
@@ -641,7 +641,7 @@ app.get("/", (req, res) => {
     const departureFreq = document.getElementById("departureFreq").value.trim();
     const routingType = document.getElementById("routingType").value;
     const squawk = generateSquawk();
-
+    
     // Get details from flight plan
     const callsign = selectedFlightPlan.callsign || 'UNKNOWN';
     const destination = selectedFlightPlan.arriving || 'UNKNOWN';
@@ -655,7 +655,7 @@ app.get("/", (req, res) => {
       alert('Please enter a Departure Runway.');
       return;
     }
-
+    
     if (!departureFreq) {
       alert('Please enter a Departure Frequency.');
       return;
@@ -692,9 +692,9 @@ app.get("/", (req, res) => {
         }
         break;
       case 'AS_FILED':
-        // Use filed route as-is
+        // Use filed route as-is, but don't duplicate "as filed" since it's already in the template
         if (!planRoute || planRoute === 'N/A') {
-          route = 'as filed'; // Fallback
+          route = ''; // Empty route for as filed
         } else {
           route = planRoute;
         }
@@ -709,7 +709,7 @@ app.get("/", (req, res) => {
 
     document.getElementById("clearanceOutput").textContent = clearance;
   }
-
+  
   // Initial load of flight plans when the page loads
   document.addEventListener('DOMContentLoaded', () => {
     loadFlightPlans();
