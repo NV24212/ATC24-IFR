@@ -94,8 +94,8 @@ body {
   box-shadow: var(--shadow);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: visible; /* Changed from hidden to visible for dropdown */
-  z-index: 1; /* Added base z-index */
+  overflow: visible;
+  z-index: 1;
 }
 
 .section::before {
@@ -118,7 +118,7 @@ body {
   transform: translateY(-2px);
   box-shadow: var(--shadow-hover);
   border-color: rgba(245, 222, 64, 0.3);
-  z-index: 10; /* Higher z-index on hover */
+  z-index: 10;
 }
 
 .section-title {
@@ -200,8 +200,8 @@ body {
   margin-bottom: 25px;
   animation: slideInUp 0.4s ease-out;
   animation-fill-mode: both;
-  position: relative; /* Added for dropdown positioning */
-  z-index: 1; /* Base z-index for config groups */
+  position: relative;
+  z-index: 1;
 }
 
 .config-group:nth-child(1) { animation-delay: 0.1s; }
@@ -210,7 +210,6 @@ body {
 .config-group:nth-child(4) { animation-delay: 0.4s; }
 .config-group:nth-child(5) { animation-delay: 0.5s; }
 
-/* Higher z-index for config groups with dropdowns when focused */
 .config-group:focus-within {
   z-index: 100;
 }
@@ -244,9 +243,8 @@ select, textarea, input[type="text"] {
   z-index: 1;
 }
 
-/* Enhanced dropdown styling */
 select {
-  appearance: none; /* Remove default browser styling */
+  appearance: none;
   background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 5"><path fill="%23f5de40" d="M2 0L0 2h4zm0 5L0 3h4z"/></svg>');
   background-repeat: no-repeat;
   background-position: right 15px center;
@@ -260,10 +258,9 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(245, 222, 64, 0.1);
   background: rgba(245, 222, 64, 0.02);
   transform: translateY(-1px);
-  z-index: 200; /* Very high z-index when focused */
+  z-index: 200;
 }
 
-/* Dropdown options styling */
 select option {
   background: var(--surface-hover) !important;
   color: var(--text-color) !important;
@@ -282,12 +279,6 @@ select option:selected {
   background: var(--primary-color) !important;
   background-color: #f5de40 !important;
   color: #000 !important;
-}
-
-select option:checked {
-  background: var(--primary-color);
-  color: #000;
-  font-weight: 600;
 }
 
 textarea:focus, input[type="text"]:focus {
@@ -418,7 +409,6 @@ input[type="text"]::placeholder {
   box-shadow: 0 5px 15px rgba(245, 222, 64, 0.3);
 }
 
-/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -438,7 +428,6 @@ input[type="text"]::placeholder {
   background: var(--primary-color);
 }
 
-/* Loading Animation */
 .loading {
   position: relative;
   display: flex;
