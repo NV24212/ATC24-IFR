@@ -138,13 +138,18 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // Serve the frontend HTML
-app.get("/", (req, res) => {
+app.get("/", trackVisit, (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 // Serve the license page
 app.get("/license", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "license.html"));
+});
+
+// Serve admin panel
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
 // REST: Get all flight plans
