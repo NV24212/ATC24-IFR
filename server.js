@@ -210,8 +210,8 @@ ws.on("message", async (data) => {
       flightPlan.timestamp = new Date().toISOString();
       flightPlan.source = parsed.t === "EVENT_FLIGHT_PLAN" ? "Event" : "Main";
 
-      // Track analytics
-      analytics.flightPlansReceived++;
+      // Track analytics in Supabase
+      await trackFlightPlanReceived(flightPlan);
 
       // Add new flight plan to array, keep configurable amount
       flightPlans.unshift(flightPlan);
@@ -362,4 +362,4 @@ app.get("/health", (req, res) => {
   });
 });
 
-app.listen(PORT, () => console.log(`🌐 Server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`�� Server running at http://localhost:${PORT}`));
