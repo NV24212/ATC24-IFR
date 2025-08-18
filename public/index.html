@@ -115,6 +115,20 @@
 <script>
   let selectedFlightPlan = null;
   let flightPlans = []; // This will hold flight plans fetched from the server
+  let adminSettings = {
+    clearanceFormat: {
+      includeAtis: true,
+      includeSquawk: true,
+      includeFlightLevel: true,
+      phraseologyStyle: "ICAO",
+      includeStartupApproval: true,
+      includeInitialClimb: true
+    },
+    aviation: {
+      defaultAltitudes: [1000, 2000, 3000, 4000, 5000],
+      squawkRanges: { min: 1000, max: 7777, exclude: [7500, 7600, 7700] }
+    }
+  };
 
   function handleRoutingTypeChange() {
     const routingType = document.getElementById("routingType").value;
