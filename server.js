@@ -62,21 +62,124 @@ let adminSettings = {
   }
 };
 
-// Middleware to track visits
-function trackVisit(req, res, next) {
+// Session tracking
+const sessions = new Map();
+
+// Helper function to get or create session
+function getOrCreateSession(req) {
+  let sessionId = req.headers['x-session-id'] || req.session?.id;
+
+  if (!sessionId) {
+    sessionId = uuidv4();
+  }
+
+  if (!sessions.has(sessionId)) {
+    sessions.set(sessionId, {
+      id: sessionId,
+      createdAt: new Date(),
+      lastActivity: new Date(),
+      pageViews: 0,
+      clearancesGenerated: 0
+    });
+  }
+
+  const session = sessions.get(sessionId);
+  session.lastActivity = new Date();
+
+  return session;
+}
+
+// Analytics helper functions
+async function trackPageVisit(req, pagePath) {
+  const session = getOrCreateSession(req);
+  session.pageViews++;
+
+  const visitData = {
+    page_path: pagePath,
+    user_agent: req.headers['user-agent'],
+    ip_address: req.ip || req.connection.remoteAddress,
+    referrer: req.headers.referer,
+    session_id: session.id
+  };
+
+  // Track in local analytics for fallback
   const today = new Date().toISOString().split('T')[0];
   analytics.totalVisits++;
   analytics.dailyVisits[today] = (analytics.dailyVisits[today] || 0) + 1;
 
-  // Keep only last 30 days of daily stats
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  Object.keys(analytics.dailyVisits).forEach(date => {
-    if (new Date(date) < thirtyDaysAgo) {
-      delete analytics.dailyVisits[date];
-    }
-  });
+  // Store in Supabase if available
+  if (supabase) {
+    try {
+      await supabase.from('page_visits').insert(visitData);
 
+      // Update or create user session
+      await supabase.from('user_sessions').upsert({
+        session_id: session.id,
+        ip_address: visitData.ip_address,
+        user_agent: visitData.user_agent,
+        last_activity: new Date().toISOString(),
+        page_views: session.pageViews
+      });
+
+    } catch (error) {
+      console.error('Failed to track page visit in Supabase:', error);
+    }
+  }
+}
+
+async function trackClearanceGeneration(req, clearanceData) {
+  const session = getOrCreateSession(req);
+  session.clearancesGenerated++;
+
+  // Track in local analytics for fallback
+  analytics.clearancesGenerated++;
+
+  // Store in Supabase if available
+  if (supabase) {
+    try {
+      await supabase.from('clearance_generations').insert({
+        ...clearanceData,
+        session_id: session.id,
+        ip_address: req.ip || req.connection.remoteAddress
+      });
+
+      // Update session clearance count
+      await supabase.from('user_sessions').upsert({
+        session_id: session.id,
+        clearances_generated: session.clearancesGenerated,
+        last_activity: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Failed to track clearance generation in Supabase:', error);
+    }
+  }
+}
+
+async function trackFlightPlanReceived(flightPlanData) {
+  // Track in local analytics for fallback
+  analytics.flightPlansReceived++;
+
+  // Store in Supabase if available
+  if (supabase) {
+    try {
+      await supabase.from('flight_plans_received').insert({
+        callsign: flightPlanData.callsign,
+        destination: flightPlanData.arriving,
+        route: flightPlanData.route,
+        flight_level: flightPlanData.flightlevel,
+        source: flightPlanData.source,
+        raw_data: flightPlanData
+      });
+    } catch (error) {
+      console.error('Failed to track flight plan in Supabase:', error);
+    }
+  }
+}
+
+// Middleware to track visits
+async function trackVisit(req, res, next) {
+  await trackPageVisit(req, req.path);
   next();
 }
 
