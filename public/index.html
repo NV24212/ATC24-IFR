@@ -318,9 +318,57 @@
     trackClearanceGeneration();
   }
 
+  // Track clearance generation
+  async function trackClearanceGeneration() {
+    try {
+      await fetch('/api/clearance-generated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (error) {
+      console.error('Failed to track clearance generation:', error);
+    }
+  }
+
+  // Load admin settings for the frontend
+  async function loadAdminSettings() {
+    try {
+      const response = await fetch('/api/admin/settings?password=guest');
+      if (response.ok) {
+        const settings = await response.json();
+        if (settings && !settings.error) {
+          adminSettings = settings;
+
+          // Update UI based on settings
+          updateUIFromSettings();
+        }
+      }
+    } catch (error) {
+      console.log('Using default settings');
+    }
+  }
+
+  // Update UI elements based on admin settings
+  function updateUIFromSettings() {
+    // Update default altitudes in the dropdown
+    if (adminSettings.aviation && adminSettings.aviation.defaultAltitudes) {
+      const iflSelect = document.getElementById('ifl');
+      iflSelect.innerHTML = '';
+
+      adminSettings.aviation.defaultAltitudes.forEach(altitude => {
+        const option = document.createElement('option');
+        option.value = altitude;
+        option.textContent = `${altitude}FT`;
+        iflSelect.appendChild(option);
+      });
+    }
+  }
+
   // Initial load of flight plans when the page loads
   document.addEventListener('DOMContentLoaded', () => {
-    loadFlightPlans();
+    loadAdminSettings().then(() => {
+      loadFlightPlans();
+    });
   });
 </script>
 
