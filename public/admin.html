@@ -765,6 +765,17 @@
     </div>
   </div>
 
+  <!-- Notification Popup -->
+  <div class="notification-overlay" id="notificationOverlay">
+    <div class="notification-popup" id="notificationPopup">
+      <button class="notification-close-x" onclick="hideNotification()">×</button>
+      <div class="notification-icon" id="notificationIcon">✓</div>
+      <div class="notification-title" id="notificationTitle">Operation Successful</div>
+      <div class="notification-message" id="notificationMessage">Your request has been completed successfully.</div>
+      <button class="notification-close-btn" onclick="hideNotification()">Close</button>
+    </div>
+  </div>
+
   <script>
     let currentPassword = null;
     let analytics = {};
