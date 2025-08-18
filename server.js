@@ -8,6 +8,71 @@ const PORT = 3000;
 
 let flightPlans = []; // Store multiple flight plans
 
+// Analytics storage
+let analytics = {
+  totalVisits: 0,
+  dailyVisits: {},
+  clearancesGenerated: 0,
+  flightPlansReceived: 0,
+  lastReset: new Date().toISOString()
+};
+
+// Admin settings with aviation defaults
+let adminSettings = {
+  clearanceFormat: {
+    includeAtis: true,
+    includeSquawk: true,
+    includeFlightLevel: true,
+    phraseologyStyle: "ICAO", // ICAO, FAA, Local
+    includeStartupApproval: true,
+    includeInitialClimb: true
+  },
+  aviation: {
+    defaultAltitudes: [1000, 2000, 3000, 4000, 5000],
+    enableRunwayValidation: false,
+    enableSIDValidation: false,
+    squawkRanges: {
+      min: 1000,
+      max: 7777,
+      exclude: [7500, 7600, 7700] // Emergency codes
+    },
+    atisLetters: ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
+  },
+  system: {
+    maxFlightPlansStored: 20,
+    enableDetailedLogging: false,
+    autoRefreshInterval: 30000,
+    enableFlightPlanFiltering: false
+  }
+};
+
+// Middleware to track visits
+function trackVisit(req, res, next) {
+  const today = new Date().toISOString().split('T')[0];
+  analytics.totalVisits++;
+  analytics.dailyVisits[today] = (analytics.dailyVisits[today] || 0) + 1;
+
+  // Keep only last 30 days of daily stats
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  Object.keys(analytics.dailyVisits).forEach(date => {
+    if (new Date(date) < thirtyDaysAgo) {
+      delete analytics.dailyVisits[date];
+    }
+  });
+
+  next();
+}
+
+// Admin authentication middleware
+function requireAdminAuth(req, res, next) {
+  const { password } = req.body || req.query;
+  if (password !== 'bruhdang') {
+    return res.status(401).json({ error: 'Invalid admin password' });
+  }
+  next();
+}
+
 // Connect to WebSocket
 const ws = new WebSocket("wss://24data.ptfs.app/wss", {
   headers: { Origin: "" } // Required as per docs
