@@ -198,7 +198,7 @@ const ws = new WebSocket("wss://24data.ptfs.app/wss", {
 });
 
 ws.on("open", () => console.log("✅ WebSocket connected"));
-ws.on("message", (data) => {
+ws.on("message", async (data) => {
   try {
     const parsed = JSON.parse(data);
 
