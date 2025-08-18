@@ -91,13 +91,18 @@ ws.on("message", (data) => {
       flightPlan.timestamp = new Date().toISOString();
       flightPlan.source = parsed.t === "EVENT_FLIGHT_PLAN" ? "Event" : "Main";
 
-      // Add new flight plan to array, keep last 20
+      // Track analytics
+      analytics.flightPlansReceived++;
+
+      // Add new flight plan to array, keep configurable amount
       flightPlans.unshift(flightPlan);
-      if (flightPlans.length > 20) {
-        flightPlans = flightPlans.slice(0, 20);
+      if (flightPlans.length > adminSettings.system.maxFlightPlansStored) {
+        flightPlans = flightPlans.slice(0, adminSettings.system.maxFlightPlansStored);
       }
 
-      console.log(`📡 Received ${flightPlan.source} FlightPlan:`, flightPlan.callsign);
+      if (adminSettings.system.enableDetailedLogging) {
+        console.log(`📡 Received ${flightPlan.source} FlightPlan:`, flightPlan.callsign);
+      }
     }
     // Also handle METAR data to extract runway information
     if (parsed.t === "METAR") {
