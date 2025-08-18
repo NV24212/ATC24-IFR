@@ -1045,14 +1045,14 @@
 
         const result = await response.json();
         if (result.success) {
-          alert('Settings saved successfully!');
+          showNotification('success', 'Settings Saved', 'All configuration changes have been applied successfully');
           settings = result.settings;
         } else {
-          alert('Failed to save settings');
+          showNotification('error', 'Save Failed', 'Unable to save settings. Please try again.');
         }
       } catch (error) {
         console.error('Failed to save settings:', error);
-        alert('Failed to save settings');
+        showNotification('error', 'Connection Error', 'Failed to communicate with server. Check your connection.');
       }
     }
 
