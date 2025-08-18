@@ -2,6 +2,9 @@ const WebSocket = require("ws");
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const { createClient } = require('@supabase/supabase-js');
+const { v4: uuidv4 } = require('uuid');
+require('dotenv').config();
 
 const app = express();
 const PORT = 3000;
