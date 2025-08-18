@@ -610,11 +610,11 @@
         // WebSocket status
         const wsStatus = document.getElementById('wsStatus');
         if (health.wsConnected) {
-          wsStatus.innerHTML = '<div style="font-size: 24px; margin-bottom: 10px;">✅</div><div style="color: var(--primary-color);">WebSocket Connected</div>';
+          wsStatus.innerHTML = '<div style="width: 12px; height: 12px; background: var(--primary-color); border-radius: 50%; margin: 0 auto 10px;"></div><div style="color: var(--primary-color); font-weight: 600;">WebSocket Connected</div>';
           wsStatus.style.background = 'rgba(245, 222, 64, 0.1)';
           wsStatus.style.border = '1px solid rgba(245, 222, 64, 0.3)';
         } else {
-          wsStatus.innerHTML = '<div style="font-size: 24px; margin-bottom: 10px;">❌</div><div style="color: #ff6b6b;">WebSocket Disconnected</div>';
+          wsStatus.innerHTML = '<div style="width: 12px; height: 12px; background: #ff6b6b; border-radius: 50%; margin: 0 auto 10px;"></div><div style="color: #ff6b6b; font-weight: 600;">WebSocket Disconnected</div>';
           wsStatus.style.background = 'rgba(255, 107, 107, 0.1)';
           wsStatus.style.border = '1px solid rgba(255, 107, 107, 0.3)';
         }
