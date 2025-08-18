@@ -781,6 +781,60 @@
     let analytics = {};
     let settings = {};
 
+    // Notification System
+    function showNotification(type, title, message) {
+      const overlay = document.getElementById('notificationOverlay');
+      const popup = document.getElementById('notificationPopup');
+      const icon = document.getElementById('notificationIcon');
+      const titleEl = document.getElementById('notificationTitle');
+      const messageEl = document.getElementById('notificationMessage');
+
+      // Set content
+      titleEl.textContent = title;
+      messageEl.textContent = message;
+
+      // Set icon and styling based on type
+      popup.className = 'notification-popup ' + type;
+      icon.className = 'notification-icon ' + type;
+
+      switch(type) {
+        case 'success':
+          icon.textContent = '✓';
+          break;
+        case 'error':
+          icon.textContent = '✕';
+          break;
+        case 'warning':
+          icon.textContent = '⚠';
+          break;
+        case 'info':
+          icon.textContent = 'i';
+          break;
+      }
+
+      // Show notification
+      overlay.classList.add('show');
+
+      // Auto-hide after 4 seconds for success notifications
+      if (type === 'success') {
+        setTimeout(() => {
+          hideNotification();
+        }, 4000);
+      }
+    }
+
+    function hideNotification() {
+      const overlay = document.getElementById('notificationOverlay');
+      overlay.classList.remove('show');
+    }
+
+    // Close notification when clicking overlay
+    document.getElementById('notificationOverlay').addEventListener('click', function(e) {
+      if (e.target === this) {
+        hideNotification();
+      }
+    });
+
     // Authentication
     function login() {
       const password = document.getElementById('adminPassword').value;
