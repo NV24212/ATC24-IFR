@@ -421,15 +421,31 @@ app.post("/api/admin/settings", requireAdminAuth, (req, res) => {
   }
 });
 
-app.post("/api/admin/reset-analytics", requireAdminAuth, (req, res) => {
-  analytics = {
-    totalVisits: 0,
-    dailyVisits: {},
-    clearancesGenerated: 0,
-    flightPlansReceived: 0,
-    lastReset: new Date().toISOString()
-  };
-  res.json({ success: true, message: 'Analytics reset successfully' });
+app.post("/api/admin/reset-analytics", requireAdminAuth, async (req, res) => {
+  try {
+    // Reset local analytics
+    analytics = {
+      totalVisits: 0,
+      dailyVisits: {},
+      clearancesGenerated: 0,
+      flightPlansReceived: 0,
+      lastReset: new Date().toISOString()
+    };
+
+    // Track admin activity
+    if (supabase) {
+      await supabase.from('admin_activities').insert({
+        action: 'reset_analytics',
+        details: { timestamp: new Date().toISOString() },
+        ip_address: req.ip || req.connection.remoteAddress
+      });
+    }
+
+    res.json({ success: true, message: 'Analytics reset successfully' });
+  } catch (error) {
+    console.error('Error resetting analytics:', error);
+    res.json({ success: true, message: 'Analytics reset successfully (local only)' });
+  }
 });
 
 // Health check endpoint
