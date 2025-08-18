@@ -194,6 +194,17 @@ app.get("/api/admin/analytics", (req, res) => {
 app.get("/api/admin/settings", (req, res) => {
   const { password } = req.query;
   if (password !== 'bruhdang') {
+    // Allow guest access to basic settings for the main app
+    if (password === 'guest') {
+      const guestSettings = {
+        clearanceFormat: adminSettings.clearanceFormat,
+        aviation: {
+          defaultAltitudes: adminSettings.aviation.defaultAltitudes,
+          squawkRanges: adminSettings.aviation.squawkRanges
+        }
+      };
+      return res.json(guestSettings);
+    }
     return res.status(401).json({ error: 'Unauthorized' });
   }
   res.json(adminSettings);
