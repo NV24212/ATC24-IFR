@@ -229,16 +229,107 @@
       width: 100%;
       margin-top: 20px;
     }
-    
+
+    /* Override input styling to match main page beautiful design */
+    .admin-container select,
+    .admin-container textarea,
+    .admin-container input[type="text"],
+    .admin-container input[type="number"],
+    .admin-container input[type="password"] {
+      width: 100%;
+      padding: 15px;
+      background: var(--surface-hover);
+      border: 2px solid var(--border-color);
+      border-radius: 10px;
+      color: var(--text-color);
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      z-index: 1;
+    }
+
+    .admin-container select {
+      appearance: none;
+      background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 5"><path fill="%23f5de40" d="M2 0L0 2h4zm0 5L0 3h4z"/></svg>');
+      background-repeat: no-repeat;
+      background-position: right 15px center;
+      background-size: 12px;
+      padding-right: 45px;
+    }
+
+    .admin-container select:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(245, 222, 64, 0.1);
+      background: rgba(245, 222, 64, 0.02);
+      transform: translateY(-1px);
+      z-index: 200;
+    }
+
+    .admin-container select option {
+      background: var(--surface-hover) !important;
+      color: var(--text-color) !important;
+      padding: 10px 15px;
+      border: none;
+    }
+
+    .admin-container select option:hover,
+    .admin-container select option:focus {
+      background: var(--primary-color) !important;
+      background-color: #f5de40 !important;
+      color: #000 !important;
+    }
+
+    .admin-container select option:selected {
+      background: var(--primary-color) !important;
+      background-color: #f5de40 !important;
+      color: #000 !important;
+    }
+
+    .admin-container textarea:focus,
+    .admin-container input[type="text"]:focus,
+    .admin-container input[type="number"]:focus,
+    .admin-container input[type="password"]:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(245, 222, 64, 0.1);
+      background: rgba(245, 222, 64, 0.02);
+      transform: translateY(-1px);
+    }
+
+    .admin-container textarea {
+      resize: vertical;
+      font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+      line-height: 1.6;
+      min-height: 120px;
+    }
+
+    .admin-container input[type="text"]::placeholder,
+    .admin-container input[type="number"]::placeholder,
+    .admin-container input[type="password"]::placeholder,
+    .admin-container textarea::placeholder {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Special styling for phraseology template textarea */
+    #phraseologyTemplate {
+      font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      min-height: 140px;
+    }
+
     @media (max-width: 768px) {
       .settings-grid {
         grid-template-columns: 1fr;
       }
-      
+
       .analytics-grid {
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       }
-      
+
       .admin-nav {
         flex-direction: column;
       }
