@@ -277,9 +277,15 @@ app.get("/flight-plans", (req, res) => {
 });
 
 // API endpoint to track clearance generation
-app.post("/api/clearance-generated", (req, res) => {
-  analytics.clearancesGenerated++;
-  res.json({ success: true });
+app.post("/api/clearance-generated", async (req, res) => {
+  try {
+    const clearanceData = req.body || {};
+    await trackClearanceGeneration(req, clearanceData);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error tracking clearance generation:', error);
+    res.json({ success: true }); // Still return success to avoid breaking frontend
+  }
 });
 
 // Admin API endpoints
@@ -362,4 +368,4 @@ app.get("/health", (req, res) => {
   });
 });
 
-app.listen(PORT, () => console.log(`�� Server running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`🌐 Server running at http://localhost:${PORT}`));
