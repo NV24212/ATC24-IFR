@@ -579,6 +579,7 @@
         
         // Clearance format settings
         document.getElementById('phraseologyStyle').value = settings.clearanceFormat?.phraseologyStyle || 'ICAO';
+        document.getElementById('phraseologyTemplate').value = settings.clearanceFormat?.customTemplate || '{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.';
         document.getElementById('includeAtis').checked = settings.clearanceFormat?.includeAtis !== false;
         document.getElementById('includeSquawk').checked = settings.clearanceFormat?.includeSquawk !== false;
         document.getElementById('includeFlightLevel').checked = settings.clearanceFormat?.includeFlightLevel !== false;
