@@ -2,9 +2,24 @@ const WebSocket = require("ws");
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const { createClient } = require('@supabase/supabase-js');
+const { v4: uuidv4 } = require('uuid');
+require('dotenv').config();
 
 const app = express();
 const PORT = 3000;
+
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+let supabase = null;
+
+if (supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey);
+  console.log("✅ Supabase client initialized");
+} else {
+  console.log("⚠️ Supabase not configured - using local storage");
+}
 
 let flightPlans = []; // Store multiple flight plans
 
@@ -47,21 +62,124 @@ let adminSettings = {
   }
 };
 
-// Middleware to track visits
-function trackVisit(req, res, next) {
+// Session tracking
+const sessions = new Map();
+
+// Helper function to get or create session
+function getOrCreateSession(req) {
+  let sessionId = req.headers['x-session-id'] || req.session?.id;
+
+  if (!sessionId) {
+    sessionId = uuidv4();
+  }
+
+  if (!sessions.has(sessionId)) {
+    sessions.set(sessionId, {
+      id: sessionId,
+      createdAt: new Date(),
+      lastActivity: new Date(),
+      pageViews: 0,
+      clearancesGenerated: 0
+    });
+  }
+
+  const session = sessions.get(sessionId);
+  session.lastActivity = new Date();
+
+  return session;
+}
+
+// Analytics helper functions
+async function trackPageVisit(req, pagePath) {
+  const session = getOrCreateSession(req);
+  session.pageViews++;
+
+  const visitData = {
+    page_path: pagePath,
+    user_agent: req.headers['user-agent'],
+    ip_address: req.ip || req.connection.remoteAddress,
+    referrer: req.headers.referer,
+    session_id: session.id
+  };
+
+  // Track in local analytics for fallback
   const today = new Date().toISOString().split('T')[0];
   analytics.totalVisits++;
   analytics.dailyVisits[today] = (analytics.dailyVisits[today] || 0) + 1;
 
-  // Keep only last 30 days of daily stats
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  Object.keys(analytics.dailyVisits).forEach(date => {
-    if (new Date(date) < thirtyDaysAgo) {
-      delete analytics.dailyVisits[date];
-    }
-  });
+  // Store in Supabase if available
+  if (supabase) {
+    try {
+      await supabase.from('page_visits').insert(visitData);
 
+      // Update or create user session
+      await supabase.from('user_sessions').upsert({
+        session_id: session.id,
+        ip_address: visitData.ip_address,
+        user_agent: visitData.user_agent,
+        last_activity: new Date().toISOString(),
+        page_views: session.pageViews
+      });
+
+    } catch (error) {
+      console.error('Failed to track page visit in Supabase:', error);
+    }
+  }
+}
+
+async function trackClearanceGeneration(req, clearanceData) {
+  const session = getOrCreateSession(req);
+  session.clearancesGenerated++;
+
+  // Track in local analytics for fallback
+  analytics.clearancesGenerated++;
+
+  // Store in Supabase if available
+  if (supabase) {
+    try {
+      await supabase.from('clearance_generations').insert({
+        ...clearanceData,
+        session_id: session.id,
+        ip_address: req.ip || req.connection.remoteAddress
+      });
+
+      // Update session clearance count
+      await supabase.from('user_sessions').upsert({
+        session_id: session.id,
+        clearances_generated: session.clearancesGenerated,
+        last_activity: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Failed to track clearance generation in Supabase:', error);
+    }
+  }
+}
+
+async function trackFlightPlanReceived(flightPlanData) {
+  // Track in local analytics for fallback
+  analytics.flightPlansReceived++;
+
+  // Store in Supabase if available
+  if (supabase) {
+    try {
+      await supabase.from('flight_plans_received').insert({
+        callsign: flightPlanData.callsign,
+        destination: flightPlanData.arriving,
+        route: flightPlanData.route,
+        flight_level: flightPlanData.flightlevel,
+        source: flightPlanData.source,
+        raw_data: flightPlanData
+      });
+    } catch (error) {
+      console.error('Failed to track flight plan in Supabase:', error);
+    }
+  }
+}
+
+// Middleware to track visits
+async function trackVisit(req, res, next) {
+  await trackPageVisit(req, req.path);
   next();
 }
 
@@ -80,7 +198,7 @@ const ws = new WebSocket("wss://24data.ptfs.app/wss", {
 });
 
 ws.on("open", () => console.log("✅ WebSocket connected"));
-ws.on("message", (data) => {
+ws.on("message", async (data) => {
   try {
     const parsed = JSON.parse(data);
 
@@ -92,8 +210,8 @@ ws.on("message", (data) => {
       flightPlan.timestamp = new Date().toISOString();
       flightPlan.source = parsed.t === "EVENT_FLIGHT_PLAN" ? "Event" : "Main";
 
-      // Track analytics
-      analytics.flightPlansReceived++;
+      // Track analytics in Supabase
+      await trackFlightPlanReceived(flightPlan);
 
       // Add new flight plan to array, keep configurable amount
       flightPlans.unshift(flightPlan);
@@ -159,9 +277,15 @@ app.get("/flight-plans", (req, res) => {
 });
 
 // API endpoint to track clearance generation
-app.post("/api/clearance-generated", (req, res) => {
-  analytics.clearancesGenerated++;
-  res.json({ success: true });
+app.post("/api/clearance-generated", async (req, res) => {
+  try {
+    const clearanceData = req.body || {};
+    await trackClearanceGeneration(req, clearanceData);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error tracking clearance generation:', error);
+    res.json({ success: true }); // Still return success to avoid breaking frontend
+  }
 });
 
 // Admin API endpoints
@@ -169,27 +293,104 @@ app.post("/api/admin/login", requireAdminAuth, (req, res) => {
   res.json({ success: true, message: "Admin authenticated successfully" });
 });
 
-app.get("/api/admin/analytics", (req, res) => {
+app.get("/api/admin/analytics", async (req, res) => {
   const { password } = req.query;
   if (password !== 'bruhdang') {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  // Calculate additional analytics
-  const last7Days = Object.entries(analytics.dailyVisits)
-    .slice(-7)
-    .reduce((total, [date, visits]) => total + visits, 0);
+  try {
+    let analyticsData = { ...analytics };
 
-  const last30Days = Object.entries(analytics.dailyVisits)
-    .slice(-30)
-    .reduce((total, [date, visits]) => total + visits, 0);
+    if (supabase) {
+      // Get comprehensive analytics from Supabase
+      const [visitsResult, clearancesResult, flightPlansResult, sessionsResult] = await Promise.all([
+        supabase.from('page_visits').select('*', { count: 'exact' }),
+        supabase.from('clearance_generations').select('*', { count: 'exact' }),
+        supabase.from('flight_plans_received').select('*', { count: 'exact' }),
+        supabase.from('user_sessions').select('*', { count: 'exact' })
+      ]);
 
-  res.json({
-    ...analytics,
-    last7Days,
-    last30Days,
-    currentDate: new Date().toISOString()
-  });
+      // Get daily analytics for the last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data: dailyData } = await supabase
+        .from('page_visits')
+        .select('created_at')
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      // Process daily visits
+      const dailyVisits = {};
+      if (dailyData) {
+        dailyData.forEach(visit => {
+          const date = visit.created_at.split('T')[0];
+          dailyVisits[date] = (dailyVisits[date] || 0) + 1;
+        });
+      }
+
+      // Calculate last 7 and 30 days
+      const last7Days = Object.entries(dailyVisits)
+        .slice(-7)
+        .reduce((total, [date, visits]) => total + visits, 0);
+
+      const last30Days = Object.entries(dailyVisits)
+        .reduce((total, [date, visits]) => total + visits, 0);
+
+      // Get unique visitors count
+      const { data: uniqueVisitors } = await supabase
+        .from('user_sessions')
+        .select('session_id', { count: 'exact' });
+
+      analyticsData = {
+        totalVisits: visitsResult.count || 0,
+        clearancesGenerated: clearancesResult.count || 0,
+        flightPlansReceived: flightPlansResult.count || 0,
+        uniqueVisitors: uniqueVisitors?.length || 0,
+        dailyVisits,
+        last7Days,
+        last30Days,
+        currentDate: new Date().toISOString(),
+        lastReset: analytics.lastReset
+      };
+    } else {
+      // Fallback to local analytics
+      const last7Days = Object.entries(analytics.dailyVisits)
+        .slice(-7)
+        .reduce((total, [date, visits]) => total + visits, 0);
+
+      const last30Days = Object.entries(analytics.dailyVisits)
+        .slice(-30)
+        .reduce((total, [date, visits]) => total + visits, 0);
+
+      analyticsData = {
+        ...analytics,
+        last7Days,
+        last30Days,
+        currentDate: new Date().toISOString()
+      };
+    }
+
+    res.json(analyticsData);
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    // Fallback to local analytics on error
+    const last7Days = Object.entries(analytics.dailyVisits)
+      .slice(-7)
+      .reduce((total, [date, visits]) => total + visits, 0);
+
+    const last30Days = Object.entries(analytics.dailyVisits)
+      .slice(-30)
+      .reduce((total, [date, visits]) => total + visits, 0);
+
+    res.json({
+      ...analytics,
+      last7Days,
+      last30Days,
+      currentDate: new Date().toISOString(),
+      error: 'Failed to fetch from Supabase, showing local data'
+    });
+  }
 });
 
 app.get("/api/admin/settings", (req, res) => {
@@ -220,15 +421,31 @@ app.post("/api/admin/settings", requireAdminAuth, (req, res) => {
   }
 });
 
-app.post("/api/admin/reset-analytics", requireAdminAuth, (req, res) => {
-  analytics = {
-    totalVisits: 0,
-    dailyVisits: {},
-    clearancesGenerated: 0,
-    flightPlansReceived: 0,
-    lastReset: new Date().toISOString()
-  };
-  res.json({ success: true, message: 'Analytics reset successfully' });
+app.post("/api/admin/reset-analytics", requireAdminAuth, async (req, res) => {
+  try {
+    // Reset local analytics
+    analytics = {
+      totalVisits: 0,
+      dailyVisits: {},
+      clearancesGenerated: 0,
+      flightPlansReceived: 0,
+      lastReset: new Date().toISOString()
+    };
+
+    // Track admin activity
+    if (supabase) {
+      await supabase.from('admin_activities').insert({
+        action: 'reset_analytics',
+        details: { timestamp: new Date().toISOString() },
+        ip_address: req.ip || req.connection.remoteAddress
+      });
+    }
+
+    res.json({ success: true, message: 'Analytics reset successfully' });
+  } catch (error) {
+    console.error('Error resetting analytics:', error);
+    res.json({ success: true, message: 'Analytics reset successfully (local only)' });
+  }
 });
 
 // Health check endpoint

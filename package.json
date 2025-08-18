@@ -11,9 +11,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.55.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
     "express": "^4.18.2",
     "path": "^0.12.7",
+    "uuid": "^11.1.0",
     "ws": "^8.17.0"
   }
 }

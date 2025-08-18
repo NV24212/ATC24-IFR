@@ -11,8 +11,7 @@
     <h1>ATC24 IFR Clearance Generator</h1>
     <p style="color: var(--text-muted); margin-top: 15px; font-size: 12px;">
       All rights reserved, Hasan Mahmood © |
-      <a href="/license" style="color: var(--primary-color); text-decoration: none;">License</a> |
-      <a href="/admin" style="color: var(--primary-color); text-decoration: none;">Admin Panel</a>
+      <a href="/license" style="color: var(--primary-color); text-decoration: none;">License</a>
     </p>
   </div>
 
@@ -340,9 +339,22 @@
   // Track clearance generation
   async function trackClearanceGeneration() {
     try {
+      const clearanceData = {
+        callsign: selectedFlightPlan?.callsign,
+        destination: selectedFlightPlan?.arriving,
+        route: selectedFlightPlan?.route,
+        routing_type: document.getElementById("routingType").value,
+        runway: document.getElementById("departureRunway").value,
+        initial_altitude: parseInt(document.getElementById("ifl").value),
+        atc_station: document.getElementById("groundCallsign").value,
+        atis_info: document.getElementById("atisInfo").value,
+        clearance_text: document.getElementById("clearanceOutput").textContent
+      };
+
       await fetch('/api/clearance-generated', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clearanceData)
       });
     } catch (error) {
       console.error('Failed to track clearance generation:', error);
