@@ -1070,14 +1070,14 @@
 
         const result = await response.json();
         if (result.success) {
-          alert('Analytics reset successfully!');
+          showNotification('success', 'Analytics Reset', 'All analytics data has been cleared successfully');
           loadAnalytics();
         } else {
-          alert('Failed to reset analytics');
+          showNotification('error', 'Reset Failed', 'Unable to reset analytics. Please try again.');
         }
       } catch (error) {
         console.error('Failed to reset analytics:', error);
-        alert('Failed to reset analytics');
+        showNotification('error', 'Connection Error', 'Failed to communicate with server. Check your connection.');
       }
     }
 
