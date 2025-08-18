@@ -703,7 +703,7 @@
     }
 
     async function resetAnalytics() {
-      if (!confirm('⚠️ This will permanently delete all analytics data. Are you sure?')) {
+      if (!confirm('This will permanently delete all analytics data. Are you sure?')) {
         return;
       }
 
@@ -716,14 +716,14 @@
 
         const result = await response.json();
         if (result.success) {
-          alert('✅ Analytics reset successfully!');
+          alert('Analytics reset successfully!');
           loadAnalytics();
         } else {
-          alert('❌ Failed to reset analytics');
+          alert('Failed to reset analytics');
         }
       } catch (error) {
         console.error('Failed to reset analytics:', error);
-        alert('❌ Failed to reset analytics');
+        alert('Failed to reset analytics');
       }
     }
 
