@@ -850,6 +850,7 @@
           currentPassword = password;
           document.getElementById('loginScreen').style.display = 'none';
           document.getElementById('adminPanel').classList.add('authenticated');
+          showNotification('success', 'Access Granted', 'Welcome to the ATC24 Admin Control Panel');
           loadAdminData();
         } else {
           showLoginError();
