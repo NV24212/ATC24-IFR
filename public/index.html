@@ -10,7 +10,9 @@
   <div class="header">
     <h1>ATC24 IFR Clearance Generator</h1>
     <p style="color: var(--text-muted); margin-top: 15px; font-size: 12px;">
-      All rights reserved, Hasan Mahmood © | <a href="https://atc24-ifr.hasmah.xyz/license" style="color: var(--primary-color); text-decoration: none;">License</a>
+      All rights reserved, Hasan Mahmood © |
+      <a href="/license" style="color: var(--primary-color); text-decoration: none;">License</a> |
+      <a href="/admin" style="color: var(--primary-color); text-decoration: none;">Admin Panel</a>
     </p>
   </div>
 
@@ -115,6 +117,20 @@
 <script>
   let selectedFlightPlan = null;
   let flightPlans = []; // This will hold flight plans fetched from the server
+  let adminSettings = {
+    clearanceFormat: {
+      includeAtis: true,
+      includeSquawk: true,
+      includeFlightLevel: true,
+      phraseologyStyle: "ICAO",
+      includeStartupApproval: true,
+      includeInitialClimb: true
+    },
+    aviation: {
+      defaultAltitudes: [1000, 2000, 3000, 4000, 5000],
+      squawkRanges: { min: 1000, max: 7777, exclude: [7500, 7600, 7700] }
+    }
+  };
 
   function handleRoutingTypeChange() {
     const routingType = document.getElementById("routingType").value;
@@ -134,10 +150,17 @@
   }
 
   function generateSquawk() {
+    const min = adminSettings.aviation.squawkRanges.min;
+    const max = adminSettings.aviation.squawkRanges.max;
+    const exclude = adminSettings.aviation.squawkRanges.exclude;
+
     while (true) {
-      let code = Math.floor(1000 + Math.random() * 6777).toString();
+      let code = Math.floor(min + Math.random() * (max - min + 1)).toString();
+
       // Ensure all digits are between 0-7 for octal squawk code
-      if ([...code].every(c => parseInt(c) <= 7)) return code;
+      if ([...code].every(c => parseInt(c) <= 7) && !exclude.includes(parseInt(code))) {
+        return code;
+      }
     }
   }
 
@@ -248,16 +271,123 @@
         routePhrase = planRoute || 'as filed';
     }
 
-    // Generate clearance in the new format
-    // Format: "CALLSIGN, ATC_STATION, good day. Startup approved. Information LETTER is correct. Cleared to DESTINATION via [route], runway RWY. Initial climb ALTft, expect further climb to Flight Level FL. Squawk SQUAWK."
-    const clearance = `${callsign}, ${groundCallsign}, good day. Startup approved. Information ${atisInfo} is correct. Cleared to ${destination} via ${routePhrase}, runway ${departureRW}. Initial climb ${ifl}FT, expect further climb to Flight Level ${flightLevel.replace('FL', '').padStart(3, '0')}. Squawk ${squawk}.`;
+    // Generate clearance based on custom template if available, otherwise use legacy format
+    let clearance = '';
 
+    if (adminSettings.clearanceFormat.customTemplate) {
+      // Use custom template
+      clearance = adminSettings.clearanceFormat.customTemplate
+        .replace('{CALLSIGN}', callsign)
+        .replace('{ATC_STATION}', groundCallsign)
+        .replace('{ATIS}', atisInfo)
+        .replace('{DESTINATION}', destination)
+        .replace('{ROUTE}', routePhrase)
+        .replace('{RUNWAY}', departureRW)
+        .replace('{INITIAL_ALT}', ifl)
+        .replace('{FLIGHT_LEVEL}', flightLevel.replace('FL', '').padStart(3, '0'))
+        .replace('{SQUAWK}', squawk);
+    } else {
+      // Fallback to legacy clearance generation
+      let clearanceParts = [];
+
+      // Basic greeting and callsign
+      if (adminSettings.clearanceFormat.phraseologyStyle === "ICAO") {
+        clearanceParts.push(`${callsign}, ${groundCallsign}, good day.`);
+      } else if (adminSettings.clearanceFormat.phraseologyStyle === "FAA") {
+        clearanceParts.push(`${callsign}, ${groundCallsign}.`);
+      } else {
+        clearanceParts.push(`${callsign}, ${groundCallsign}, good day.`);
+      }
+
+      // Startup approval
+      if (adminSettings.clearanceFormat.includeStartupApproval) {
+        clearanceParts.push("Startup approved.");
+      }
+
+      // ATIS information
+      if (adminSettings.clearanceFormat.includeAtis) {
+        clearanceParts.push(`Information ${atisInfo} is correct.`);
+      }
+
+      // Clearance itself
+      clearanceParts.push(`Cleared to ${destination} via ${routePhrase}, runway ${departureRW}.`);
+
+      // Initial climb
+      if (adminSettings.clearanceFormat.includeInitialClimb) {
+        clearanceParts.push(`Initial climb ${ifl}FT`);
+
+        // Expected flight level
+        if (adminSettings.clearanceFormat.includeFlightLevel && flightLevel !== 'N/A') {
+          clearanceParts[clearanceParts.length - 1] += `, expect further climb to Flight Level ${flightLevel.replace('FL', '').padStart(3, '0')}.`;
+        } else {
+          clearanceParts[clearanceParts.length - 1] += ".";
+        }
+      }
+
+      // Squawk code
+      if (adminSettings.clearanceFormat.includeSquawk) {
+        clearanceParts.push(`Squawk ${squawk}.`);
+      }
+
+      clearance = clearanceParts.join(' ');
+    }
     document.getElementById("clearanceOutput").textContent = clearance;
+
+    // Track analytics
+    trackClearanceGeneration();
+  }
+
+  // Track clearance generation
+  async function trackClearanceGeneration() {
+    try {
+      await fetch('/api/clearance-generated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (error) {
+      console.error('Failed to track clearance generation:', error);
+    }
+  }
+
+  // Load admin settings for the frontend
+  async function loadAdminSettings() {
+    try {
+      const response = await fetch('/api/admin/settings?password=guest');
+      if (response.ok) {
+        const settings = await response.json();
+        if (settings && !settings.error) {
+          adminSettings = settings;
+
+          // Update UI based on settings
+          updateUIFromSettings();
+        }
+      }
+    } catch (error) {
+      console.log('Using default settings');
+    }
+  }
+
+  // Update UI elements based on admin settings
+  function updateUIFromSettings() {
+    // Update default altitudes in the dropdown
+    if (adminSettings.aviation && adminSettings.aviation.defaultAltitudes) {
+      const iflSelect = document.getElementById('ifl');
+      iflSelect.innerHTML = '';
+
+      adminSettings.aviation.defaultAltitudes.forEach(altitude => {
+        const option = document.createElement('option');
+        option.value = altitude;
+        option.textContent = `${altitude}FT`;
+        iflSelect.appendChild(option);
+      });
+    }
   }
 
   // Initial load of flight plans when the page loads
   document.addEventListener('DOMContentLoaded', () => {
-    loadFlightPlans();
+    loadAdminSettings().then(() => {
+      loadFlightPlans();
+    });
   });
 </script>
 
