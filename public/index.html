@@ -271,49 +271,66 @@
         routePhrase = planRoute || 'as filed';
     }
 
-    // Generate clearance based on admin settings and phraseology style
-    let clearanceParts = [];
+    // Generate clearance based on custom template if available, otherwise use legacy format
+    let clearance = '';
 
-    // Basic greeting and callsign
-    if (adminSettings.clearanceFormat.phraseologyStyle === "ICAO") {
-      clearanceParts.push(`${callsign}, ${groundCallsign}, good day.`);
-    } else if (adminSettings.clearanceFormat.phraseologyStyle === "FAA") {
-      clearanceParts.push(`${callsign}, ${groundCallsign}.`);
+    if (adminSettings.clearanceFormat.customTemplate) {
+      // Use custom template
+      clearance = adminSettings.clearanceFormat.customTemplate
+        .replace('{CALLSIGN}', callsign)
+        .replace('{ATC_STATION}', groundCallsign)
+        .replace('{ATIS}', atisInfo)
+        .replace('{DESTINATION}', destination)
+        .replace('{ROUTE}', routePhrase)
+        .replace('{RUNWAY}', departureRW)
+        .replace('{INITIAL_ALT}', ifl)
+        .replace('{FLIGHT_LEVEL}', flightLevel.replace('FL', '').padStart(3, '0'))
+        .replace('{SQUAWK}', squawk);
     } else {
-      clearanceParts.push(`${callsign}, ${groundCallsign}, good day.`);
-    }
+      // Fallback to legacy clearance generation
+      let clearanceParts = [];
 
-    // Startup approval
-    if (adminSettings.clearanceFormat.includeStartupApproval) {
-      clearanceParts.push("Startup approved.");
-    }
-
-    // ATIS information
-    if (adminSettings.clearanceFormat.includeAtis) {
-      clearanceParts.push(`Information ${atisInfo} is correct.`);
-    }
-
-    // Clearance itself
-    clearanceParts.push(`Cleared to ${destination} via ${routePhrase}, runway ${departureRW}.`);
-
-    // Initial climb
-    if (adminSettings.clearanceFormat.includeInitialClimb) {
-      clearanceParts.push(`Initial climb ${ifl}FT`);
-
-      // Expected flight level
-      if (adminSettings.clearanceFormat.includeFlightLevel && flightLevel !== 'N/A') {
-        clearanceParts[clearanceParts.length - 1] += `, expect further climb to Flight Level ${flightLevel.replace('FL', '').padStart(3, '0')}.`;
+      // Basic greeting and callsign
+      if (adminSettings.clearanceFormat.phraseologyStyle === "ICAO") {
+        clearanceParts.push(`${callsign}, ${groundCallsign}, good day.`);
+      } else if (adminSettings.clearanceFormat.phraseologyStyle === "FAA") {
+        clearanceParts.push(`${callsign}, ${groundCallsign}.`);
       } else {
-        clearanceParts[clearanceParts.length - 1] += ".";
+        clearanceParts.push(`${callsign}, ${groundCallsign}, good day.`);
       }
-    }
 
-    // Squawk code
-    if (adminSettings.clearanceFormat.includeSquawk) {
-      clearanceParts.push(`Squawk ${squawk}.`);
-    }
+      // Startup approval
+      if (adminSettings.clearanceFormat.includeStartupApproval) {
+        clearanceParts.push("Startup approved.");
+      }
 
-    const clearance = clearanceParts.join(' ');
+      // ATIS information
+      if (adminSettings.clearanceFormat.includeAtis) {
+        clearanceParts.push(`Information ${atisInfo} is correct.`);
+      }
+
+      // Clearance itself
+      clearanceParts.push(`Cleared to ${destination} via ${routePhrase}, runway ${departureRW}.`);
+
+      // Initial climb
+      if (adminSettings.clearanceFormat.includeInitialClimb) {
+        clearanceParts.push(`Initial climb ${ifl}FT`);
+
+        // Expected flight level
+        if (adminSettings.clearanceFormat.includeFlightLevel && flightLevel !== 'N/A') {
+          clearanceParts[clearanceParts.length - 1] += `, expect further climb to Flight Level ${flightLevel.replace('FL', '').padStart(3, '0')}.`;
+        } else {
+          clearanceParts[clearanceParts.length - 1] += ".";
+        }
+      }
+
+      // Squawk code
+      if (adminSettings.clearanceFormat.includeSquawk) {
+        clearanceParts.push(`Squawk ${squawk}.`);
+      }
+
+      clearance = clearanceParts.join(' ');
+    }
     document.getElementById("clearanceOutput").textContent = clearance;
 
     // Track analytics
