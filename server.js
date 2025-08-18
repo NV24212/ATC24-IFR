@@ -157,12 +157,78 @@ app.get("/flight-plans", (req, res) => {
   res.json(flightPlans);
 });
 
+// API endpoint to track clearance generation
+app.post("/api/clearance-generated", (req, res) => {
+  analytics.clearancesGenerated++;
+  res.json({ success: true });
+});
+
+// Admin API endpoints
+app.post("/api/admin/login", requireAdminAuth, (req, res) => {
+  res.json({ success: true, message: "Admin authenticated successfully" });
+});
+
+app.get("/api/admin/analytics", (req, res) => {
+  const { password } = req.query;
+  if (password !== 'bruhdang') {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  // Calculate additional analytics
+  const last7Days = Object.entries(analytics.dailyVisits)
+    .slice(-7)
+    .reduce((total, [date, visits]) => total + visits, 0);
+
+  const last30Days = Object.entries(analytics.dailyVisits)
+    .slice(-30)
+    .reduce((total, [date, visits]) => total + visits, 0);
+
+  res.json({
+    ...analytics,
+    last7Days,
+    last30Days,
+    currentDate: new Date().toISOString()
+  });
+});
+
+app.get("/api/admin/settings", (req, res) => {
+  const { password } = req.query;
+  if (password !== 'bruhdang') {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  res.json(adminSettings);
+});
+
+app.post("/api/admin/settings", requireAdminAuth, (req, res) => {
+  try {
+    adminSettings = { ...adminSettings, ...req.body.settings };
+    res.json({ success: true, settings: adminSettings });
+  } catch (error) {
+    res.status(400).json({ error: 'Invalid settings format' });
+  }
+});
+
+app.post("/api/admin/reset-analytics", requireAdminAuth, (req, res) => {
+  analytics = {
+    totalVisits: 0,
+    dailyVisits: {},
+    clearancesGenerated: 0,
+    flightPlansReceived: 0,
+    lastReset: new Date().toISOString()
+  };
+  res.json({ success: true, message: 'Analytics reset successfully' });
+});
+
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.json({
     status: "ok",
     wsConnected: ws.readyState === WebSocket.OPEN,
-    flightPlansCount: flightPlans.length
+    flightPlansCount: flightPlans.length,
+    analytics: {
+      totalVisits: analytics.totalVisits,
+      clearancesGenerated: analytics.clearancesGenerated
+    }
   });
 });
 
