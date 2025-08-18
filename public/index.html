@@ -148,10 +148,17 @@
   }
 
   function generateSquawk() {
+    const min = adminSettings.aviation.squawkRanges.min;
+    const max = adminSettings.aviation.squawkRanges.max;
+    const exclude = adminSettings.aviation.squawkRanges.exclude;
+
     while (true) {
-      let code = Math.floor(1000 + Math.random() * 6777).toString();
+      let code = Math.floor(min + Math.random() * (max - min + 1)).toString();
+
       // Ensure all digits are between 0-7 for octal squawk code
-      if ([...code].every(c => parseInt(c) <= 7)) return code;
+      if ([...code].every(c => parseInt(c) <= 7) && !exclude.includes(parseInt(code))) {
+        return code;
+      }
     }
   }
 
