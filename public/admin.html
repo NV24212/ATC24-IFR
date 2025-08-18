@@ -912,9 +912,9 @@
       try {
         const response = await fetch(`/api/admin/analytics?password=${currentPassword}`);
         analytics = await response.json();
-        
+
         const today = new Date().toISOString().split('T')[0];
-        
+
         document.getElementById('totalVisits').textContent = analytics.totalVisits || 0;
         document.getElementById('todayVisits').textContent = analytics.dailyVisits[today] || 0;
         document.getElementById('last7Days').textContent = analytics.last7Days || 0;
@@ -923,6 +923,7 @@
         document.getElementById('flightPlansReceived').textContent = analytics.flightPlansReceived || 0;
       } catch (error) {
         console.error('Failed to load analytics:', error);
+        showNotification('warning', 'Data Load Warning', 'Some analytics data may not be current. Refreshing automatically...');
       }
     }
 
