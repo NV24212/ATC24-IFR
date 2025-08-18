@@ -630,6 +630,27 @@
       }
     }
 
+    // Phraseology template management
+    function updatePhraseologyTemplate() {
+      const style = document.getElementById('phraseologyStyle').value;
+      const templateField = document.getElementById('phraseologyTemplate');
+
+      let template = '';
+      switch(style) {
+        case 'ICAO':
+          template = '{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.';
+          break;
+        case 'FAA':
+          template = '{CALLSIGN}, {ATC_STATION}. Cleared to {DESTINATION} airport via {ROUTE}, runway {RUNWAY}. Climb and maintain {INITIAL_ALT}, expect {FLIGHT_LEVEL} 10 minutes after departure. Departure frequency will be as published. Squawk {SQUAWK}.';
+          break;
+        case 'Local':
+          template = '{CALLSIGN}, {ATC_STATION}. You are cleared to {DESTINATION} via {ROUTE}, departing runway {RUNWAY}. Climb initially to {INITIAL_ALT} feet, expect flight level {FLIGHT_LEVEL}. Squawk {SQUAWK}. Contact ground for pushback.';
+          break;
+      }
+
+      templateField.value = template;
+    }
+
     // Settings management
     async function saveSettings() {
       try {
