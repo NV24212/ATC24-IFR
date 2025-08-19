@@ -25,8 +25,8 @@ if (supabaseUrl && supabaseKey &&
     supabase = createClient(supabaseUrl, supabaseKey);
     logWithTimestamp('info', 'Supabase client initialized successfully');
   } catch (error) {
-    console.error("❌ Failed to initialize Supabase:", error.message);
-    console.log("⚠️ Continuing without Supabase - using local storage");
+    logWithTimestamp('error', 'Failed to initialize Supabase', { error: error.message });
+    logWithTimestamp('warn', 'Continuing without Supabase - using local storage');
   }
 } else {
   console.log("⚠️ Supabase not properly configured - using local storage");
@@ -416,7 +416,7 @@ app.get("/flight-plans", async (req, res) => {
             ...plan.raw_data
           }));
 
-          console.log(`��� Retrieved ${convertedPlans.length} flight plans from Supabase for serverless`);
+          console.log(`📡 Retrieved ${convertedPlans.length} flight plans from Supabase for serverless`);
           return res.json(convertedPlans);
         }
       } catch (dbError) {
