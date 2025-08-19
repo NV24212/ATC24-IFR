@@ -756,6 +756,40 @@
           </div>
         </div>
 
+        <!-- Debug Logs Section -->
+        <div class="settings-group" style="margin-top: 30px;">
+          <h3>Runtime Debug Logs</h3>
+          <div style="margin-bottom: 15px;">
+            <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+              <select id="logLevel" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--surface-hover); color: var(--text-color);">
+                <option value="all">All Levels</option>
+                <option value="error">Errors Only</option>
+                <option value="warn">Warnings Only</option>
+                <option value="info">Info Only</option>
+              </select>
+              <button class="nav-btn" style="padding: 8px 16px; margin: 0;" onclick="loadDebugLogs()">Refresh Logs</button>
+              <button class="nav-btn" style="padding: 8px 16px; margin: 0;" onclick="clearLogDisplay()">Clear Display</button>
+            </div>
+            <div id="logStats" style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+              Loading log statistics...
+            </div>
+          </div>
+          <div id="debugLogs" style="
+            background: #1a1a1a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #e0e0e0;
+          ">
+            <div style="color: var(--text-muted);">Loading debug logs...</div>
+          </div>
+        </div>
+
         <div style="text-align: center; margin-top: 30px; padding: 20px; background: var(--surface-color); border-radius: 12px;">
           <h3 style="color: var(--primary-color); margin-bottom: 15px;">ATC24 IFR Clearance Generator</h3>
           <p style="color: var(--text-muted);">Professional aviation clearance delivery system</p>
