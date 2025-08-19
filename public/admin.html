@@ -1317,6 +1317,84 @@
       document.getElementById('logStats').innerHTML = 'Log display cleared';
     }
 
+    async function testDebugLogsEndpoint() {
+      const debugLogsContainer = document.getElementById('debugLogs');
+      const logStats = document.getElementById('logStats');
+
+      debugLogsContainer.innerHTML = '<div style="color: var(--primary-color);">Testing debug logs endpoint...</div>';
+      logStats.innerHTML = 'Running endpoint test...';
+
+      try {
+        // Test basic connectivity first
+        console.log('Testing basic endpoint connectivity...');
+
+        const testUrl = `/api/admin/logs?password=${encodeURIComponent(currentPassword)}&level=all&limit=5`;
+        console.log('Test URL (password redacted):', testUrl.replace(currentPassword, '[REDACTED]'));
+
+        const response = await fetch(testUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log('Test response received:', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          ok: response.ok
+        });
+
+        const responseText = await response.text();
+        console.log('Raw response text:', responseText);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}\nResponse: ${responseText}`);
+        }
+
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          throw new Error(`JSON Parse Error: ${parseError.message}\nResponse: ${responseText}`);
+        }
+
+        console.log('Parsed response data:', data);
+
+        // Display test results
+        debugLogsContainer.innerHTML = `
+          <div style="color: #4CAF50; margin-bottom: 10px;">✓ Endpoint Test Successful</div>
+          <div style="color: #e0e0e0; font-size: 12px;">
+            <div>Status: ${response.status} ${response.statusText}</div>
+            <div>Logs Available: ${data.totalCount || 0}</div>
+            <div>Response Valid: ${data.logs ? 'Yes' : 'No'}</div>
+            <div>Server Time: ${data.serverStartTime || 'Unknown'}</div>
+          </div>
+          <div style="color: var(--text-muted); font-size: 11px; margin-top: 10px;">
+            Test completed successfully. Click "Refresh Logs" to load full data.
+          </div>
+        `;
+
+        logStats.innerHTML = `Test passed - ${data.totalCount || 0} logs available`;
+
+      } catch (error) {
+        console.error('Endpoint test failed:', error);
+
+        debugLogsContainer.innerHTML = `
+          <div style="color: #ff6b6b; margin-bottom: 10px;">✗ Endpoint Test Failed</div>
+          <div style="color: #999; font-size: 11px; margin-bottom: 10px;">
+            Error: ${escapeHtml(error.message)}
+          </div>
+          <div style="color: #666; font-size: 10px;">
+            See console for full technical details
+          </div>
+        `;
+
+        logStats.innerHTML = 'Test failed';
+      }
+    }
+
     function escapeHtml(text) {
       if (typeof text !== 'string') {
         return String(text || '');
