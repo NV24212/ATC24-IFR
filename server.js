@@ -306,7 +306,7 @@ function initializeWebSocket() {
         headers: { Origin: "" } // Required as per docs
       });
 
-      ws.on("open", () => console.log("✅ WebSocket connected"));
+      ws.on("open", () => logWithTimestamp('info', 'WebSocket connected to 24data.ptfs.app'));
       ws.on("message", async (data) => {
         try {
           const parsed = JSON.parse(data);
