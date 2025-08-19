@@ -452,6 +452,7 @@ app.post("/api/clearance-generated", async (req, res) => {
 
 // Admin API endpoints
 app.post("/api/admin/login", requireAdminAuth, (req, res) => {
+  logWithTimestamp('info', 'Admin login successful', { ip: req.ip, userAgent: req.headers['user-agent'] });
   res.json({ success: true, message: "Admin authenticated successfully" });
 });
 
