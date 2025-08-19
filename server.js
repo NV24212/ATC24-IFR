@@ -540,6 +540,15 @@ app.get("/health", (req, res) => {
     flightPlansCount: flightPlans.length,
     supabaseConfigured: supabase !== null,
     supportsRealtime: !isServerless,
+    limitations: isServerless ? {
+      websocket: 'disabled',
+      persistence: 'session_only',
+      recommended_polling: '10_seconds'
+    } : null,
+    recommendations: isServerless ? {
+      data_update_method: 'polling',
+      fallback_available: supabase !== null
+    } : null,
     analytics: {
       totalVisits: analytics.totalVisits,
       clearancesGenerated: analytics.clearancesGenerated
