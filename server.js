@@ -353,7 +353,7 @@ function initializeWebSocket() {
             // flightPlans.metar = metarData.raw; // Or some processed runway info
           }
         } catch (err) {
-          console.error("❌ Parse error:", err);
+          logWithTimestamp('error', 'WebSocket message parse error', { error: err.message, data: data.toString() });
         }
       });
 
