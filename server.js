@@ -481,4 +481,10 @@ app.get("/health", (req, res) => {
   });
 });
 
-app.listen(PORT, () => console.log(`🌐 Server running at http://localhost:${PORT}`));
+// Start server only if not in Vercel environment
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => console.log(`🌐 Server running at http://localhost:${PORT}`));
+}
+
+// Export app for Vercel
+module.exports = app;
