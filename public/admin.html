@@ -1190,13 +1190,28 @@
         const response = await fetch(url);
         console.log('Debug logs response status:', response.status, response.statusText);
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Debug logs error response:', errorText);
-          throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
-        }
+        // Handle response based on content type and status
+        let data;
+        try {
+          if (!response.ok) {
+            // Try to get error details, but handle cases where response body is already consumed
+            let errorDetails = '';
+            try {
+              const responseClone = response.clone();
+              errorDetails = await responseClone.text();
+            } catch (textError) {
+              errorDetails = 'Unable to read error details';
+              console.warn('Could not read error response text:', textError);
+            }
+            console.error('Debug logs error response:', errorDetails);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}${errorDetails ? ` - ${errorDetails}` : ''}`);
+          }
 
-        const data = await response.json();
+          data = await response.json();
+        } catch (jsonError) {
+          console.error('Failed to parse JSON response:', jsonError);
+          throw new Error(`Invalid response format: ${jsonError.message}`);
+        }
         console.log('Debug logs data received:', {
           logCount: data.logs?.length || 0,
           totalCount: data.totalCount,
