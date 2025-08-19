@@ -1272,13 +1272,42 @@
 
       } catch (error) {
         console.error('Failed to load debug logs:', error);
-        const errorMessage = error.message || 'Unknown error';
+
+        // Handle different types of errors
+        let errorMessage = 'Unknown error';
+        let errorType = 'General Error';
+
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          errorType = 'Network Error';
+          errorMessage = 'Unable to connect to server. Check your internet connection.';
+        } else if (error instanceof SyntaxError) {
+          errorType = 'Parse Error';
+          errorMessage = 'Server returned invalid data format.';
+        } else if (error.message) {
+          errorMessage = error.message;
+          if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+            errorType = 'Authentication Error';
+            errorMessage = 'Invalid admin password or session expired.';
+          } else if (error.message.includes('404')) {
+            errorType = 'Endpoint Error';
+            errorMessage = 'Debug logs endpoint not found on server.';
+          } else if (error.message.includes('500')) {
+            errorType = 'Server Error';
+            errorMessage = 'Internal server error. Check server logs.';
+          }
+        }
+
         debugLogsContainer.innerHTML = `
           <div style="color: #ff6b6b; margin-bottom: 10px;">Failed to load debug logs</div>
-          <div style="color: #999; font-size: 11px;">Error: ${escapeHtml(errorMessage)}</div>
-          <div style="color: #999; font-size: 11px; margin-top: 5px;">Check console for details</div>
+          <div style="color: #ffa500; font-size: 12px; margin-bottom: 5px;">Error Type: ${escapeHtml(errorType)}</div>
+          <div style="color: #999; font-size: 11px; margin-bottom: 10px;">Details: ${escapeHtml(errorMessage)}</div>
+          <div style="color: #666; font-size: 10px;">
+            <div>• Check console (F12) for technical details</div>
+            <div>• Verify admin authentication</div>
+            <div>• Try refreshing the page</div>
+          </div>
         `;
-        logStats.innerHTML = 'Error loading log statistics';
+        logStats.innerHTML = `Error: ${errorType}`;
       }
     }
 
