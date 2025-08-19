@@ -1159,12 +1159,94 @@
       }
     }
 
+    // Debug logs functionality
+    async function loadDebugLogs() {
+      if (!currentPassword) return;
+
+      const level = document.getElementById('logLevel').value;
+      const debugLogsContainer = document.getElementById('debugLogs');
+      const logStats = document.getElementById('logStats');
+
+      try {
+        debugLogsContainer.innerHTML = '<div style="color: var(--text-muted);">Loading debug logs...</div>';
+
+        const response = await fetch(`/api/admin/logs?password=${currentPassword}&level=${level}&limit=200`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+
+        // Update statistics
+        logStats.innerHTML = `
+          Showing ${data.logs.length} of ${data.filteredCount} logs
+          (${data.totalCount} total, max ${data.maxLogs})
+          | Server start: ${new Date(data.serverStartTime).toLocaleString()}
+        `;
+
+        // Display logs
+        if (data.logs.length === 0) {
+          debugLogsContainer.innerHTML = '<div style="color: var(--text-muted);">No logs found for selected filter.</div>';
+          return;
+        }
+
+        const logsHtml = data.logs.map(log => {
+          const time = new Date(log.timestamp).toLocaleTimeString();
+          const date = new Date(log.timestamp).toLocaleDateString();
+          let levelColor = '#e0e0e0';
+
+          switch(log.level) {
+            case 'error': levelColor = '#ff6b6b'; break;
+            case 'warn': levelColor = '#ffa500'; break;
+            case 'info': levelColor = '#4CAF50'; break;
+            default: levelColor = '#87CEEB'; break;
+          }
+
+          return `
+            <div style="margin-bottom: 8px; padding: 6px 0; border-bottom: 1px solid #333;">
+              <span style="color: #888; font-size: 11px;">[${date} ${time}]</span>
+              <span style="color: ${levelColor}; font-weight: bold; margin-left: 8px;">${log.level.toUpperCase()}</span>
+              <span style="color: #bbb; margin-left: 8px; font-size: 10px;">(${log.id})</span>
+              <div style="margin-top: 2px; color: #e0e0e0;">${escapeHtml(log.message)}</div>
+              ${log.data ? `<div style="margin-top: 2px; color: #999; font-size: 11px; font-style: italic;">${escapeHtml(log.data)}</div>` : ''}
+            </div>
+          `;
+        }).join('');
+
+        debugLogsContainer.innerHTML = logsHtml;
+
+        // Auto-scroll to top for newest logs
+        debugLogsContainer.scrollTop = 0;
+
+      } catch (error) {
+        console.error('Failed to load debug logs:', error);
+        debugLogsContainer.innerHTML = '<div style="color: #ff6b6b;">Failed to load debug logs. Check connection.</div>';
+        logStats.innerHTML = 'Error loading log statistics';
+      }
+    }
+
+    function clearLogDisplay() {
+      document.getElementById('debugLogs').innerHTML = '<div style="color: var(--text-muted);">Log display cleared. Click "Refresh Logs" to reload.</div>';
+      document.getElementById('logStats').innerHTML = 'Log display cleared';
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
     // Auto-refresh analytics every 30 seconds
     setInterval(() => {
       if (currentPassword && document.getElementById('analytics').classList.contains('active')) {
         loadAnalytics();
       }
     }, 30000);
+
+    // Auto-refresh debug logs every 15 seconds when system section is active
+    setInterval(() => {
+      if (currentPassword && document.getElementById('system').classList.contains('active')) {
+        loadDebugLogs();
+      }
+    }, 15000);
 
     // Handle Enter key in password field
     document.getElementById('adminPassword').addEventListener('keypress', function(e) {
