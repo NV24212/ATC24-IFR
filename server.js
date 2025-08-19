@@ -328,8 +328,14 @@ function initializeWebSocket() {
               flightPlans = flightPlans.slice(0, adminSettings.system.maxFlightPlansStored);
             }
 
+            logWithTimestamp('info', `Received ${flightPlan.source} flight plan`, {
+              callsign: flightPlan.callsign,
+              destination: flightPlan.arriving,
+              route: flightPlan.route
+            });
+
             if (adminSettings.system.enableDetailedLogging) {
-              console.log(`📡 Received ${flightPlan.source} FlightPlan:`, flightPlan.callsign);
+              logWithTimestamp('debug', `Detailed flight plan data`, flightPlan);
             }
           }
           // Also handle METAR data to extract runway information
