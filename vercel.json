@@ -1,43 +1,17 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/node"
-    }
+    { "src": "package.json", "use": "@vercel/node" },
+    { "src": "public/**/*", "use": "@vercel/static" }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/server.js"
-    },
-    {
-      "src": "/health",
-      "dest": "/server.js"
-    },
-    {
-      "src": "/flight-plans",
-      "dest": "/server.js"
-    },
-    {
-      "src": "/license",
-      "dest": "/server.js"
-    },
-    {
-      "src": "/admin",
-      "dest": "/server.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/server.js"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "functions": {
-    "server.js": {
-      "maxDuration": 30
-    }
-  }
+    { "src": "/api/(.*)", "dest": "/server.js" },
+    { "src": "/health", "dest": "/server.js" },
+    { "src": "/flight-plans", "dest": "/server.js" },
+
+    { "src": "/admin", "dest": "/public/admin.html" },
+    { "src": "/license", "dest": "/public/license.html" },
+
+    { "src": "/(.*)", "dest": "/server.js" }
+  ]
 }
