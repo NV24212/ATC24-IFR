@@ -358,13 +358,14 @@ function initializeWebSocket() {
       });
 
       ws.on("error", (err) => {
-        console.error("❌ WebSocket error:", err);
+        logWithTimestamp('error', 'WebSocket connection error', { error: err.message, code: err.code });
       });
 
-      ws.on("close", () => {
-        console.log("❌ WebSocket connection closed");
+      ws.on("close", (code, reason) => {
+        logWithTimestamp('warn', 'WebSocket connection closed', { code, reason: reason?.toString() });
         // Attempt to reconnect after 5 seconds if not in serverless
         if (process.env.VERCEL !== '1') {
+          logWithTimestamp('info', 'Scheduling WebSocket reconnection in 5 seconds');
           setTimeout(initializeWebSocket, 5000);
         }
       });
