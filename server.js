@@ -306,9 +306,43 @@ app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
-// REST: Get all flight plans
-app.get("/flight-plans", (req, res) => {
-  res.json(flightPlans);
+// REST: Get all flight plans with serverless-aware fallback
+app.get("/flight-plans", async (req, res) => {
+  try {
+    // If we're in serverless and have Supabase, try to get recent flight plans
+    if (process.env.VERCEL === '1' && supabase && flightPlans.length === 0) {
+      try {
+        const { data: recentPlans } = await supabase
+          .from('flight_plans_received')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (recentPlans && recentPlans.length > 0) {
+          // Convert Supabase format back to flight plan format
+          const convertedPlans = recentPlans.map(plan => ({
+            callsign: plan.callsign,
+            arriving: plan.destination,
+            route: plan.route,
+            flightlevel: plan.flight_level,
+            source: plan.source,
+            timestamp: plan.created_at,
+            ...plan.raw_data
+          }));
+
+          console.log(`📡 Retrieved ${convertedPlans.length} flight plans from Supabase for serverless`);
+          return res.json(convertedPlans);
+        }
+      } catch (dbError) {
+        console.error('Failed to fetch from Supabase:', dbError);
+      }
+    }
+
+    res.json(flightPlans);
+  } catch (error) {
+    console.error('Error in flight plans endpoint:', error);
+    res.json(flightPlans); // Fallback to in-memory
+  }
 });
 
 // API endpoint to track clearance generation
