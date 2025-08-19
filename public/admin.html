@@ -943,6 +943,8 @@
         loadSettings(),
         loadSystemInfo()
       ]);
+      // Load debug logs after other data is loaded
+      loadDebugLogs();
     }
 
     async function loadAnalytics() {
