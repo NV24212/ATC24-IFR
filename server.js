@@ -23,10 +23,10 @@ if (supabaseUrl && supabaseKey &&
     supabaseUrl.includes('.supabase.co')) {
   try {
     supabase = createClient(supabaseUrl, supabaseKey);
-    console.log("✅ Supabase client initialized successfully");
+    logWithTimestamp('info', 'Supabase client initialized successfully');
   } catch (error) {
-    console.error("❌ Failed to initialize Supabase:", error.message);
-    console.log("⚠️ Continuing without Supabase - using local storage");
+    logWithTimestamp('error', 'Failed to initialize Supabase', { error: error.message });
+    logWithTimestamp('warn', 'Continuing without Supabase - using local storage');
   }
 } else {
   console.log("⚠️ Supabase not properly configured - using local storage");
@@ -40,7 +40,57 @@ if (supabaseUrl && supabaseKey &&
 
 let flightPlans = []; // Store multiple flight plans
 
-// Analytics storage
+// Runtime logs storage for debugging
+let runtimeLogs = [];
+const MAX_LOGS = 500; // Keep last 500 log entries
+
+// Enhanced logging function
+function logWithTimestamp(level, message, data = null) {
+  const timestamp = new Date().toISOString();
+  const logEntry = {
+    timestamp,
+    level,
+    message,
+    data: data ? JSON.stringify(data) : null,
+    id: uuidv4().slice(0, 8)
+  };
+
+  // Add to runtime logs
+  runtimeLogs.unshift(logEntry);
+  if (runtimeLogs.length > MAX_LOGS) {
+    runtimeLogs = runtimeLogs.slice(0, MAX_LOGS);
+  }
+
+  // Console output with formatting
+  const formattedMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+  switch(level) {
+    case 'error':
+      console.error(formattedMessage, data || '');
+      break;
+    case 'warn':
+      console.warn(formattedMessage, data || '');
+      break;
+    case 'info':
+      console.info(formattedMessage, data || '');
+      break;
+    default:
+      console.log(formattedMessage, data || '');
+  }
+}
+
+// Initialize startup log
+logWithTimestamp('info', 'ATC24 Server starting up', {
+  environment: process.env.VERCEL === '1' ? 'serverless' : 'traditional',
+  nodeVersion: process.version,
+  timestamp: new Date().toISOString()
+});
+
+// Add some initial test logs
+logWithTimestamp('info', 'Runtime logs system initialized');
+logWithTimestamp('warn', 'This is a test warning log');
+logWithTimestamp('error', 'This is a test error log for debugging');
+
+// Analytics storage with serverless persistence
 let analytics = {
   totalVisits: 0,
   dailyVisits: {},
@@ -48,6 +98,32 @@ let analytics = {
   flightPlansReceived: 0,
   lastReset: new Date().toISOString()
 };
+
+// Initialize analytics from Supabase in serverless environment
+async function initializeAnalyticsFromDB() {
+  if (process.env.VERCEL === '1' && supabase) {
+    try {
+      const [visitsResult, clearancesResult, flightPlansResult] = await Promise.all([
+        supabase.from('page_visits').select('*', { count: 'exact' }),
+        supabase.from('clearance_generations').select('*', { count: 'exact' }),
+        supabase.from('flight_plans_received').select('*', { count: 'exact' })
+      ]);
+
+      analytics.totalVisits = visitsResult.count || 0;
+      analytics.clearancesGenerated = clearancesResult.count || 0;
+      analytics.flightPlansReceived = flightPlansResult.count || 0;
+
+      console.log('📊 Analytics initialized from Supabase for serverless');
+    } catch (error) {
+      console.error('Failed to initialize analytics from DB:', error);
+    }
+  }
+}
+
+// Call initialization if in serverless
+if (process.env.VERCEL === '1' && supabase) {
+  initializeAnalyticsFromDB();
+}
 
 // Admin settings with aviation defaults
 let adminSettings = {
@@ -79,8 +155,23 @@ let adminSettings = {
   }
 };
 
-// Session tracking
+// Session tracking with serverless cleanup
 const sessions = new Map();
+
+// Clean up old sessions periodically (important for serverless)
+function cleanupOldSessions() {
+  const now = new Date();
+  const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+
+  for (const [sessionId, session] of sessions.entries()) {
+    if (now - session.lastActivity > maxAge) {
+      sessions.delete(sessionId);
+    }
+  }
+}
+
+// Run cleanup every 5 minutes
+setInterval(cleanupOldSessions, 5 * 60 * 1000);
 
 // Helper function to get or create session
 function getOrCreateSession(req) {
@@ -220,7 +311,7 @@ function initializeWebSocket() {
         headers: { Origin: "" } // Required as per docs
       });
 
-      ws.on("open", () => console.log("✅ WebSocket connected"));
+      ws.on("open", () => logWithTimestamp('info', 'WebSocket connected to 24data.ptfs.app'));
       ws.on("message", async (data) => {
         try {
           const parsed = JSON.parse(data);
@@ -242,8 +333,14 @@ function initializeWebSocket() {
               flightPlans = flightPlans.slice(0, adminSettings.system.maxFlightPlansStored);
             }
 
+            logWithTimestamp('info', `Received ${flightPlan.source} flight plan`, {
+              callsign: flightPlan.callsign,
+              destination: flightPlan.arriving,
+              route: flightPlan.route
+            });
+
             if (adminSettings.system.enableDetailedLogging) {
-              console.log(`📡 Received ${flightPlan.source} FlightPlan:`, flightPlan.callsign);
+              logWithTimestamp('debug', `Detailed flight plan data`, flightPlan);
             }
           }
           // Also handle METAR data to extract runway information
@@ -261,23 +358,24 @@ function initializeWebSocket() {
             // flightPlans.metar = metarData.raw; // Or some processed runway info
           }
         } catch (err) {
-          console.error("❌ Parse error:", err);
+          logWithTimestamp('error', 'WebSocket message parse error', { error: err.message, data: data.toString() });
         }
       });
 
       ws.on("error", (err) => {
-        console.error("❌ WebSocket error:", err);
+        logWithTimestamp('error', 'WebSocket connection error', { error: err.message, code: err.code });
       });
 
-      ws.on("close", () => {
-        console.log("❌ WebSocket connection closed");
+      ws.on("close", (code, reason) => {
+        logWithTimestamp('warn', 'WebSocket connection closed', { code, reason: reason?.toString() });
         // Attempt to reconnect after 5 seconds if not in serverless
         if (process.env.VERCEL !== '1') {
+          logWithTimestamp('info', 'Scheduling WebSocket reconnection in 5 seconds');
           setTimeout(initializeWebSocket, 5000);
         }
       });
     } catch (error) {
-      console.error("❌ Failed to initialize WebSocket:", error);
+      logWithTimestamp('error', 'Failed to initialize WebSocket', { error: error.message });
     }
   }
 }
@@ -306,9 +404,43 @@ app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
-// REST: Get all flight plans
-app.get("/flight-plans", (req, res) => {
-  res.json(flightPlans);
+// REST: Get all flight plans with serverless-aware fallback
+app.get("/flight-plans", async (req, res) => {
+  try {
+    // If we're in serverless and have Supabase, try to get recent flight plans
+    if (process.env.VERCEL === '1' && supabase && flightPlans.length === 0) {
+      try {
+        const { data: recentPlans } = await supabase
+          .from('flight_plans_received')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (recentPlans && recentPlans.length > 0) {
+          // Convert Supabase format back to flight plan format
+          const convertedPlans = recentPlans.map(plan => ({
+            callsign: plan.callsign,
+            arriving: plan.destination,
+            route: plan.route,
+            flightlevel: plan.flight_level,
+            source: plan.source,
+            timestamp: plan.created_at,
+            ...plan.raw_data
+          }));
+
+          console.log(`📡 Retrieved ${convertedPlans.length} flight plans from Supabase for serverless`);
+          return res.json(convertedPlans);
+        }
+      } catch (dbError) {
+        console.error('Failed to fetch from Supabase:', dbError);
+      }
+    }
+
+    res.json(flightPlans);
+  } catch (error) {
+    console.error('Error in flight plans endpoint:', error);
+    res.json(flightPlans); // Fallback to in-memory
+  }
 });
 
 // API endpoint to track clearance generation
@@ -325,6 +457,7 @@ app.post("/api/clearance-generated", async (req, res) => {
 
 // Admin API endpoints
 app.post("/api/admin/login", requireAdminAuth, (req, res) => {
+  logWithTimestamp('info', 'Admin login successful', { ip: req.ip, userAgent: req.headers['user-agent'] });
   res.json({ success: true, message: "Admin authenticated successfully" });
 });
 
@@ -485,24 +618,148 @@ app.post("/api/admin/reset-analytics", requireAdminAuth, async (req, res) => {
   }
 });
 
+// Debug logs endpoint for admin
+app.get("/api/admin/logs", (req, res) => {
+  try {
+    const { password } = req.query;
+    const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+    if (password !== adminPassword) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const limit = parseInt(req.query.limit) || 100;
+    const level = req.query.level || null;
+
+    // Debug logging for endpoint access
+    console.log('Debug logs endpoint accessed:', {
+      runtimeLogsExists: !!runtimeLogs,
+      runtimeLogsLength: runtimeLogs?.length || 0,
+      isArray: Array.isArray(runtimeLogs),
+      level: level,
+      limit: limit
+    });
+
+    // Ensure runtimeLogs exists
+    if (!Array.isArray(runtimeLogs)) {
+      console.error('Runtime logs array is not initialized properly');
+      return res.json({
+        logs: [],
+        totalCount: 0,
+        filteredCount: 0,
+        maxLogs: MAX_LOGS,
+        serverStartTime: new Date().toISOString(),
+        error: 'Logs not initialized'
+      });
+    }
+
+    let filteredLogs = runtimeLogs;
+
+    // Filter by log level if specified
+    if (level && level !== 'all') {
+      filteredLogs = runtimeLogs.filter(log => log && log.level === level);
+    }
+
+    // Limit results
+    const logsToReturn = filteredLogs.slice(0, limit);
+
+    // Get server start time from oldest log or use current time
+    const serverStartTime = runtimeLogs.length > 0
+      ? runtimeLogs[runtimeLogs.length - 1]?.timestamp || new Date().toISOString()
+      : new Date().toISOString();
+
+    res.json({
+      logs: logsToReturn,
+      totalCount: runtimeLogs.length,
+      filteredCount: filteredLogs.length,
+      maxLogs: MAX_LOGS,
+      serverStartTime: serverStartTime
+    });
+
+  } catch (error) {
+    logWithTimestamp('error', 'Error in debug logs endpoint', { error: error.message });
+    res.status(500).json({
+      error: 'Internal server error',
+      logs: [],
+      totalCount: 0,
+      filteredCount: 0,
+      maxLogs: MAX_LOGS,
+      serverStartTime: new Date().toISOString()
+    });
+  }
+});
+
 // Health check endpoint
 app.get("/health", (req, res) => {
+  const isServerless = process.env.VERCEL === '1';
+  let wsStatus = 'disabled';
+
+  if (isServerless) {
+    wsStatus = 'disabled_serverless';
+  } else if (ws) {
+    wsStatus = ws.readyState === WebSocket.OPEN ? 'connected' : 'disconnected';
+  } else {
+    wsStatus = 'not_initialized';
+  }
+
   res.json({
     status: "ok",
     wsConnected: ws ? ws.readyState === WebSocket.OPEN : false,
-    environment: process.env.VERCEL === '1' ? 'serverless' : 'traditional',
+    wsStatus: wsStatus,
+    environment: isServerless ? 'serverless' : 'traditional',
+    deployment: {
+      platform: isServerless ? 'vercel' : 'traditional',
+      supportsWebSocket: !isServerless,
+      persistentStorage: supabase !== null,
+      sessionCount: sessions.size,
+      memoryFlightPlans: flightPlans.length
+    },
+    capabilities: {
+      realtime_updates: !isServerless,
+      polling_fallback: true,
+      analytics_persistence: supabase !== null,
+      admin_panel: true,
+      clearance_generation: true
+    },
     flightPlansCount: flightPlans.length,
     supabaseConfigured: supabase !== null,
+    supportsRealtime: !isServerless,
+    limitations: isServerless ? {
+      websocket: 'disabled_in_serverless',
+      memory_persistence: 'function_lifecycle_only',
+      recommended_polling_interval: '10_seconds',
+      session_cleanup: 'automatic'
+    } : null,
+    recommendations: isServerless ? {
+      data_update_method: 'client_side_polling',
+      fallback_storage: supabase !== null ? 'supabase_available' : 'memory_only',
+      user_experience: 'polling_with_notification'
+    } : {
+      data_update_method: 'websocket_realtime',
+      storage: 'in_memory_with_supabase_backup'
+    },
     analytics: {
       totalVisits: analytics.totalVisits,
-      clearancesGenerated: analytics.clearancesGenerated
+      clearancesGenerated: analytics.clearancesGenerated,
+      flightPlansReceived: analytics.flightPlansReceived,
+      lastUpdated: new Date().toISOString()
     }
   });
 });
 
 // Start server only if not in Vercel environment
 if (process.env.VERCEL !== '1') {
-  app.listen(PORT, () => console.log(`🌐 Server running at http://localhost:${PORT}`));
+  app.listen(PORT, () => {
+    logWithTimestamp('info', `Server started successfully on port ${PORT}`, {
+      port: PORT,
+      environment: 'traditional',
+      supabaseConfigured: supabase !== null
+    });
+  });
+} else {
+  logWithTimestamp('info', 'Server deployed in serverless environment (Vercel)', {
+    environment: 'serverless',
+    supabaseConfigured: supabase !== null
+  });
 }
 
 // Export app for Vercel

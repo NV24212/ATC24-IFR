@@ -395,10 +395,90 @@
     }
   }
 
+  // Environment detection and polling fallback
+  let autoRefreshInterval = null;
+  let isServerless = false;
+
+  async function checkEnvironmentAndStartPolling() {
+    try {
+      const healthResponse = await fetch('/health');
+      const healthData = await healthResponse.json();
+      isServerless = healthData.environment === 'serverless';
+
+      // Initial load
+      await loadFlightPlans();
+
+      // Set up polling for serverless or if WebSocket is unavailable
+      if (isServerless || !healthData.wsConnected) {
+        console.log('Starting polling fallback - Environment:', healthData.environment);
+        startPolling(isServerless ? 10000 : 30000); // Poll every 10s for serverless, 30s for WebSocket issues
+
+        // Show notification to user
+        if (isServerless) {
+          showEnvironmentNotification();
+        }
+      } else {
+        console.log('WebSocket available - using real-time updates');
+      }
+    } catch (error) {
+      console.error('Failed to check environment, using polling fallback:', error);
+      await loadFlightPlans();
+      startPolling(15000); // Default polling interval
+    }
+  }
+
+  function startPolling(interval) {
+    if (autoRefreshInterval) {
+      clearInterval(autoRefreshInterval);
+    }
+
+    autoRefreshInterval = setInterval(async () => {
+      try {
+        await loadFlightPlans();
+        console.log('Flight plans refreshed via polling');
+      } catch (error) {
+        console.error('Polling refresh failed:', error);
+      }
+    }, interval);
+  }
+
+  function showEnvironmentNotification() {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 165, 0, 0.1);
+      border: 1px solid rgba(255, 165, 0, 0.3);
+      border-radius: 8px;
+      padding: 15px 20px;
+      max-width: 300px;
+      font-size: 14px;
+      color: #ffa500;
+      z-index: 1000;
+      backdrop-filter: blur(10px);
+    `;
+    notification.innerHTML = `
+      <strong>⚠️ Serverless Mode</strong><br>
+      <span style="color: var(--text-muted); font-size: 12px;">
+        Flight plans update every 10 seconds via polling
+      </span>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remove after 8 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 8000);
+  }
+
   // Initial load of flight plans when the page loads
   document.addEventListener('DOMContentLoaded', () => {
     loadAdminSettings().then(() => {
-      loadFlightPlans();
+      checkEnvironmentAndStartPolling();
     });
   });
 </script>
