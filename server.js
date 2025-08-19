@@ -605,6 +605,36 @@ app.post("/api/admin/reset-analytics", requireAdminAuth, async (req, res) => {
   }
 });
 
+// Debug logs endpoint for admin
+app.get("/api/admin/logs", (req, res) => {
+  const { password } = req.query;
+  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+  if (password !== adminPassword) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const limit = parseInt(req.query.limit) || 100;
+  const level = req.query.level || null;
+
+  let filteredLogs = runtimeLogs;
+
+  // Filter by log level if specified
+  if (level && level !== 'all') {
+    filteredLogs = runtimeLogs.filter(log => log.level === level);
+  }
+
+  // Limit results
+  const logsToReturn = filteredLogs.slice(0, limit);
+
+  res.json({
+    logs: logsToReturn,
+    totalCount: runtimeLogs.length,
+    filteredCount: filteredLogs.length,
+    maxLogs: MAX_LOGS,
+    serverStartTime: runtimeLogs[runtimeLogs.length - 1]?.timestamp || new Date().toISOString()
+  });
+});
+
 // Health check endpoint
 app.get("/health", (req, res) => {
   const isServerless = process.env.VERCEL === '1';
