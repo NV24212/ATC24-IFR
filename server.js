@@ -40,7 +40,7 @@ if (supabaseUrl && supabaseKey &&
 
 let flightPlans = []; // Store multiple flight plans
 
-// Analytics storage
+// Analytics storage with serverless persistence
 let analytics = {
   totalVisits: 0,
   dailyVisits: {},
@@ -48,6 +48,32 @@ let analytics = {
   flightPlansReceived: 0,
   lastReset: new Date().toISOString()
 };
+
+// Initialize analytics from Supabase in serverless environment
+async function initializeAnalyticsFromDB() {
+  if (process.env.VERCEL === '1' && supabase) {
+    try {
+      const [visitsResult, clearancesResult, flightPlansResult] = await Promise.all([
+        supabase.from('page_visits').select('*', { count: 'exact' }),
+        supabase.from('clearance_generations').select('*', { count: 'exact' }),
+        supabase.from('flight_plans_received').select('*', { count: 'exact' })
+      ]);
+
+      analytics.totalVisits = visitsResult.count || 0;
+      analytics.clearancesGenerated = clearancesResult.count || 0;
+      analytics.flightPlansReceived = flightPlansResult.count || 0;
+
+      console.log('📊 Analytics initialized from Supabase for serverless');
+    } catch (error) {
+      console.error('Failed to initialize analytics from DB:', error);
+    }
+  }
+}
+
+// Call initialization if in serverless
+if (process.env.VERCEL === '1' && supabase) {
+  initializeAnalyticsFromDB();
+}
 
 // Admin settings with aviation defaults
 let adminSettings = {
