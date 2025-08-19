@@ -85,6 +85,11 @@ logWithTimestamp('info', 'ATC24 Server starting up', {
   timestamp: new Date().toISOString()
 });
 
+// Add some initial test logs
+logWithTimestamp('info', 'Runtime logs system initialized');
+logWithTimestamp('warn', 'This is a test warning log');
+logWithTimestamp('error', 'This is a test error log for debugging');
+
 // Analytics storage with serverless persistence
 let analytics = {
   totalVisits: 0,
