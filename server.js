@@ -210,63 +210,80 @@ function requireAdminAuth(req, res, next) {
   next();
 }
 
-// Connect to WebSocket
-const ws = new WebSocket("wss://24data.ptfs.app/wss", {
-  headers: { Origin: "" } // Required as per docs
-});
+// WebSocket connection - only initialize if not in serverless environment
+let ws = null;
 
-ws.on("open", () => console.log("✅ WebSocket connected"));
-ws.on("message", async (data) => {
-  try {
-    const parsed = JSON.parse(data);
+function initializeWebSocket() {
+  if (process.env.VERCEL !== '1' && !ws) {
+    try {
+      ws = new WebSocket("wss://24data.ptfs.app/wss", {
+        headers: { Origin: "" } // Required as per docs
+      });
 
-    // Handle both regular and event flight plans
-    if (parsed.t === "FLIGHT_PLAN" || parsed.t === "EVENT_FLIGHT_PLAN") {
-      const flightPlan = parsed.d;
+      ws.on("open", () => console.log("✅ WebSocket connected"));
+      ws.on("message", async (data) => {
+        try {
+          const parsed = JSON.parse(data);
 
-      // Add timestamp and source info
-      flightPlan.timestamp = new Date().toISOString();
-      flightPlan.source = parsed.t === "EVENT_FLIGHT_PLAN" ? "Event" : "Main";
+          // Handle both regular and event flight plans
+          if (parsed.t === "FLIGHT_PLAN" || parsed.t === "EVENT_FLIGHT_PLAN") {
+            const flightPlan = parsed.d;
 
-      // Track analytics in Supabase
-      await trackFlightPlanReceived(flightPlan);
+            // Add timestamp and source info
+            flightPlan.timestamp = new Date().toISOString();
+            flightPlan.source = parsed.t === "EVENT_FLIGHT_PLAN" ? "Event" : "Main";
 
-      // Add new flight plan to array, keep configurable amount
-      flightPlans.unshift(flightPlan);
-      if (flightPlans.length > adminSettings.system.maxFlightPlansStored) {
-        flightPlans = flightPlans.slice(0, adminSettings.system.maxFlightPlansStored);
-      }
+            // Track analytics in Supabase
+            await trackFlightPlanReceived(flightPlan);
 
-      if (adminSettings.system.enableDetailedLogging) {
-        console.log(`📡 Received ${flightPlan.source} FlightPlan:`, flightPlan.callsign);
-      }
+            // Add new flight plan to array, keep configurable amount
+            flightPlans.unshift(flightPlan);
+            if (flightPlans.length > adminSettings.system.maxFlightPlansStored) {
+              flightPlans = flightPlans.slice(0, adminSettings.system.maxFlightPlansStored);
+            }
+
+            if (adminSettings.system.enableDetailedLogging) {
+              console.log(`📡 Received ${flightPlan.source} FlightPlan:`, flightPlan.callsign);
+            }
+          }
+          // Also handle METAR data to extract runway information
+          if (parsed.t === "METAR") {
+            const metarData = parsed.d;
+            // You can process metarData here to extract active runways
+            // For simplicity, we'll just store the raw METAR for now,
+            // and the frontend will ideally parse it or a separate function
+            // would extract relevant info.
+            // A more robust solution would involve parsing the METAR string
+            // to identify active runways, e.g., using regex for "R/XXXX" or similar patterns.
+            // For this specific fix, the client-side `updateRunwayOptions`
+            // expects a text input that it parses.
+            // A more direct way to send this to the frontend for parsing would be:
+            // flightPlans.metar = metarData.raw; // Or some processed runway info
+          }
+        } catch (err) {
+          console.error("❌ Parse error:", err);
+        }
+      });
+
+      ws.on("error", (err) => {
+        console.error("❌ WebSocket error:", err);
+      });
+
+      ws.on("close", () => {
+        console.log("❌ WebSocket connection closed");
+        // Attempt to reconnect after 5 seconds if not in serverless
+        if (process.env.VERCEL !== '1') {
+          setTimeout(initializeWebSocket, 5000);
+        }
+      });
+    } catch (error) {
+      console.error("❌ Failed to initialize WebSocket:", error);
     }
-    // Also handle METAR data to extract runway information
-    if (parsed.t === "METAR") {
-      const metarData = parsed.d;
-      // You can process metarData here to extract active runways
-      // For simplicity, we'll just store the raw METAR for now,
-      // and the frontend will ideally parse it or a separate function
-      // would extract relevant info.
-      // A more robust solution would involve parsing the METAR string
-      // to identify active runways, e.g., using regex for "R/XXXX" or similar patterns.
-      // For this specific fix, the client-side `updateRunwayOptions`
-      // expects a text input that it parses.
-      // A more direct way to send this to the frontend for parsing would be:
-      // flightPlans.metar = metarData.raw; // Or some processed runway info
-    }
-  } catch (err) {
-    console.error("❌ Parse error:", err);
   }
-});
+}
 
-ws.on("error", (err) => {
-  console.error("❌ WebSocket error:", err);
-});
-
-ws.on("close", () => {
-  console.log("❌ WebSocket connection closed");
-});
+// Initialize WebSocket connection
+initializeWebSocket();
 
 app.use(cors());
 app.use(express.json());
@@ -472,8 +489,10 @@ app.post("/api/admin/reset-analytics", requireAdminAuth, async (req, res) => {
 app.get("/health", (req, res) => {
   res.json({
     status: "ok",
-    wsConnected: ws.readyState === WebSocket.OPEN,
+    wsConnected: ws ? ws.readyState === WebSocket.OPEN : false,
+    environment: process.env.VERCEL === '1' ? 'serverless' : 'traditional',
     flightPlansCount: flightPlans.length,
+    supabaseConfigured: supabase !== null,
     analytics: {
       totalVisits: analytics.totalVisits,
       clearancesGenerated: analytics.clearancesGenerated

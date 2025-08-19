@@ -2,21 +2,33 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/server.js",
+      "src": "package.json",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/health",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/flight-plans",
+      "dest": "/server.js"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/api/server.js"
+      "dest": "/server.js"
     }
   ],
   "env": {
     "NODE_ENV": "production"
   },
   "functions": {
-    "api/server.js": {
+    "server.js": {
       "maxDuration": 30
     }
   }
