@@ -630,9 +630,18 @@ app.get("/api/admin/logs", (req, res) => {
     const limit = parseInt(req.query.limit) || 100;
     const level = req.query.level || null;
 
+    // Debug logging for endpoint access
+    console.log('Debug logs endpoint accessed:', {
+      runtimeLogsExists: !!runtimeLogs,
+      runtimeLogsLength: runtimeLogs?.length || 0,
+      isArray: Array.isArray(runtimeLogs),
+      level: level,
+      limit: limit
+    });
+
     // Ensure runtimeLogs exists
     if (!Array.isArray(runtimeLogs)) {
-      logWithTimestamp('error', 'Runtime logs array is not initialized');
+      console.error('Runtime logs array is not initialized properly');
       return res.json({
         logs: [],
         totalCount: 0,
