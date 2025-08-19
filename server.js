@@ -7,18 +7,35 @@ const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-// Initialize Supabase client
+// Initialize Supabase client with proper validation
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 let supabase = null;
 
-if (supabaseUrl && supabaseKey) {
-  supabase = createClient(supabaseUrl, supabaseKey);
-  console.log("✅ Supabase client initialized");
+// Validate Supabase configuration
+if (supabaseUrl && supabaseKey &&
+    supabaseUrl !== 'your_supabase_url_here' &&
+    supabaseUrl !== 'your_supabase_url_here/' &&
+    supabaseKey !== 'your_supabase_anon_key_here' &&
+    supabaseUrl.startsWith('https://') &&
+    supabaseUrl.includes('.supabase.co')) {
+  try {
+    supabase = createClient(supabaseUrl, supabaseKey);
+    console.log("✅ Supabase client initialized successfully");
+  } catch (error) {
+    console.error("❌ Failed to initialize Supabase:", error.message);
+    console.log("⚠️ Continuing without Supabase - using local storage");
+  }
 } else {
-  console.log("⚠️ Supabase not configured - using local storage");
+  console.log("⚠️ Supabase not properly configured - using local storage");
+  if (!supabaseUrl || supabaseUrl.includes('your_supabase_url_here')) {
+    console.log("   Please set SUPABASE_URL environment variable");
+  }
+  if (!supabaseKey || supabaseKey.includes('your_supabase_anon_key_here')) {
+    console.log("   Please set SUPABASE_ANON_KEY environment variable");
+  }
 }
 
 let flightPlans = []; // Store multiple flight plans
