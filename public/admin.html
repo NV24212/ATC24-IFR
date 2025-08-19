@@ -992,6 +992,16 @@
           environmentInfo.textContent = health.environment === 'serverless' ? 'Serverless (Vercel)' : 'Traditional Server';
         }
 
+        // Update realtime support info
+        const realtimeSupport = document.getElementById('realtimeSupport');
+        if (realtimeSupport) {
+          if (health.supportsRealtime) {
+            realtimeSupport.innerHTML = '<span style="color: var(--primary-color);">✓ WebSocket Available</span>';
+          } else {
+            realtimeSupport.innerHTML = '<span style="color: #ffa500;">⚠ Polling Fallback Only</span>';
+          }
+        }
+
         if (analytics.lastReset) {
           document.getElementById('lastReset').textContent = new Date(analytics.lastReset).toLocaleString();
         }
