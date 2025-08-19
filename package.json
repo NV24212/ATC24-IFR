@@ -1,15 +1,20 @@
 {
   "name": "24pdc",
   "version": "1.0.0",
-  "description": "",
+  "description": "ATC24 IFR Clearance Generator",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build": "echo 'Build completed'",
+    "vercel-build": "echo 'Vercel build completed'"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["atc", "aviation", "clearance", "ifr"],
+  "author": "Hasan Mahmood",
   "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.55.0",
     "cors": "^2.8.5",
