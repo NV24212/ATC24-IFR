@@ -203,7 +203,8 @@ async function trackVisit(req, res, next) {
 // Admin authentication middleware
 function requireAdminAuth(req, res, next) {
   const { password } = req.body || req.query;
-  if (password !== 'bruhdang') {
+  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+  if (password !== adminPassword) {
     return res.status(401).json({ error: 'Invalid admin password' });
   }
   next();
@@ -312,7 +313,8 @@ app.post("/api/admin/login", requireAdminAuth, (req, res) => {
 
 app.get("/api/admin/analytics", async (req, res) => {
   const { password } = req.query;
-  if (password !== 'bruhdang') {
+  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+  if (password !== adminPassword) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -412,7 +414,8 @@ app.get("/api/admin/analytics", async (req, res) => {
 
 app.get("/api/admin/settings", (req, res) => {
   const { password } = req.query;
-  if (password !== 'bruhdang') {
+  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+  if (password !== adminPassword) {
     // Allow guest access to basic settings for the main app
     if (password === 'guest') {
       const guestSettings = {
