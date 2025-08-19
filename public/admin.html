@@ -962,13 +962,24 @@
     }
 
     async function loadSystemInfo() {
+      const wsStatus = document.getElementById('wsStatus');
+
+      // Set loading state without ugly spinner
+      wsStatus.innerHTML = '<div style="color: var(--text-muted); font-weight: 600;">Loading status...</div>';
+      wsStatus.style.background = 'var(--surface-hover)';
+      wsStatus.style.border = '1px solid var(--border-color)';
+
       try {
         const response = await fetch('/health');
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
         const health = await response.json();
+        console.log('System health data:', health);
 
         // WebSocket status with environment awareness
-        const wsStatus = document.getElementById('wsStatus');
-
         if (health.environment === 'serverless') {
           wsStatus.innerHTML = '<div style="width: 12px; height: 12px; background: #ffa500; border-radius: 50%; margin: 0 auto 10px;"></div><div style="color: #ffa500; font-weight: 600;">WebSocket Disabled</div><div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Serverless deployment - using polling fallback</div>';
           wsStatus.style.background = 'rgba(255, 165, 0, 0.1)';
@@ -978,9 +989,14 @@
           wsStatus.style.background = 'rgba(245, 222, 64, 0.1)';
           wsStatus.style.border = '1px solid rgba(245, 222, 64, 0.3)';
         } else if (health.wsStatus === 'disconnected' || health.wsStatus === 'not_initialized') {
-          wsStatus.innerHTML = '<div style="width: 12px; height: 12px; background: #ff6b6b; border-radius: 50%; margin: 0 auto 10px;"></div><div style="color: #ff6b6b; font-weight: 600;">WebSocket Disconnected</div><div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Attempting to reconnect...</div>';
+          wsStatus.innerHTML = '<div style="width: 12px; height: 12px; background: #ff6b6b; border-radius: 50%; margin: 0 auto 10px;"></div><div style="color: #ff6b6b; font-weight: 600;">WebSocket Disconnected</div><div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">No real-time connection</div>';
           wsStatus.style.background = 'rgba(255, 107, 107, 0.1)';
           wsStatus.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+        } else {
+          // Fallback for unknown status
+          wsStatus.innerHTML = '<div style="width: 12px; height: 12px; background: var(--text-muted); border-radius: 50%; margin: 0 auto 10px;"></div><div style="color: var(--text-muted); font-weight: 600;">Status Unknown</div><div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Unable to determine connection status</div>';
+          wsStatus.style.background = 'var(--surface-hover)';
+          wsStatus.style.border = '1px solid var(--border-color)';
         }
 
         // System info
@@ -1007,9 +1023,8 @@
         }
       } catch (error) {
         console.error('Failed to load system info:', error);
-        // Show error state
-        const wsStatus = document.getElementById('wsStatus');
-        wsStatus.innerHTML = '<div style="width: 12px; height: 12px; background: #ff6b6b; border-radius: 50%; margin: 0 auto 10px;"></div><div style="color: #ff6b6b; font-weight: 600;">Status Unknown</div><div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Failed to fetch system status</div>';
+        // Show clear error state without ugly icons
+        wsStatus.innerHTML = '<div style="color: #ff6b6b; font-weight: 600;">Connection Failed</div><div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Unable to fetch system status</div>';
         wsStatus.style.background = 'rgba(255, 107, 107, 0.1)';
         wsStatus.style.border = '1px solid rgba(255, 107, 107, 0.3)';
       }
