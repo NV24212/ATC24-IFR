@@ -487,12 +487,25 @@ app.post("/api/admin/reset-analytics", requireAdminAuth, async (req, res) => {
 
 // Health check endpoint
 app.get("/health", (req, res) => {
+  const isServerless = process.env.VERCEL === '1';
+  let wsStatus = 'disabled';
+
+  if (isServerless) {
+    wsStatus = 'disabled_serverless';
+  } else if (ws) {
+    wsStatus = ws.readyState === WebSocket.OPEN ? 'connected' : 'disconnected';
+  } else {
+    wsStatus = 'not_initialized';
+  }
+
   res.json({
     status: "ok",
     wsConnected: ws ? ws.readyState === WebSocket.OPEN : false,
-    environment: process.env.VERCEL === '1' ? 'serverless' : 'traditional',
+    wsStatus: wsStatus,
+    environment: isServerless ? 'serverless' : 'traditional',
     flightPlansCount: flightPlans.length,
     supabaseConfigured: supabase !== null,
+    supportsRealtime: !isServerless,
     analytics: {
       totalVisits: analytics.totalVisits,
       clearancesGenerated: analytics.clearancesGenerated
