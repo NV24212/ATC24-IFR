@@ -40,6 +40,51 @@ if (supabaseUrl && supabaseKey &&
 
 let flightPlans = []; // Store multiple flight plans
 
+// Runtime logs storage for debugging
+let runtimeLogs = [];
+const MAX_LOGS = 500; // Keep last 500 log entries
+
+// Enhanced logging function
+function logWithTimestamp(level, message, data = null) {
+  const timestamp = new Date().toISOString();
+  const logEntry = {
+    timestamp,
+    level,
+    message,
+    data: data ? JSON.stringify(data) : null,
+    id: uuidv4().slice(0, 8)
+  };
+
+  // Add to runtime logs
+  runtimeLogs.unshift(logEntry);
+  if (runtimeLogs.length > MAX_LOGS) {
+    runtimeLogs = runtimeLogs.slice(0, MAX_LOGS);
+  }
+
+  // Console output with formatting
+  const formattedMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+  switch(level) {
+    case 'error':
+      console.error(formattedMessage, data || '');
+      break;
+    case 'warn':
+      console.warn(formattedMessage, data || '');
+      break;
+    case 'info':
+      console.info(formattedMessage, data || '');
+      break;
+    default:
+      console.log(formattedMessage, data || '');
+  }
+}
+
+// Initialize startup log
+logWithTimestamp('info', 'ATC24 Server starting up', {
+  environment: process.env.VERCEL === '1' ? 'serverless' : 'traditional',
+  nodeVersion: process.version,
+  timestamp: new Date().toISOString()
+});
+
 // Analytics storage with serverless persistence
 let analytics = {
   totalVisits: 0,
