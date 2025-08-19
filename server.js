@@ -615,32 +615,63 @@ app.post("/api/admin/reset-analytics", requireAdminAuth, async (req, res) => {
 
 // Debug logs endpoint for admin
 app.get("/api/admin/logs", (req, res) => {
-  const { password } = req.query;
-  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
-  if (password !== adminPassword) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const { password } = req.query;
+    const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+    if (password !== adminPassword) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const limit = parseInt(req.query.limit) || 100;
+    const level = req.query.level || null;
+
+    // Ensure runtimeLogs exists
+    if (!Array.isArray(runtimeLogs)) {
+      logWithTimestamp('error', 'Runtime logs array is not initialized');
+      return res.json({
+        logs: [],
+        totalCount: 0,
+        filteredCount: 0,
+        maxLogs: MAX_LOGS,
+        serverStartTime: new Date().toISOString(),
+        error: 'Logs not initialized'
+      });
+    }
+
+    let filteredLogs = runtimeLogs;
+
+    // Filter by log level if specified
+    if (level && level !== 'all') {
+      filteredLogs = runtimeLogs.filter(log => log && log.level === level);
+    }
+
+    // Limit results
+    const logsToReturn = filteredLogs.slice(0, limit);
+
+    // Get server start time from oldest log or use current time
+    const serverStartTime = runtimeLogs.length > 0
+      ? runtimeLogs[runtimeLogs.length - 1]?.timestamp || new Date().toISOString()
+      : new Date().toISOString();
+
+    res.json({
+      logs: logsToReturn,
+      totalCount: runtimeLogs.length,
+      filteredCount: filteredLogs.length,
+      maxLogs: MAX_LOGS,
+      serverStartTime: serverStartTime
+    });
+
+  } catch (error) {
+    logWithTimestamp('error', 'Error in debug logs endpoint', { error: error.message });
+    res.status(500).json({
+      error: 'Internal server error',
+      logs: [],
+      totalCount: 0,
+      filteredCount: 0,
+      maxLogs: MAX_LOGS,
+      serverStartTime: new Date().toISOString()
+    });
   }
-
-  const limit = parseInt(req.query.limit) || 100;
-  const level = req.query.level || null;
-
-  let filteredLogs = runtimeLogs;
-
-  // Filter by log level if specified
-  if (level && level !== 'all') {
-    filteredLogs = runtimeLogs.filter(log => log.level === level);
-  }
-
-  // Limit results
-  const logsToReturn = filteredLogs.slice(0, limit);
-
-  res.json({
-    logs: logsToReturn,
-    totalCount: runtimeLogs.length,
-    filteredCount: filteredLogs.length,
-    maxLogs: MAX_LOGS,
-    serverStartTime: runtimeLogs[runtimeLogs.length - 1]?.timestamp || new Date().toISOString()
-  });
 });
 
 // Health check endpoint
