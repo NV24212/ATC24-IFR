@@ -578,21 +578,42 @@ app.get("/health", (req, res) => {
     wsConnected: ws ? ws.readyState === WebSocket.OPEN : false,
     wsStatus: wsStatus,
     environment: isServerless ? 'serverless' : 'traditional',
+    deployment: {
+      platform: isServerless ? 'vercel' : 'traditional',
+      supportsWebSocket: !isServerless,
+      persistentStorage: supabase !== null,
+      sessionCount: sessions.size,
+      memoryFlightPlans: flightPlans.length
+    },
+    capabilities: {
+      realtime_updates: !isServerless,
+      polling_fallback: true,
+      analytics_persistence: supabase !== null,
+      admin_panel: true,
+      clearance_generation: true
+    },
     flightPlansCount: flightPlans.length,
     supabaseConfigured: supabase !== null,
     supportsRealtime: !isServerless,
     limitations: isServerless ? {
-      websocket: 'disabled',
-      persistence: 'session_only',
-      recommended_polling: '10_seconds'
+      websocket: 'disabled_in_serverless',
+      memory_persistence: 'function_lifecycle_only',
+      recommended_polling_interval: '10_seconds',
+      session_cleanup: 'automatic'
     } : null,
     recommendations: isServerless ? {
-      data_update_method: 'polling',
-      fallback_available: supabase !== null
-    } : null,
+      data_update_method: 'client_side_polling',
+      fallback_storage: supabase !== null ? 'supabase_available' : 'memory_only',
+      user_experience: 'polling_with_notification'
+    } : {
+      data_update_method: 'websocket_realtime',
+      storage: 'in_memory_with_supabase_backup'
+    },
     analytics: {
       totalVisits: analytics.totalVisits,
-      clearancesGenerated: analytics.clearancesGenerated
+      clearancesGenerated: analytics.clearancesGenerated,
+      flightPlansReceived: analytics.flightPlansReceived,
+      lastUpdated: new Date().toISOString()
     }
   });
 });
