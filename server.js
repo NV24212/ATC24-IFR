@@ -105,8 +105,23 @@ let adminSettings = {
   }
 };
 
-// Session tracking
+// Session tracking with serverless cleanup
 const sessions = new Map();
+
+// Clean up old sessions periodically (important for serverless)
+function cleanupOldSessions() {
+  const now = new Date();
+  const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+
+  for (const [sessionId, session] of sessions.entries()) {
+    if (now - session.lastActivity > maxAge) {
+      sessions.delete(sessionId);
+    }
+  }
+}
+
+// Run cleanup every 5 minutes
+setInterval(cleanupOldSessions, 5 * 60 * 1000);
 
 // Helper function to get or create session
 function getOrCreateSession(req) {
