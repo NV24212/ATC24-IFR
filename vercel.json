@@ -20,6 +20,14 @@
       "dest": "/server.js"
     },
     {
+      "src": "/license",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/admin",
+      "dest": "/server.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "/server.js"
     }
