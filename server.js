@@ -370,7 +370,7 @@ function initializeWebSocket() {
         }
       });
     } catch (error) {
-      console.error("❌ Failed to initialize WebSocket:", error);
+      logWithTimestamp('error', 'Failed to initialize WebSocket', { error: error.message });
     }
   }
 }
