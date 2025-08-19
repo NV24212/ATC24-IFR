@@ -703,7 +703,18 @@ app.get("/health", (req, res) => {
 
 // Start server only if not in Vercel environment
 if (process.env.VERCEL !== '1') {
-  app.listen(PORT, () => console.log(`🌐 Server running at http://localhost:${PORT}`));
+  app.listen(PORT, () => {
+    logWithTimestamp('info', `Server started successfully on port ${PORT}`, {
+      port: PORT,
+      environment: 'traditional',
+      supabaseConfigured: supabase !== null
+    });
+  });
+} else {
+  logWithTimestamp('info', 'Server deployed in serverless environment (Vercel)', {
+    environment: 'serverless',
+    supabaseConfigured: supabase !== null
+  });
 }
 
 // Export app for Vercel
