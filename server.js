@@ -9,42 +9,11 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize Supabase client with proper validation
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-let supabase = null;
-
-// Validate Supabase configuration
-if (supabaseUrl && supabaseKey &&
-    supabaseUrl !== 'your_supabase_url_here' &&
-    supabaseUrl !== 'your_supabase_url_here/' &&
-    supabaseKey !== 'your_supabase_anon_key_here' &&
-    supabaseUrl.startsWith('https://') &&
-    supabaseUrl.includes('.supabase.co')) {
-  try {
-    supabase = createClient(supabaseUrl, supabaseKey);
-    logWithTimestamp('info', 'Supabase client initialized successfully');
-  } catch (error) {
-    logWithTimestamp('error', 'Failed to initialize Supabase', { error: error.message });
-    logWithTimestamp('warn', 'Continuing without Supabase - using local storage');
-  }
-} else {
-  console.log("⚠️ Supabase not properly configured - using local storage");
-  if (!supabaseUrl || supabaseUrl.includes('your_supabase_url_here')) {
-    console.log("   Please set SUPABASE_URL environment variable");
-  }
-  if (!supabaseKey || supabaseKey.includes('your_supabase_anon_key_here')) {
-    console.log("   Please set SUPABASE_ANON_KEY environment variable");
-  }
-}
-
-let flightPlans = []; // Store multiple flight plans
-
-// Runtime logs storage for debugging
+// Runtime logs storage for debugging - moved before first usage
 let runtimeLogs = [];
 const MAX_LOGS = 500; // Keep last 500 log entries
 
-// Enhanced logging function
+// Enhanced logging function - moved before first usage
 function logWithTimestamp(level, message, data = null) {
   const timestamp = new Date().toISOString();
   const logEntry = {
@@ -77,6 +46,37 @@ function logWithTimestamp(level, message, data = null) {
       console.log(formattedMessage, data || '');
   }
 }
+
+// Initialize Supabase client with proper validation
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+let supabase = null;
+
+// Validate Supabase configuration
+if (supabaseUrl && supabaseKey &&
+    supabaseUrl !== 'your_supabase_url_here' &&
+    supabaseUrl !== 'your_supabase_url_here/' &&
+    supabaseKey !== 'your_supabase_anon_key_here' &&
+    supabaseUrl.startsWith('https://') &&
+    supabaseUrl.includes('.supabase.co')) {
+  try {
+    supabase = createClient(supabaseUrl, supabaseKey);
+    logWithTimestamp('info', 'Supabase client initialized successfully');
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to initialize Supabase', { error: error.message });
+    logWithTimestamp('warn', 'Continuing without Supabase - using local storage');
+  }
+} else {
+  console.log("⚠️ Supabase not properly configured - using local storage");
+  if (!supabaseUrl || supabaseUrl.includes('your_supabase_url_here')) {
+    console.log("   Please set SUPABASE_URL environment variable");
+  }
+  if (!supabaseKey || supabaseKey.includes('your_supabase_anon_key_here')) {
+    console.log("   Please set SUPABASE_ANON_KEY environment variable");
+  }
+}
+
+let flightPlans = []; // Store multiple flight plans
 
 // Initialize startup log
 logWithTimestamp('info', 'ATC24 Server starting up', {
