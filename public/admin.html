@@ -4,6 +4,7 @@
   <title>ATC24 Admin Panel</title>
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     .admin-login {
       display: flex;
@@ -218,11 +219,43 @@
       border-radius: 12px;
       padding: 25px;
       margin-top: 20px;
+      height: 400px;
+      position: relative;
+    }
+
+    .chart-header {
+      text-align: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .chart-header h3 {
+      color: var(--primary-color);
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 5px 0;
+    }
+
+    .chart-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .chart-wrapper {
+      position: relative;
       height: 300px;
+      width: 100%;
+    }
+
+    .chart-loading {
       display: flex;
       align-items: center;
       justify-content: center;
+      height: 300px;
       color: var(--text-muted);
+      font-style: italic;
     }
     
     .save-settings-btn {
@@ -600,16 +633,23 @@
         </div>
         
         <div class="chart-container">
-          <div style="text-align: center;">
-            <div style="color: var(--primary-color); font-size: 18px; font-weight: 600; margin-bottom: 10px;">Daily Visit Chart</div>
-            <div style="font-size: 14px; color: var(--text-muted);">Visual analytics coming soon</div>
+          <div class="chart-header">
+            <h3>Daily Visit Chart</h3>
+            <p class="chart-subtitle">Website visits over the last 30 days</p>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="dailyVisitChart"></canvas>
+            <div id="chartLoading" class="chart-loading">Loading chart data...</div>
           </div>
         </div>
 
         <div class="danger-zone">
           <h3>Analytics Management</h3>
           <p style="color: var(--text-muted); margin-bottom: 15px;">Reset all analytics data (cannot be undone)</p>
-          <button class="danger-btn" onclick="resetAnalytics()">Reset All Analytics</button>
+          <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <button class="nav-btn" onclick="testAnalytics()" style="margin: 0; background: var(--primary-color); color: #000;">Generate Test Visits</button>
+            <button class="danger-btn" onclick="resetAnalytics()">Reset All Analytics</button>
+          </div>
         </div>
       </div>
     </div>
@@ -817,6 +857,7 @@
     let currentPassword = null;
     let analytics = {};
     let settings = {};
+    let dailyVisitChart = null;
 
     // Notification System
     function showNotification(type, title, message) {
@@ -956,15 +997,135 @@
         const today = new Date().toISOString().split('T')[0];
 
         document.getElementById('totalVisits').textContent = analytics.totalVisits || 0;
-        document.getElementById('todayVisits').textContent = analytics.dailyVisits[today] || 0;
+        document.getElementById('todayVisits').textContent = analytics.dailyVisits?.[today] || 0;
         document.getElementById('last7Days').textContent = analytics.last7Days || 0;
         document.getElementById('last30Days').textContent = analytics.last30Days || 0;
         document.getElementById('clearancesGenerated').textContent = analytics.clearancesGenerated || 0;
         document.getElementById('flightPlansReceived').textContent = analytics.flightPlansReceived || 0;
+
+        // Update the daily visit chart
+        updateDailyVisitChart();
       } catch (error) {
         console.error('Failed to load analytics:', error);
         showNotification('warning', 'Data Load Warning', 'Some analytics data may not be current. Refreshing automatically...');
       }
+    }
+
+    function updateDailyVisitChart() {
+      const chartCanvas = document.getElementById('dailyVisitChart');
+      const chartLoading = document.getElementById('chartLoading');
+
+      if (!chartCanvas || !analytics.dailyVisits) {
+        console.warn('Chart canvas or analytics data not available');
+        return;
+      }
+
+      // Hide loading message
+      if (chartLoading) {
+        chartLoading.style.display = 'none';
+      }
+
+      // Prepare data for the last 30 days
+      const last30Days = [];
+      const visitCounts = [];
+      const today = new Date();
+
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const dayLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        last30Days.push(dayLabel);
+        visitCounts.push(analytics.dailyVisits[dateStr] || 0);
+      }
+
+      // Destroy existing chart if it exists
+      if (dailyVisitChart) {
+        dailyVisitChart.destroy();
+      }
+
+      // Create the chart
+      const ctx = chartCanvas.getContext('2d');
+      dailyVisitChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: last30Days,
+          datasets: [{
+            label: 'Daily Visits',
+            data: visitCounts,
+            borderColor: '#f5de40',
+            backgroundColor: 'rgba(245, 222, 64, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#f5de40',
+            pointBorderColor: '#000',
+            pointBorderWidth: 1,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleColor: '#f5de40',
+              bodyColor: '#ffffff',
+              borderColor: '#f5de40',
+              borderWidth: 1,
+              cornerRadius: 8,
+              displayColors: false
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                color: 'rgba(255, 255, 255, 0.1)',
+                borderColor: 'rgba(255, 255, 255, 0.2)'
+              },
+              ticks: {
+                color: '#888',
+                font: {
+                  size: 11
+                },
+                maxTicksLimit: 8
+              }
+            },
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(255, 255, 255, 0.1)',
+                borderColor: 'rgba(255, 255, 255, 0.2)'
+              },
+              ticks: {
+                color: '#888',
+                font: {
+                  size: 11
+                },
+                precision: 0
+              }
+            }
+          },
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          },
+          elements: {
+            point: {
+              hoverBackgroundColor: '#f5de40',
+              hoverBorderColor: '#000'
+            }
+          }
+        }
+      });
+
+      console.log('Daily visit chart updated with', visitCounts.length, 'data points');
     }
 
     async function loadSettings() {
@@ -1134,6 +1295,31 @@
         }
       } catch (error) {
         console.error('Failed to save settings:', error);
+        showNotification('error', 'Connection Error', 'Failed to communicate with server. Check your connection.');
+      }
+    }
+
+    async function testAnalytics() {
+      try {
+        const response = await fetch('/api/admin/test-visits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: currentPassword,
+            count: 25,
+            days: 14
+          })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          showNotification('success', 'Test Data Generated', `Generated ${result.results.length} test visits over 14 days`);
+          loadAnalytics();
+        } else {
+          showNotification('error', 'Test Failed', 'Unable to generate test data. Please try again.');
+        }
+      } catch (error) {
+        console.error('Failed to generate test data:', error);
         showNotification('error', 'Connection Error', 'Failed to communicate with server. Check your connection.');
       }
     }
