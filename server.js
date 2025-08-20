@@ -200,6 +200,7 @@ function getOrCreateSession(req) {
 // Analytics helper functions
 async function trackPageVisit(req, pagePath) {
   const session = getOrCreateSession(req);
+  const isFirstVisit = session.pageViews === 0;
   session.pageViews++;
 
   const visitData = {
@@ -207,13 +208,23 @@ async function trackPageVisit(req, pagePath) {
     user_agent: req.headers['user-agent'],
     ip_address: req.ip || req.connection.remoteAddress,
     referrer: req.headers.referer,
-    session_id: session.id
+    session_id: session.id,
+    is_first_visit: isFirstVisit
   };
 
   // Track in local analytics for fallback
   const today = new Date().toISOString().split('T')[0];
   analytics.totalVisits++;
   analytics.dailyVisits[today] = (analytics.dailyVisits[today] || 0) + 1;
+
+  // Log visitor activity
+  logWithTimestamp('info', `Page visit tracked`, {
+    path: pagePath,
+    sessionId: session.id.slice(0, 8),
+    isFirstVisit,
+    totalVisits: analytics.totalVisits,
+    todayVisits: analytics.dailyVisits[today]
+  });
 
   // Store in Supabase if available
   if (supabase) {
@@ -470,6 +481,11 @@ app.get("/api/admin/analytics", async (req, res) => {
 
   try {
     let analyticsData = { ...analytics };
+    const today = new Date().toISOString().split('T')[0];
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     if (supabase) {
       // Get comprehensive analytics from Supabase
@@ -481,30 +497,34 @@ app.get("/api/admin/analytics", async (req, res) => {
       ]);
 
       // Get daily analytics for the last 30 days
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
       const { data: dailyData } = await supabase
         .from('page_visits')
         .select('created_at')
         .gte('created_at', thirtyDaysAgo.toISOString());
 
-      // Process daily visits
+      // Process daily visits with proper date handling
       const dailyVisits = {};
+      const last7DaysData = {};
+      const last30DaysData = {};
+
       if (dailyData) {
         dailyData.forEach(visit => {
           const date = visit.created_at.split('T')[0];
           dailyVisits[date] = (dailyVisits[date] || 0) + 1;
+
+          const visitDate = new Date(date);
+          if (visitDate >= sevenDaysAgo) {
+            last7DaysData[date] = (last7DaysData[date] || 0) + 1;
+          }
+          if (visitDate >= thirtyDaysAgo) {
+            last30DaysData[date] = (last30DaysData[date] || 0) + 1;
+          }
         });
       }
 
-      // Calculate last 7 and 30 days
-      const last7Days = Object.entries(dailyVisits)
-        .slice(-7)
-        .reduce((total, [date, visits]) => total + visits, 0);
-
-      const last30Days = Object.entries(dailyVisits)
-        .reduce((total, [date, visits]) => total + visits, 0);
+      // Calculate totals for last 7 and 30 days
+      const last7Days = Object.values(last7DaysData).reduce((total, visits) => total + visits, 0);
+      const last30Days = Object.values(last30DaysData).reduce((total, visits) => total + visits, 0);
 
       // Get unique visitors count
       const { data: uniqueVisitors } = await supabase
@@ -523,13 +543,16 @@ app.get("/api/admin/analytics", async (req, res) => {
         lastReset: analytics.lastReset
       };
     } else {
-      // Fallback to local analytics
+      // Fallback to local analytics with proper date filtering
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
       const last7Days = Object.entries(analytics.dailyVisits)
-        .slice(-7)
+        .filter(([date]) => date >= sevenDaysAgoStr)
         .reduce((total, [date, visits]) => total + visits, 0);
 
       const last30Days = Object.entries(analytics.dailyVisits)
-        .slice(-30)
+        .filter(([date]) => date >= thirtyDaysAgoStr)
         .reduce((total, [date, visits]) => total + visits, 0);
 
       analyticsData = {
@@ -543,13 +566,21 @@ app.get("/api/admin/analytics", async (req, res) => {
     res.json(analyticsData);
   } catch (error) {
     console.error('Error fetching analytics:', error);
-    // Fallback to local analytics on error
+    // Fallback to local analytics on error with proper date filtering
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
     const last7Days = Object.entries(analytics.dailyVisits)
-      .slice(-7)
+      .filter(([date]) => date >= sevenDaysAgoStr)
       .reduce((total, [date, visits]) => total + visits, 0);
 
     const last30Days = Object.entries(analytics.dailyVisits)
-      .slice(-30)
+      .filter(([date]) => date >= thirtyDaysAgoStr)
       .reduce((total, [date, visits]) => total + visits, 0);
 
     res.json({
