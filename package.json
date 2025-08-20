@@ -9,7 +9,12 @@
     "build": "echo 'Build completed'",
     "vercel-build": "echo 'Vercel build completed'"
   },
-  "keywords": ["atc", "aviation", "clearance", "ifr"],
+  "keywords": [
+    "atc",
+    "aviation",
+    "clearance",
+    "ifr"
+  ],
   "author": "Hasan Mahmood",
   "license": "ISC",
   "engines": {
@@ -23,5 +28,8 @@
     "path": "^0.12.7",
     "uuid": "^11.1.0",
     "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "@flydotio/dockerfile": "^0.7.10"
   }
 }
