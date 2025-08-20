@@ -1299,6 +1299,31 @@
       }
     }
 
+    async function testAnalytics() {
+      try {
+        const response = await fetch('/api/admin/test-visits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: currentPassword,
+            count: 25,
+            days: 14
+          })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          showNotification('success', 'Test Data Generated', `Generated ${result.results.length} test visits over 14 days`);
+          loadAnalytics();
+        } else {
+          showNotification('error', 'Test Failed', 'Unable to generate test data. Please try again.');
+        }
+      } catch (error) {
+        console.error('Failed to generate test data:', error);
+        showNotification('error', 'Connection Error', 'Failed to communicate with server. Check your connection.');
+      }
+    }
+
     async function resetAnalytics() {
       if (!confirm('This will permanently delete all analytics data. Are you sure?')) {
         return;
