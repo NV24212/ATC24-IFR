@@ -777,6 +777,46 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Test endpoint to simulate visits for testing analytics
+app.post("/api/admin/test-visits", requireAdminAuth, async (req, res) => {
+  try {
+    const { count = 10, days = 7 } = req.body;
+    const results = [];
+
+    for (let i = 0; i < count; i++) {
+      // Randomly distribute visits over the specified days
+      const daysAgo = Math.floor(Math.random() * days);
+      const visitDate = new Date();
+      visitDate.setDate(visitDate.getDate() - daysAgo);
+      const visitDateStr = visitDate.toISOString().split('T')[0];
+
+      // Track the visit with custom date
+      analytics.totalVisits++;
+      analytics.dailyVisits[visitDateStr] = (analytics.dailyVisits[visitDateStr] || 0) + 1;
+
+      results.push({
+        visit: i + 1,
+        date: visitDateStr,
+        path: i % 2 === 0 ? '/' : '/license'
+      });
+    }
+
+    logWithTimestamp('info', `Generated ${count} test visits over ${days} days`);
+    res.json({
+      success: true,
+      message: `Generated ${count} test visits`,
+      results,
+      currentAnalytics: {
+        totalVisits: analytics.totalVisits,
+        dailyVisitsCount: Object.keys(analytics.dailyVisits).length
+      }
+    });
+  } catch (error) {
+    console.error('Error generating test visits:', error);
+    res.status(500).json({ error: 'Failed to generate test visits' });
+  }
+});
+
 // Start server only if not in Vercel environment
 if (process.env.VERCEL !== '1') {
   app.listen(PORT, () => {
