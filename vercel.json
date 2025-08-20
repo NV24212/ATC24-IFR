@@ -1,17 +1,17 @@
 {
   "version": 2,
   "functions": {
-    "server.js": {
+    "api/server.js": {
       "maxDuration": 10
     }
   },
   "routes": [
-    { "src": "/api/(.*)", "dest": "/server.js" },
-    { "src": "/health", "dest": "/server.js" },
-    { "src": "/flight-plans", "dest": "/server.js" },
-    { "src": "/admin", "dest": "/server.js" },
-    { "src": "/license", "dest": "/server.js" },
-    { "src": "/", "dest": "/server.js" },
+    { "src": "/api/(.*)", "dest": "/api/server.js" },
+    { "src": "/health", "dest": "/api/server.js" },
+    { "src": "/flight-plans", "dest": "/api/server.js" },
+    { "src": "/admin", "dest": "/api/server.js" },
+    { "src": "/license", "dest": "/api/server.js" },
+    { "src": "/", "dest": "/api/server.js" },
     { "src": "/public/(.*)", "dest": "/public/$1" }
   ]
 }
