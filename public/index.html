@@ -390,9 +390,10 @@
   }
 
   function generateSquawk() {
-    const min = adminSettings.aviation.squawkRanges.min;
-    const max = adminSettings.aviation.squawkRanges.max;
-    const exclude = adminSettings.aviation.squawkRanges.exclude;
+    const effectiveSettings = getEffectiveSettings();
+    const min = effectiveSettings.aviation.squawkRanges.min;
+    const max = effectiveSettings.aviation.squawkRanges.max;
+    const exclude = effectiveSettings.aviation.squawkRanges.exclude || [7500, 7600, 7700];
 
     while (true) {
       let code = Math.floor(min + Math.random() * (max - min + 1)).toString();
