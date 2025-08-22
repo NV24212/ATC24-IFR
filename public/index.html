@@ -739,7 +739,12 @@
 
   // Initial load of flight plans when the page loads
   document.addEventListener('DOMContentLoaded', () => {
+    // Load user settings first
+    loadUserSettings();
+
+    // Then load admin settings and start polling
     loadAdminSettings().then(() => {
+      updateUIFromSettings(); // Update UI with effective settings
       checkEnvironmentAndStartPolling();
     });
   });
