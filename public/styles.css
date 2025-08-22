@@ -467,6 +467,11 @@ input[type="text"]::placeholder {
   background: rgba(245, 222, 64, 0.05);
 }
 
+.section-header:active {
+  background: rgba(245, 222, 64, 0.1);
+  transform: translateY(1px);
+}
+
 .section-header .section-title {
   margin: 0;
   padding: 0;
