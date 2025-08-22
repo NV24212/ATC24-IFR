@@ -264,10 +264,13 @@
       if (saved) {
         const parsed = JSON.parse(saved);
         userSettings = { ...userSettings, ...parsed };
-        updateUserSettingsUI();
       }
+      // Always update UI after loading (or not loading) settings
+      updateUserSettingsUI();
     } catch (error) {
       console.error('Failed to load user settings:', error);
+      // Still update UI with defaults on error
+      updateUserSettingsUI();
     }
   }
 
