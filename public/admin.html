@@ -551,6 +551,195 @@
       color: var(--text-color);
     }
 
+    /* Tables Section Styles */
+    .table-nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .table-nav-btn {
+      padding: 10px 16px;
+      background: var(--surface-hover);
+      border: 2px solid var(--border-color);
+      color: var(--text-color);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .table-nav-btn:hover,
+    .table-nav-btn.active {
+      background: var(--primary-color);
+      color: #000;
+      border-color: var(--primary-color);
+    }
+
+    .table-container {
+      background: var(--surface-hover);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 0;
+      overflow: hidden;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    .table-loading {
+      padding: 40px;
+      text-align: center;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .data-table th {
+      background: var(--background-color);
+      color: var(--primary-color);
+      padding: 12px 8px;
+      text-align: left;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .data-table td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-color);
+      word-break: break-word;
+      max-width: 200px;
+    }
+
+    .data-table tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .data-table tr:hover {
+      background: rgba(245, 222, 64, 0.05);
+    }
+
+    .table-cell-truncated {
+      max-width: 150px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .table-cell-truncated:hover {
+      color: var(--primary-color);
+      text-overflow: clip;
+      white-space: normal;
+      max-width: none;
+    }
+
+    .table-pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .current-users-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 15px;
+    }
+
+    .user-card {
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      transition: all 0.3s ease;
+    }
+
+    .user-card:hover {
+      border-color: rgba(245, 222, 64, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .user-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .user-session-id {
+      font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+      color: var(--primary-color);
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .user-source {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .user-source.memory {
+      background: rgba(255, 165, 0, 0.2);
+      color: #ffa500;
+    }
+
+    .user-source.supabase {
+      background: rgba(245, 222, 64, 0.2);
+      color: var(--primary-color);
+    }
+
+    .user-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      font-size: 12px;
+    }
+
+    .user-stat {
+      text-align: center;
+    }
+
+    .user-stat-value {
+      color: var(--primary-color);
+      font-weight: 600;
+      font-size: 16px;
+    }
+
+    .user-stat-label {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 10px;
+    }
+
+    .user-last-activity {
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
     @media (max-width: 768px) {
       .settings-grid {
         grid-template-columns: 1fr;
@@ -562,6 +751,23 @@
 
       .admin-nav {
         flex-direction: column;
+      }
+
+      .table-nav {
+        flex-direction: column;
+      }
+
+      .current-users-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .data-table {
+        font-size: 11px;
+      }
+
+      .data-table th,
+      .data-table td {
+        padding: 8px 6px;
       }
     }
   </style>
