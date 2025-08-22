@@ -1242,6 +1242,9 @@
       // Load section-specific data
       if (sectionName === 'analytics') {
         loadAnalytics();
+      } else if (sectionName === 'tables') {
+        loadCurrentUsers();
+        loadTable('page_visits');
       } else if (sectionName === 'system') {
         loadSystemInfo();
         loadDebugLogs();
