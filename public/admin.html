@@ -1954,8 +1954,35 @@
 
       } catch (error) {
         console.error('Error fetching table data:', error);
-        document.getElementById('tableDisplay').innerHTML = '<div class="table-loading">Error loading table data</div>';
+
+        let errorMessage = 'Error loading table data';
+        let helpText = '';
+
+        if (error.message.includes('HTTP 500')) {
+          errorMessage = 'Database Setup Required';
+          helpText = `
+            <div style="margin-top: 15px; font-size: 13px; text-align: left;">
+              <strong>Next steps:</strong><br>
+              1. Run the SQL setup in your Supabase dashboard<br>
+              2. Check the supabase_tables.sql file for setup instructions<br>
+              3. Refresh this page after setup
+            </div>
+          `;
+        } else if (error.message.includes('503')) {
+          errorMessage = 'Database Connection Failed';
+          helpText = '<div style="margin-top: 10px; font-size: 13px;">Check your Supabase configuration</div>';
+        }
+
+        document.getElementById('tableDisplay').innerHTML = `
+          <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+            <div style="font-size: 18px; color: #ff6b6b; margin-bottom: 10px;">⚠ ${errorMessage}</div>
+            <div style="margin-bottom: 10px;">${error.message}</div>
+            ${helpText}
+            <button class="nav-btn" onclick="refreshCurrentTable()" style="margin-top: 15px;">Try Again</button>
+          </div>
+        `;
         document.getElementById('tableRecordCount').textContent = 'Error';
+        showNotification('error', 'Table Load Error', errorMessage);
       }
     }
 
