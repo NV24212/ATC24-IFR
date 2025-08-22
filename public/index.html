@@ -457,6 +457,7 @@
       return;
     }
 
+    const effectiveSettings = getEffectiveSettings();
     const groundCallsign = document.getElementById("groundCallsign").value.trim() || "GROUND";
     const atisInfo = document.getElementById("atisInfo").value;
     const ifl = document.getElementById("ifl").value;
@@ -481,12 +482,29 @@
       return;
     }
 
+    // Runway validation if enabled
+    if (effectiveSettings.aviation.enableRunwayValidation && userSettings.aviation.enableRunwayValidation) {
+      const runwayPattern = /^[0-3]?[0-9][LRC]?$/i;
+      if (!runwayPattern.test(departureRW)) {
+        alert('Invalid runway format. Use format like: 25R, 09L, 03C, or 36');
+        return;
+      }
+    }
+
     // Handle routing based on type
     let routePhrase = '';
     switch (routingType) {
       case 'SID':
         const sidName = document.getElementById("sidName").value.trim();
         if (sidName) {
+          // SID validation if enabled
+          if (effectiveSettings.aviation.enableSIDValidation && userSettings.aviation.enableSIDValidation) {
+            const sidPattern = /^[A-Z0-9]{3,6}$/i;
+            if (!sidPattern.test(sidName)) {
+              alert('Invalid SID format. Use format like: CIV1K, BIMBO2');
+              return;
+            }
+          }
           routePhrase = `the ${sidName} departure`;
         } else {
           alert('Please enter a SID name.');
@@ -512,12 +530,12 @@
         routePhrase = planRoute || 'as filed';
     }
 
-    // Generate clearance based on custom template if available, otherwise use legacy format
+    // Generate clearance based on user's custom template if available, otherwise use legacy format
     let clearance = '';
 
-    if (adminSettings.clearanceFormat.customTemplate) {
-      // Use custom template
-      clearance = adminSettings.clearanceFormat.customTemplate
+    if (effectiveSettings.clearanceFormat.customTemplate && userSettings.clearanceFormat.customTemplate) {
+      // Use user's custom template
+      clearance = userSettings.clearanceFormat.customTemplate
         .replace('{CALLSIGN}', callsign)
         .replace('{ATC_STATION}', groundCallsign)
         .replace('{ATIS}', atisInfo)
@@ -528,25 +546,25 @@
         .replace('{FLIGHT_LEVEL}', flightLevel.replace('FL', '').padStart(3, '0'))
         .replace('{SQUAWK}', squawk);
     } else {
-      // Fallback to legacy clearance generation
+      // Fallback to structured clearance generation using effective settings
       let clearanceParts = [];
 
       // Basic greeting and callsign
-      if (adminSettings.clearanceFormat.phraseologyStyle === "ICAO") {
+      if (effectiveSettings.clearanceFormat.phraseologyStyle === "ICAO") {
         clearanceParts.push(`${callsign}, ${groundCallsign}, good day.`);
-      } else if (adminSettings.clearanceFormat.phraseologyStyle === "FAA") {
+      } else if (effectiveSettings.clearanceFormat.phraseologyStyle === "FAA") {
         clearanceParts.push(`${callsign}, ${groundCallsign}.`);
       } else {
         clearanceParts.push(`${callsign}, ${groundCallsign}, good day.`);
       }
 
       // Startup approval
-      if (adminSettings.clearanceFormat.includeStartupApproval) {
+      if (effectiveSettings.clearanceFormat.includeStartupApproval) {
         clearanceParts.push("Startup approved.");
       }
 
       // ATIS information
-      if (adminSettings.clearanceFormat.includeAtis) {
+      if (effectiveSettings.clearanceFormat.includeAtis) {
         clearanceParts.push(`Information ${atisInfo} is correct.`);
       }
 
@@ -554,11 +572,11 @@
       clearanceParts.push(`Cleared to ${destination} via ${routePhrase}, runway ${departureRW}.`);
 
       // Initial climb
-      if (adminSettings.clearanceFormat.includeInitialClimb) {
+      if (effectiveSettings.clearanceFormat.includeInitialClimb) {
         clearanceParts.push(`Initial climb ${ifl}FT`);
 
         // Expected flight level
-        if (adminSettings.clearanceFormat.includeFlightLevel && flightLevel !== 'N/A') {
+        if (effectiveSettings.clearanceFormat.includeFlightLevel && flightLevel !== 'N/A') {
           clearanceParts[clearanceParts.length - 1] += `, expect further climb to Flight Level ${flightLevel.replace('FL', '').padStart(3, '0')}.`;
         } else {
           clearanceParts[clearanceParts.length - 1] += ".";
@@ -566,7 +584,7 @@
       }
 
       // Squawk code
-      if (adminSettings.clearanceFormat.includeSquawk) {
+      if (effectiveSettings.clearanceFormat.includeSquawk) {
         clearanceParts.push(`Squawk ${squawk}.`);
       }
 
