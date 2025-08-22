@@ -2109,6 +2109,14 @@
       }
     }, 15000);
 
+    // Auto-refresh tables and current users every 10 seconds when tables section is active
+    setInterval(() => {
+      if (currentPassword && document.getElementById('tables').classList.contains('active')) {
+        loadCurrentUsers();
+        // Don't auto-refresh the table data to avoid disrupting pagination
+      }
+    }, 10000);
+
     // Handle Enter key in password field
     document.getElementById('adminPassword').addEventListener('keypress', function(e) {
       if (e.key === 'Enter') {
