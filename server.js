@@ -175,26 +175,71 @@ setInterval(cleanupOldSessions, 5 * 60 * 1000);
 
 // Helper function to get or create session
 function getOrCreateSession(req) {
-  let sessionId = req.headers['x-session-id'] || req.session?.id;
+  try {
+    // Try multiple ways to get session ID
+    let sessionId = req.headers['x-session-id'] ||
+                   req.headers['session-id'] ||
+                   req.query.sessionId ||
+                   req.session?.id;
 
-  if (!sessionId) {
-    sessionId = uuidv4();
-  }
+    // Generate new session ID if none found
+    if (!sessionId || typeof sessionId !== 'string' || sessionId.trim() === '') {
+      sessionId = uuidv4();
+    }
 
-  if (!sessions.has(sessionId)) {
-    sessions.set(sessionId, {
-      id: sessionId,
+    // Validate session ID format (basic validation)
+    if (!sessionId.match(/^[a-f0-9\-]{36}$/i)) {
+      logWithTimestamp('warn', 'Invalid session ID format, generating new one', {
+        invalidId: sessionId.substring(0, 10) + '...',
+        ip: req.ip || 'unknown'
+      });
+      sessionId = uuidv4();
+    }
+
+    // Create session if it doesn't exist
+    if (!sessions.has(sessionId)) {
+      const newSession = {
+        id: sessionId,
+        createdAt: new Date(),
+        lastActivity: new Date(),
+        pageViews: 0,
+        clearancesGenerated: 0
+      };
+
+      sessions.set(sessionId, newSession);
+
+      logWithTimestamp('info', 'New session created', {
+        sessionId: sessionId.slice(0, 8),
+        totalSessions: sessions.size,
+        ip: req.ip || 'unknown'
+      });
+    }
+
+    // Update session activity
+    const session = sessions.get(sessionId);
+    session.lastActivity = new Date();
+
+    return session;
+
+  } catch (error) {
+    logWithTimestamp('error', 'Error in getOrCreateSession, creating fallback session', {
+      error: error.message,
+      ip: req.ip || 'unknown'
+    });
+
+    // Fallback: create a basic session
+    const fallbackId = uuidv4();
+    const fallbackSession = {
+      id: fallbackId,
       createdAt: new Date(),
       lastActivity: new Date(),
       pageViews: 0,
       clearancesGenerated: 0
-    });
+    };
+
+    sessions.set(fallbackId, fallbackSession);
+    return fallbackSession;
   }
-
-  const session = sessions.get(sessionId);
-  session.lastActivity = new Date();
-
-  return session;
 }
 
 // Analytics helper functions
