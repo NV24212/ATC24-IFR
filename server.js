@@ -175,103 +175,241 @@ setInterval(cleanupOldSessions, 5 * 60 * 1000);
 
 // Helper function to get or create session
 function getOrCreateSession(req) {
-  let sessionId = req.headers['x-session-id'] || req.session?.id;
+  try {
+    // Try multiple ways to get session ID
+    let sessionId = req.headers['x-session-id'] ||
+                   req.headers['session-id'] ||
+                   req.query.sessionId ||
+                   req.session?.id;
 
-  if (!sessionId) {
-    sessionId = uuidv4();
-  }
+    // Generate new session ID if none found
+    if (!sessionId || typeof sessionId !== 'string' || sessionId.trim() === '') {
+      sessionId = uuidv4();
+    }
 
-  if (!sessions.has(sessionId)) {
-    sessions.set(sessionId, {
-      id: sessionId,
+    // Validate session ID format (basic validation)
+    if (!sessionId.match(/^[a-f0-9\-]{36}$/i)) {
+      logWithTimestamp('warn', 'Invalid session ID format, generating new one', {
+        invalidId: sessionId.substring(0, 10) + '...',
+        ip: req.ip || 'unknown'
+      });
+      sessionId = uuidv4();
+    }
+
+    // Create session if it doesn't exist
+    if (!sessions.has(sessionId)) {
+      const newSession = {
+        id: sessionId,
+        createdAt: new Date(),
+        lastActivity: new Date(),
+        pageViews: 0,
+        clearancesGenerated: 0
+      };
+
+      sessions.set(sessionId, newSession);
+
+      logWithTimestamp('info', 'New session created', {
+        sessionId: sessionId.slice(0, 8),
+        totalSessions: sessions.size,
+        ip: req.ip || 'unknown'
+      });
+    }
+
+    // Update session activity
+    const session = sessions.get(sessionId);
+    session.lastActivity = new Date();
+
+    return session;
+
+  } catch (error) {
+    logWithTimestamp('error', 'Error in getOrCreateSession, creating fallback session', {
+      error: error.message,
+      ip: req.ip || 'unknown'
+    });
+
+    // Fallback: create a basic session
+    const fallbackId = uuidv4();
+    const fallbackSession = {
+      id: fallbackId,
       createdAt: new Date(),
       lastActivity: new Date(),
       pageViews: 0,
       clearancesGenerated: 0
-    });
+    };
+
+    sessions.set(fallbackId, fallbackSession);
+    return fallbackSession;
   }
-
-  const session = sessions.get(sessionId);
-  session.lastActivity = new Date();
-
-  return session;
 }
 
 // Analytics helper functions
 async function trackPageVisit(req, pagePath) {
-  const session = getOrCreateSession(req);
-  const isFirstVisit = session.pageViews === 0;
-  session.pageViews++;
+  try {
+    const session = getOrCreateSession(req);
+    const isFirstVisit = session.pageViews === 0;
+    session.pageViews++;
 
-  const visitData = {
-    page_path: pagePath,
-    user_agent: req.headers['user-agent'],
-    ip_address: req.ip || req.connection.remoteAddress,
-    referrer: req.headers.referer,
-    session_id: session.id,
-    is_first_visit: isFirstVisit
-  };
+    // Extract real IP address from various headers (useful for proxies/load balancers)
+    const getRealIP = (req) => {
+      return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+             req.headers['x-real-ip'] ||
+             req.connection?.remoteAddress ||
+             req.socket?.remoteAddress ||
+             req.ip ||
+             'unknown';
+    };
 
-  // Track in local analytics for fallback
-  const today = new Date().toISOString().split('T')[0];
-  analytics.totalVisits++;
-  analytics.dailyVisits[today] = (analytics.dailyVisits[today] || 0) + 1;
+    const visitData = {
+      page_path: pagePath,
+      user_agent: req.headers['user-agent'] || 'Unknown',
+      ip_address: getRealIP(req),
+      referrer: req.headers.referer || null,
+      session_id: session.id,
+      is_first_visit: isFirstVisit
+    };
 
-  // Log visitor activity
-  logWithTimestamp('info', `Page visit tracked`, {
-    path: pagePath,
-    sessionId: session.id.slice(0, 8),
-    isFirstVisit,
-    totalVisits: analytics.totalVisits,
-    todayVisits: analytics.dailyVisits[today]
-  });
+    // Track in local analytics for fallback (always do this first)
+    const today = new Date().toISOString().split('T')[0];
+    analytics.totalVisits++;
+    analytics.dailyVisits[today] = (analytics.dailyVisits[today] || 0) + 1;
 
-  // Store in Supabase if available
-  if (supabase) {
-    try {
-      await supabase.from('page_visits').insert(visitData);
+    // Log visitor activity
+    logWithTimestamp('info', `Page visit tracked`, {
+      path: pagePath,
+      sessionId: session.id.slice(0, 8),
+      isFirstVisit,
+      totalVisits: analytics.totalVisits,
+      todayVisits: analytics.dailyVisits[today],
+      ip: visitData.ip_address
+    });
 
-      // Update or create user session
-      await supabase.from('user_sessions').upsert({
-        session_id: session.id,
-        ip_address: visitData.ip_address,
-        user_agent: visitData.user_agent,
-        last_activity: new Date().toISOString(),
-        page_views: session.pageViews
-      });
+    // Store in Supabase if available (don't let failures here affect the main app)
+    if (supabase) {
+      try {
+        // Insert page visit
+        const { error: visitError } = await supabase.from('page_visits').insert(visitData);
+        if (visitError) {
+          throw new Error(`Page visit insert failed: ${visitError.message}`);
+        }
 
-    } catch (error) {
-      console.error('Failed to track page visit in Supabase:', error);
+        // Update or create user session
+        const sessionData = {
+          session_id: session.id,
+          ip_address: visitData.ip_address,
+          user_agent: visitData.user_agent,
+          last_activity: new Date().toISOString(),
+          page_views: session.pageViews,
+          clearances_generated: session.clearancesGenerated || 0
+        };
+
+        const { error: sessionError } = await supabase.from('user_sessions').upsert(sessionData);
+        if (sessionError) {
+          throw new Error(`Session upsert failed: ${sessionError.message}`);
+        }
+
+      } catch (error) {
+        logWithTimestamp('error', 'Failed to track page visit in Supabase', {
+          error: error.message,
+          sessionId: session.id.slice(0, 8),
+          path: pagePath
+        });
+        // Continue execution - don't let Supabase errors break the app
+      }
     }
+
+    return { success: true, session, visitData };
+
+  } catch (error) {
+    logWithTimestamp('error', 'Critical error in trackPageVisit', {
+      error: error.message,
+      path: pagePath,
+      stack: error.stack
+    });
+    // Even if tracking fails, don't break the request
+    return { success: false, error: error.message };
   }
 }
 
 async function trackClearanceGeneration(req, clearanceData) {
-  const session = getOrCreateSession(req);
-  session.clearancesGenerated++;
+  try {
+    const session = getOrCreateSession(req);
+    session.clearancesGenerated = (session.clearancesGenerated || 0) + 1;
 
-  // Track in local analytics for fallback
-  analytics.clearancesGenerated++;
+    // Track in local analytics for fallback (always do this first)
+    analytics.clearancesGenerated++;
 
-  // Store in Supabase if available
-  if (supabase) {
-    try {
-      await supabase.from('clearance_generations').insert({
-        ...clearanceData,
-        session_id: session.id,
-        ip_address: req.ip || req.connection.remoteAddress
-      });
+    // Extract real IP address
+    const getRealIP = (req) => {
+      return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+             req.headers['x-real-ip'] ||
+             req.connection?.remoteAddress ||
+             req.socket?.remoteAddress ||
+             req.ip ||
+             'unknown';
+    };
 
-      // Update session clearance count
-      await supabase.from('user_sessions').upsert({
-        session_id: session.id,
-        clearances_generated: session.clearancesGenerated,
-        last_activity: new Date().toISOString()
-      });
+    const enhancedClearanceData = {
+      ...clearanceData,
+      session_id: session.id,
+      ip_address: getRealIP(req),
+      user_agent: req.headers['user-agent'] || 'Unknown',
+      timestamp: new Date().toISOString()
+    };
 
-    } catch (error) {
-      console.error('Failed to track clearance generation in Supabase:', error);
+    logWithTimestamp('info', 'Clearance generation tracked', {
+      sessionId: session.id.slice(0, 8),
+      callsign: clearanceData?.callsign || 'Unknown',
+      totalClearances: analytics.clearancesGenerated,
+      sessionClearances: session.clearancesGenerated
+    });
+
+    // Store in Supabase if available (don't let failures here affect the main app)
+    if (supabase) {
+      try {
+        // Insert clearance generation record
+        const { error: clearanceError } = await supabase
+          .from('clearance_generations')
+          .insert(enhancedClearanceData);
+
+        if (clearanceError) {
+          throw new Error(`Clearance insert failed: ${clearanceError.message}`);
+        }
+
+        // Update session clearance count and activity
+        const { error: sessionError } = await supabase
+          .from('user_sessions')
+          .upsert({
+            session_id: session.id,
+            clearances_generated: session.clearancesGenerated,
+            last_activity: new Date().toISOString(),
+            ip_address: getRealIP(req),
+            user_agent: req.headers['user-agent'] || 'Unknown'
+          });
+
+        if (sessionError) {
+          throw new Error(`Session update failed: ${sessionError.message}`);
+        }
+
+      } catch (error) {
+        logWithTimestamp('error', 'Failed to track clearance generation in Supabase', {
+          error: error.message,
+          sessionId: session.id.slice(0, 8),
+          callsign: clearanceData?.callsign || 'Unknown'
+        });
+        // Continue execution - don't let Supabase errors break the app
+      }
     }
+
+    return { success: true, session, clearanceData: enhancedClearanceData };
+
+  } catch (error) {
+    logWithTimestamp('error', 'Critical error in trackClearanceGeneration', {
+      error: error.message,
+      clearanceData: clearanceData,
+      stack: error.stack
+    });
+    // Even if tracking fails, don't break the request
+    return { success: false, error: error.message };
   }
 }
 
@@ -406,11 +544,11 @@ app.get("/", trackVisit, (req, res) => {
 });
 
 // Serve the license page
-app.get("/license", (req, res) => {
+app.get("/license", trackVisit, (req, res) => {
   res.sendFile(path.join(__dirname, "public", "license.html"));
 });
 
-// Serve admin panel
+// Serve admin panel (don't track admin visits to avoid skewing analytics)
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
@@ -814,6 +952,120 @@ app.post("/api/admin/test-visits", requireAdminAuth, async (req, res) => {
   } catch (error) {
     console.error('Error generating test visits:', error);
     res.status(500).json({ error: 'Failed to generate test visits' });
+  }
+});
+
+// Supabase tables endpoints for admin panel
+app.get("/api/admin/tables/:tableName", async (req, res) => {
+  const { password } = req.query;
+  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+  if (password !== adminPassword) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const { tableName } = req.params;
+  const { limit = 50, offset = 0 } = req.query;
+
+  const allowedTables = ['page_visits', 'clearance_generations', 'flight_plans_received', 'user_sessions', 'admin_activities'];
+
+  if (!allowedTables.includes(tableName)) {
+    return res.status(400).json({ error: 'Invalid table name' });
+  }
+
+  if (!supabase) {
+    return res.status(503).json({ error: 'Supabase not configured' });
+  }
+
+  try {
+    const { data, error, count } = await supabase
+      .from(tableName)
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({
+      data: data || [],
+      totalCount: count || 0,
+      offset: parseInt(offset),
+      limit: parseInt(limit)
+    });
+  } catch (error) {
+    console.error(`Error fetching ${tableName}:`, error);
+    res.status(500).json({ error: `Failed to fetch ${tableName}` });
+  }
+});
+
+// Current users endpoint - get active sessions
+app.get("/api/admin/current-users", async (req, res) => {
+  const { password } = req.query;
+  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+  if (password !== adminPassword) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    // Get current users from memory sessions
+    const currentTime = new Date();
+    const activeThreshold = 5 * 60 * 1000; // 5 minutes
+
+    const memoryUsers = Array.from(sessions.values())
+      .filter(session => currentTime - session.lastActivity < activeThreshold)
+      .map(session => ({
+        session_id: session.id.slice(0, 8),
+        last_activity: session.lastActivity,
+        page_views: session.pageViews,
+        clearances_generated: session.clearancesGenerated || 0,
+        source: 'memory'
+      }));
+
+    let supabaseUsers = [];
+
+    // Get active users from Supabase if available
+    if (supabase) {
+      const fiveMinutesAgo = new Date(currentTime - activeThreshold).toISOString();
+
+      const { data } = await supabase
+        .from('user_sessions')
+        .select('session_id, last_activity, page_views, clearances_generated, ip_address, user_agent')
+        .gte('last_activity', fiveMinutesAgo)
+        .order('last_activity', { ascending: false });
+
+      supabaseUsers = (data || []).map(session => ({
+        session_id: session.session_id.slice(0, 8),
+        last_activity: session.last_activity,
+        page_views: session.page_views || 0,
+        clearances_generated: session.clearances_generated || 0,
+        ip_address: session.ip_address,
+        user_agent: session.user_agent,
+        source: 'supabase'
+      }));
+    }
+
+    // Combine and deduplicate users (prefer Supabase data)
+    const allUsers = [...supabaseUsers];
+
+    // Add memory users that aren't in Supabase
+    memoryUsers.forEach(memUser => {
+      if (!supabaseUsers.find(dbUser => dbUser.session_id === memUser.session_id)) {
+        allUsers.push(memUser);
+      }
+    });
+
+    res.json({
+      users: allUsers,
+      activeCount: allUsers.length,
+      memorySessionsCount: memoryUsers.length,
+      supabaseSessionsCount: supabaseUsers.length,
+      lastUpdated: currentTime.toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error fetching current users:', error);
+    res.status(500).json({ error: 'Failed to fetch current users' });
   }
 });
 
