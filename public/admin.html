@@ -1910,6 +1910,29 @@
         const data = await response.json();
         totalRecords = data.totalCount || 0;
 
+        // Handle setup required cases
+        if (data.setupRequired || data.message) {
+          tableDisplay.innerHTML = `
+            <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+              <div style="font-size: 18px; color: var(--primary-color); margin-bottom: 15px;">⚠ Database Setup Required</div>
+              <div style="margin-bottom: 20px;">${data.message || 'Tables need to be created in Supabase'}</div>
+              <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin: 20px auto; max-width: 600px; text-align: left;">
+                <div style="font-weight: 600; margin-bottom: 10px; color: var(--primary-color);">Setup Instructions:</div>
+                <div style="font-size: 13px; line-height: 1.6;">
+                  1. Open your <a href="https://supabase.com/dashboard/projects" target="_blank" style="color: var(--primary-color);">Supabase Dashboard</a><br>
+                  2. Go to <strong>SQL Editor</strong> in the left sidebar<br>
+                  3. Copy and run the contents of <code>supabase_tables.sql</code><br>
+                  4. Refresh this page to see your data
+                </div>
+              </div>
+              <button class="nav-btn" onclick="refreshCurrentTable()" style="margin: 10px;">Refresh After Setup</button>
+            </div>
+          `;
+          document.getElementById('tableRecordCount').textContent = 'Setup required';
+          document.getElementById('tablePagination').style.display = 'none';
+          return;
+        }
+
         if (!data.data || data.data.length === 0) {
           tableDisplay.innerHTML = '<div class="table-loading">No data found in this table</div>';
           document.getElementById('tableRecordCount').textContent = 'No records';
