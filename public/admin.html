@@ -655,6 +655,69 @@
       </div>
     </div>
 
+    <!-- Tables Section -->
+    <div class="admin-section" id="tables">
+      <div class="section">
+        <h2 class="section-title">Supabase Database Tables</h2>
+
+        <!-- Current Users -->
+        <div class="current-users-section" style="margin-bottom: 30px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="color: var(--primary-color); margin: 0;">Current Active Users</h3>
+            <button class="nav-btn" onclick="loadCurrentUsers()" style="margin: 0; padding: 8px 16px;">Refresh Users</button>
+          </div>
+
+          <div class="analytics-grid" style="margin-bottom: 20px;">
+            <div class="analytics-card">
+              <div class="analytics-value" id="activeUsersCount">-</div>
+              <div class="analytics-label">Active Users (5min)</div>
+            </div>
+            <div class="analytics-card">
+              <div class="analytics-value" id="memorySessionsCount">-</div>
+              <div class="analytics-label">Memory Sessions</div>
+            </div>
+            <div class="analytics-card">
+              <div class="analytics-value" id="supabaseSessionsCount">-</div>
+              <div class="analytics-label">Database Sessions</div>
+            </div>
+          </div>
+
+          <div class="table-container" id="currentUsersTable">
+            <div class="table-loading">Loading current users...</div>
+          </div>
+        </div>
+
+        <!-- Table Navigation -->
+        <div class="table-nav" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+          <button class="table-nav-btn active" onclick="loadTable('page_visits')">Page Visits</button>
+          <button class="table-nav-btn" onclick="loadTable('clearance_generations')">Clearances</button>
+          <button class="table-nav-btn" onclick="loadTable('flight_plans_received')">Flight Plans</button>
+          <button class="table-nav-btn" onclick="loadTable('user_sessions')">User Sessions</button>
+          <button class="table-nav-btn" onclick="loadTable('admin_activities')">Admin Activities</button>
+        </div>
+
+        <!-- Table Display Area -->
+        <div class="table-info" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 id="currentTableTitle" style="color: var(--primary-color); margin: 0;">Page Visits</h3>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <span id="tableRecordCount" style="font-size: 12px; color: var(--text-muted);">Loading...</span>
+            <button class="nav-btn" onclick="refreshCurrentTable()" style="margin: 0; padding: 6px 12px; font-size: 12px;">Refresh</button>
+          </div>
+        </div>
+
+        <div class="table-container" id="tableDisplay">
+          <div class="table-loading">Select a table to view data...</div>
+        </div>
+
+        <!-- Table Pagination -->
+        <div class="table-pagination" id="tablePagination" style="display: none; margin-top: 15px; text-align: center;">
+          <button class="nav-btn" onclick="previousPage()" id="prevBtn" style="margin: 0 5px; padding: 8px 16px;" disabled>Previous</button>
+          <span id="pageInfo" style="margin: 0 15px; color: var(--text-muted);">Page 1</span>
+          <button class="nav-btn" onclick="nextPage()" id="nextBtn" style="margin: 0 5px; padding: 8px 16px;" disabled>Next</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Settings Section -->
     <div class="admin-section" id="settings">
       <div class="section">
