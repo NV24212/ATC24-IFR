@@ -221,6 +221,25 @@
     }
   };
 
+  // User settings (overrides admin settings)
+  let userSettings = {
+    clearanceFormat: {
+      phraseologyStyle: "ICAO",
+      customTemplate: "",
+      includeAtis: true,
+      includeSquawk: true,
+      includeFlightLevel: true,
+      includeStartupApproval: true,
+      includeInitialClimb: true
+    },
+    aviation: {
+      defaultAltitudes: [],
+      squawkRanges: { min: 1000, max: 7777 },
+      enableRunwayValidation: false,
+      enableSIDValidation: false
+    }
+  };
+
   function handleRoutingTypeChange() {
     const routingType = document.getElementById("routingType").value;
     const sidInput = document.getElementById("sidInput");
