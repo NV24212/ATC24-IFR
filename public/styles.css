@@ -622,6 +622,8 @@ input[type="text"]::placeholder {
 
 .checkbox-item input[type="checkbox"]:hover {
   transform: scale(1.1);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(245, 222, 64, 0.2);
 }
 
 .checkbox-item label {
