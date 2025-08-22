@@ -309,7 +309,11 @@
   // Update UI elements with user settings
   function updateUserSettingsUI() {
     document.getElementById('userPhraseologyStyle').value = userSettings.clearanceFormat.phraseologyStyle;
-    document.getElementById('userPhraseologyTemplate').value = userSettings.clearanceFormat.customTemplate || getDefaultTemplate(userSettings.clearanceFormat.phraseologyStyle);
+
+    // Set custom template or default template if empty
+    const templateValue = userSettings.clearanceFormat.customTemplate || getDefaultTemplate(userSettings.clearanceFormat.phraseologyStyle);
+    document.getElementById('userPhraseologyTemplate').value = templateValue;
+
     document.getElementById('userIncludeAtis').checked = userSettings.clearanceFormat.includeAtis;
     document.getElementById('userIncludeSquawk').checked = userSettings.clearanceFormat.includeSquawk;
     document.getElementById('userIncludeFlightLevel').checked = userSettings.clearanceFormat.includeFlightLevel;
