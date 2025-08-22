@@ -199,50 +199,89 @@ function getOrCreateSession(req) {
 
 // Analytics helper functions
 async function trackPageVisit(req, pagePath) {
-  const session = getOrCreateSession(req);
-  const isFirstVisit = session.pageViews === 0;
-  session.pageViews++;
+  try {
+    const session = getOrCreateSession(req);
+    const isFirstVisit = session.pageViews === 0;
+    session.pageViews++;
 
-  const visitData = {
-    page_path: pagePath,
-    user_agent: req.headers['user-agent'],
-    ip_address: req.ip || req.connection.remoteAddress,
-    referrer: req.headers.referer,
-    session_id: session.id,
-    is_first_visit: isFirstVisit
-  };
+    // Extract real IP address from various headers (useful for proxies/load balancers)
+    const getRealIP = (req) => {
+      return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+             req.headers['x-real-ip'] ||
+             req.connection?.remoteAddress ||
+             req.socket?.remoteAddress ||
+             req.ip ||
+             'unknown';
+    };
 
-  // Track in local analytics for fallback
-  const today = new Date().toISOString().split('T')[0];
-  analytics.totalVisits++;
-  analytics.dailyVisits[today] = (analytics.dailyVisits[today] || 0) + 1;
+    const visitData = {
+      page_path: pagePath,
+      user_agent: req.headers['user-agent'] || 'Unknown',
+      ip_address: getRealIP(req),
+      referrer: req.headers.referer || null,
+      session_id: session.id,
+      is_first_visit: isFirstVisit
+    };
 
-  // Log visitor activity
-  logWithTimestamp('info', `Page visit tracked`, {
-    path: pagePath,
-    sessionId: session.id.slice(0, 8),
-    isFirstVisit,
-    totalVisits: analytics.totalVisits,
-    todayVisits: analytics.dailyVisits[today]
-  });
+    // Track in local analytics for fallback (always do this first)
+    const today = new Date().toISOString().split('T')[0];
+    analytics.totalVisits++;
+    analytics.dailyVisits[today] = (analytics.dailyVisits[today] || 0) + 1;
 
-  // Store in Supabase if available
-  if (supabase) {
-    try {
-      await supabase.from('page_visits').insert(visitData);
+    // Log visitor activity
+    logWithTimestamp('info', `Page visit tracked`, {
+      path: pagePath,
+      sessionId: session.id.slice(0, 8),
+      isFirstVisit,
+      totalVisits: analytics.totalVisits,
+      todayVisits: analytics.dailyVisits[today],
+      ip: visitData.ip_address
+    });
 
-      // Update or create user session
-      await supabase.from('user_sessions').upsert({
-        session_id: session.id,
-        ip_address: visitData.ip_address,
-        user_agent: visitData.user_agent,
-        last_activity: new Date().toISOString(),
-        page_views: session.pageViews
-      });
+    // Store in Supabase if available (don't let failures here affect the main app)
+    if (supabase) {
+      try {
+        // Insert page visit
+        const { error: visitError } = await supabase.from('page_visits').insert(visitData);
+        if (visitError) {
+          throw new Error(`Page visit insert failed: ${visitError.message}`);
+        }
 
-    } catch (error) {
-      console.error('Failed to track page visit in Supabase:', error);
+        // Update or create user session
+        const sessionData = {
+          session_id: session.id,
+          ip_address: visitData.ip_address,
+          user_agent: visitData.user_agent,
+          last_activity: new Date().toISOString(),
+          page_views: session.pageViews,
+          clearances_generated: session.clearancesGenerated || 0
+        };
+
+        const { error: sessionError } = await supabase.from('user_sessions').upsert(sessionData);
+        if (sessionError) {
+          throw new Error(`Session upsert failed: ${sessionError.message}`);
+        }
+
+      } catch (error) {
+        logWithTimestamp('error', 'Failed to track page visit in Supabase', {
+          error: error.message,
+          sessionId: session.id.slice(0, 8),
+          path: pagePath
+        });
+        // Continue execution - don't let Supabase errors break the app
+      }
     }
+
+    return { success: true, session, visitData };
+
+  } catch (error) {
+    logWithTimestamp('error', 'Critical error in trackPageVisit', {
+      error: error.message,
+      path: pagePath,
+      stack: error.stack
+    });
+    // Even if tracking fails, don't break the request
+    return { success: false, error: error.message };
   }
 }
 
