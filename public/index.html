@@ -240,6 +240,138 @@
     }
   };
 
+  // Notification system
+  function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    // Trigger animation
+    setTimeout(() => notification.classList.add('show'), 100);
+
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+      notification.classList.remove('show');
+      setTimeout(() => document.body.removeChild(notification), 400);
+    }, 3000);
+  }
+
+  // Load user settings from localStorage
+  function loadUserSettings() {
+    try {
+      const saved = localStorage.getItem('atc24_user_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        userSettings = { ...userSettings, ...parsed };
+        updateUserSettingsUI();
+      }
+    } catch (error) {
+      console.error('Failed to load user settings:', error);
+    }
+  }
+
+  // Save user settings to localStorage
+  function saveUserSettings() {
+    try {
+      // Get values from UI
+      userSettings.clearanceFormat.phraseologyStyle = document.getElementById('userPhraseologyStyle').value;
+      userSettings.clearanceFormat.customTemplate = document.getElementById('userPhraseologyTemplate').value;
+      userSettings.clearanceFormat.includeAtis = document.getElementById('userIncludeAtis').checked;
+      userSettings.clearanceFormat.includeSquawk = document.getElementById('userIncludeSquawk').checked;
+      userSettings.clearanceFormat.includeFlightLevel = document.getElementById('userIncludeFlightLevel').checked;
+      userSettings.clearanceFormat.includeStartupApproval = document.getElementById('userIncludeStartupApproval').checked;
+      userSettings.clearanceFormat.includeInitialClimb = document.getElementById('userIncludeInitialClimb').checked;
+
+      // Aviation settings
+      const altitudesText = document.getElementById('userDefaultAltitudes').value.trim();
+      if (altitudesText) {
+        userSettings.aviation.defaultAltitudes = altitudesText.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+      }
+      userSettings.aviation.squawkRanges.min = parseInt(document.getElementById('userSquawkMin').value) || 1000;
+      userSettings.aviation.squawkRanges.max = parseInt(document.getElementById('userSquawkMax').value) || 7777;
+      userSettings.aviation.enableRunwayValidation = document.getElementById('userEnableRunwayValidation').checked;
+      userSettings.aviation.enableSIDValidation = document.getElementById('userEnableSIDValidation').checked;
+
+      // Save to localStorage
+      localStorage.setItem('atc24_user_settings', JSON.stringify(userSettings));
+
+      // Update UI elements that depend on settings
+      updateUIFromSettings();
+
+      showNotification('Configuration saved successfully!', 'success');
+    } catch (error) {
+      console.error('Failed to save user settings:', error);
+      showNotification('Failed to save configuration', 'error');
+    }
+  }
+
+  // Update UI elements with user settings
+  function updateUserSettingsUI() {
+    document.getElementById('userPhraseologyStyle').value = userSettings.clearanceFormat.phraseologyStyle;
+    document.getElementById('userPhraseologyTemplate').value = userSettings.clearanceFormat.customTemplate || getDefaultTemplate(userSettings.clearanceFormat.phraseologyStyle);
+    document.getElementById('userIncludeAtis').checked = userSettings.clearanceFormat.includeAtis;
+    document.getElementById('userIncludeSquawk').checked = userSettings.clearanceFormat.includeSquawk;
+    document.getElementById('userIncludeFlightLevel').checked = userSettings.clearanceFormat.includeFlightLevel;
+    document.getElementById('userIncludeStartupApproval').checked = userSettings.clearanceFormat.includeStartupApproval;
+    document.getElementById('userIncludeInitialClimb').checked = userSettings.clearanceFormat.includeInitialClimb;
+
+    if (userSettings.aviation.defaultAltitudes && userSettings.aviation.defaultAltitudes.length > 0) {
+      document.getElementById('userDefaultAltitudes').value = userSettings.aviation.defaultAltitudes.join(',');
+    }
+    document.getElementById('userSquawkMin').value = userSettings.aviation.squawkRanges.min;
+    document.getElementById('userSquawkMax').value = userSettings.aviation.squawkRanges.max;
+    document.getElementById('userEnableRunwayValidation').checked = userSettings.aviation.enableRunwayValidation;
+    document.getElementById('userEnableSIDValidation').checked = userSettings.aviation.enableSIDValidation;
+  }
+
+  // Get default template based on phraseology style
+  function getDefaultTemplate(style) {
+    switch(style) {
+      case 'ICAO':
+        return '{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.';
+      case 'FAA':
+        return '{CALLSIGN}, {ATC_STATION}. Cleared to {DESTINATION} airport via {ROUTE}, runway {RUNWAY}. Climb and maintain {INITIAL_ALT}, expect {FLIGHT_LEVEL} 10 minutes after departure. Departure frequency will be as published. Squawk {SQUAWK}.';
+      case 'Local':
+        return '{CALLSIGN}, {ATC_STATION}. You are cleared to {DESTINATION} via {ROUTE}, departing runway {RUNWAY}. Climb initially to {INITIAL_ALT} feet, expect flight level {FLIGHT_LEVEL}. Squawk {SQUAWK}. Contact ground for pushback.';
+      default:
+        return '{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.';
+    }
+  }
+
+  // Update user phraseology template when style changes
+  function updateUserPhraseologyTemplate() {
+    const style = document.getElementById('userPhraseologyStyle').value;
+    const templateField = document.getElementById('userPhraseologyTemplate');
+    templateField.value = getDefaultTemplate(style);
+  }
+
+  // Get effective settings (user settings override admin settings)
+  function getEffectiveSettings() {
+    const effective = JSON.parse(JSON.stringify(adminSettings)); // Deep clone
+
+    // Override with user settings
+    if (userSettings.clearanceFormat.customTemplate) {
+      effective.clearanceFormat.customTemplate = userSettings.clearanceFormat.customTemplate;
+    }
+    if (userSettings.clearanceFormat.phraseologyStyle) {
+      effective.clearanceFormat.phraseologyStyle = userSettings.clearanceFormat.phraseologyStyle;
+    }
+    effective.clearanceFormat.includeAtis = userSettings.clearanceFormat.includeAtis;
+    effective.clearanceFormat.includeSquawk = userSettings.clearanceFormat.includeSquawk;
+    effective.clearanceFormat.includeFlightLevel = userSettings.clearanceFormat.includeFlightLevel;
+    effective.clearanceFormat.includeStartupApproval = userSettings.clearanceFormat.includeStartupApproval;
+    effective.clearanceFormat.includeInitialClimb = userSettings.clearanceFormat.includeInitialClimb;
+
+    if (userSettings.aviation.defaultAltitudes && userSettings.aviation.defaultAltitudes.length > 0) {
+      effective.aviation.defaultAltitudes = userSettings.aviation.defaultAltitudes;
+    }
+    effective.aviation.squawkRanges.min = userSettings.aviation.squawkRanges.min;
+    effective.aviation.squawkRanges.max = userSettings.aviation.squawkRanges.max;
+
+    return effective;
+  }
+
   function handleRoutingTypeChange() {
     const routingType = document.getElementById("routingType").value;
     const sidInput = document.getElementById("sidInput");
