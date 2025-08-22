@@ -453,6 +453,65 @@ input[type="text"]::placeholder {
 }
 
 /* Advanced Configuration Styles */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0 5px;
+  border-radius: 8px;
+}
+
+.section-header:hover {
+  background: rgba(245, 222, 64, 0.05);
+}
+
+.section-header .section-title {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.collapse-toggle {
+  background: none;
+  border: 2px solid var(--border-color);
+  color: var(--primary-color);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 40px;
+  text-align: center;
+}
+
+.collapse-toggle:hover {
+  background: var(--primary-color);
+  color: #000;
+  transform: scale(1.1);
+}
+
+.advanced-config-content {
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 25px;
+}
+
+.advanced-config-content.collapsed {
+  max-height: 0;
+  margin-top: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.advanced-config-content:not(.collapsed) {
+  max-height: 2000px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .advanced-config-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
