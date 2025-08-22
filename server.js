@@ -406,11 +406,11 @@ app.get("/", trackVisit, (req, res) => {
 });
 
 // Serve the license page
-app.get("/license", (req, res) => {
+app.get("/license", trackVisit, (req, res) => {
   res.sendFile(path.join(__dirname, "public", "license.html"));
 });
 
-// Serve admin panel
+// Serve admin panel (don't track admin visits to avoid skewing analytics)
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
