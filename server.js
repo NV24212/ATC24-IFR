@@ -331,31 +331,85 @@ async function trackPageVisit(req, pagePath) {
 }
 
 async function trackClearanceGeneration(req, clearanceData) {
-  const session = getOrCreateSession(req);
-  session.clearancesGenerated++;
+  try {
+    const session = getOrCreateSession(req);
+    session.clearancesGenerated = (session.clearancesGenerated || 0) + 1;
 
-  // Track in local analytics for fallback
-  analytics.clearancesGenerated++;
+    // Track in local analytics for fallback (always do this first)
+    analytics.clearancesGenerated++;
 
-  // Store in Supabase if available
-  if (supabase) {
-    try {
-      await supabase.from('clearance_generations').insert({
-        ...clearanceData,
-        session_id: session.id,
-        ip_address: req.ip || req.connection.remoteAddress
-      });
+    // Extract real IP address
+    const getRealIP = (req) => {
+      return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+             req.headers['x-real-ip'] ||
+             req.connection?.remoteAddress ||
+             req.socket?.remoteAddress ||
+             req.ip ||
+             'unknown';
+    };
 
-      // Update session clearance count
-      await supabase.from('user_sessions').upsert({
-        session_id: session.id,
-        clearances_generated: session.clearancesGenerated,
-        last_activity: new Date().toISOString()
-      });
+    const enhancedClearanceData = {
+      ...clearanceData,
+      session_id: session.id,
+      ip_address: getRealIP(req),
+      user_agent: req.headers['user-agent'] || 'Unknown',
+      timestamp: new Date().toISOString()
+    };
 
-    } catch (error) {
-      console.error('Failed to track clearance generation in Supabase:', error);
+    logWithTimestamp('info', 'Clearance generation tracked', {
+      sessionId: session.id.slice(0, 8),
+      callsign: clearanceData?.callsign || 'Unknown',
+      totalClearances: analytics.clearancesGenerated,
+      sessionClearances: session.clearancesGenerated
+    });
+
+    // Store in Supabase if available (don't let failures here affect the main app)
+    if (supabase) {
+      try {
+        // Insert clearance generation record
+        const { error: clearanceError } = await supabase
+          .from('clearance_generations')
+          .insert(enhancedClearanceData);
+
+        if (clearanceError) {
+          throw new Error(`Clearance insert failed: ${clearanceError.message}`);
+        }
+
+        // Update session clearance count and activity
+        const { error: sessionError } = await supabase
+          .from('user_sessions')
+          .upsert({
+            session_id: session.id,
+            clearances_generated: session.clearancesGenerated,
+            last_activity: new Date().toISOString(),
+            ip_address: getRealIP(req),
+            user_agent: req.headers['user-agent'] || 'Unknown'
+          });
+
+        if (sessionError) {
+          throw new Error(`Session update failed: ${sessionError.message}`);
+        }
+
+      } catch (error) {
+        logWithTimestamp('error', 'Failed to track clearance generation in Supabase', {
+          error: error.message,
+          sessionId: session.id.slice(0, 8),
+          callsign: clearanceData?.callsign || 'Unknown'
+        });
+        // Continue execution - don't let Supabase errors break the app
+      }
     }
+
+    return { success: true, session, clearanceData: enhancedClearanceData };
+
+  } catch (error) {
+    logWithTimestamp('error', 'Critical error in trackClearanceGeneration', {
+      error: error.message,
+      clearanceData: clearanceData,
+      stack: error.stack
+    });
+    // Even if tracking fails, don't break the request
+    return { success: false, error: error.message };
   }
 }
 
