@@ -639,14 +639,16 @@
     }
   }
 
-  // Update UI elements based on admin settings
+  // Update UI elements based on effective settings (user settings override admin settings)
   function updateUIFromSettings() {
+    const effectiveSettings = getEffectiveSettings();
+
     // Update default altitudes in the dropdown
-    if (adminSettings.aviation && adminSettings.aviation.defaultAltitudes) {
+    if (effectiveSettings.aviation && effectiveSettings.aviation.defaultAltitudes) {
       const iflSelect = document.getElementById('ifl');
       iflSelect.innerHTML = '';
 
-      adminSettings.aviation.defaultAltitudes.forEach(altitude => {
+      effectiveSettings.aviation.defaultAltitudes.forEach(altitude => {
         const option = document.createElement('option');
         option.value = altitude;
         option.textContent = `${altitude}FT`;
