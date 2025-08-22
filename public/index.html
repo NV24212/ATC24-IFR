@@ -245,6 +245,20 @@
     }
   };
 
+  // Toggle Advanced Configuration section
+  function toggleAdvancedConfig() {
+    const content = document.getElementById('advancedConfigContent');
+    const toggle = document.getElementById('advancedToggle');
+
+    if (content.classList.contains('collapsed')) {
+      content.classList.remove('collapsed');
+      toggle.textContent = '▲';
+    } else {
+      content.classList.add('collapsed');
+      toggle.textContent = '▼';
+    }
+  }
+
   // Notification system
   function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
