@@ -106,9 +106,13 @@
   </div>
 
   <div class="section">
-    <h2 class="section-title">Advanced Configuration</h2>
+    <div class="section-header" onclick="toggleAdvancedConfig()">
+      <h2 class="section-title">Advanced Configuration</h2>
+      <button class="collapse-toggle" id="advancedToggle">▼</button>
+    </div>
 
-    <div class="advanced-config-grid">
+    <div class="advanced-config-content collapsed" id="advancedConfigContent">
+      <div class="advanced-config-grid">
       <div class="config-section">
         <h3 class="config-section-title">Clearance Format & Phraseology</h3>
 
@@ -192,7 +196,8 @@
       </div>
     </div>
 
-    <button class="advanced-save-btn" onclick="saveUserSettings()">Save Configuration</button>
+      <button class="advanced-save-btn" onclick="saveUserSettings()">Save Configuration</button>
+    </div>
   </div>
 
   <div class="section">
