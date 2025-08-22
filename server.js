@@ -626,19 +626,47 @@ app.get("/api/admin/analytics", async (req, res) => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     if (supabase) {
-      // Get comprehensive analytics from Supabase
-      const [visitsResult, clearancesResult, flightPlansResult, sessionsResult] = await Promise.all([
-        supabase.from('page_visits').select('*', { count: 'exact' }),
-        supabase.from('clearance_generations').select('*', { count: 'exact' }),
-        supabase.from('flight_plans_received').select('*', { count: 'exact' }),
-        supabase.from('user_sessions').select('*', { count: 'exact' })
-      ]);
+      // Get comprehensive analytics from Supabase with graceful error handling
+      let visitsResult = { count: 0 };
+      let clearancesResult = { count: 0 };
+      let flightPlansResult = { count: 0 };
+      let sessionsResult = { count: 0 };
+
+      try {
+        visitsResult = await supabase.from('page_visits').select('*', { count: 'exact' });
+      } catch (error) {
+        logWithTimestamp('warn', 'page_visits table not accessible', { error: error.message });
+      }
+
+      try {
+        clearancesResult = await supabase.from('clearance_generations').select('*', { count: 'exact' });
+      } catch (error) {
+        logWithTimestamp('warn', 'clearance_generations table not accessible', { error: error.message });
+      }
+
+      try {
+        flightPlansResult = await supabase.from('flight_plans_received').select('*', { count: 'exact' });
+      } catch (error) {
+        logWithTimestamp('warn', 'flight_plans_received table not accessible', { error: error.message });
+      }
+
+      try {
+        sessionsResult = await supabase.from('user_sessions').select('*', { count: 'exact' });
+      } catch (error) {
+        logWithTimestamp('warn', 'user_sessions table not accessible', { error: error.message });
+      }
 
       // Get daily analytics for the last 30 days
-      const { data: dailyData } = await supabase
-        .from('page_visits')
-        .select('created_at')
-        .gte('created_at', thirtyDaysAgo.toISOString());
+      let dailyData = null;
+      try {
+        const result = await supabase
+          .from('page_visits')
+          .select('created_at')
+          .gte('created_at', thirtyDaysAgo.toISOString());
+        dailyData = result.data;
+      } catch (error) {
+        logWithTimestamp('warn', 'Failed to fetch daily visit data', { error: error.message });
+      }
 
       // Process daily visits with proper date handling
       const dailyVisits = {};
@@ -665,9 +693,15 @@ app.get("/api/admin/analytics", async (req, res) => {
       const last30Days = Object.values(last30DaysData).reduce((total, visits) => total + visits, 0);
 
       // Get unique visitors count
-      const { data: uniqueVisitors } = await supabase
-        .from('user_sessions')
-        .select('session_id', { count: 'exact' });
+      let uniqueVisitors = null;
+      try {
+        const result = await supabase
+          .from('user_sessions')
+          .select('session_id', { count: 'exact' });
+        uniqueVisitors = result.data;
+      } catch (error) {
+        logWithTimestamp('warn', 'Failed to fetch unique visitors', { error: error.message });
+      }
 
       analyticsData = {
         totalVisits: visitsResult.count || 0,
@@ -984,6 +1018,18 @@ app.get("/api/admin/tables/:tableName", async (req, res) => {
       .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
     if (error) {
+      // Check for specific error types
+      if (error.message && error.message.includes('relation') && error.message.includes('does not exist')) {
+        logWithTimestamp('info', `Table ${tableName} does not exist yet`, { error: error.message });
+        return res.json({
+          data: [],
+          totalCount: 0,
+          offset: parseInt(offset),
+          limit: parseInt(limit),
+          message: `Table '${tableName}' not created yet. Please run the setup SQL in your Supabase dashboard.`,
+          setupRequired: true
+        });
+      }
       throw error;
     }
 
@@ -994,8 +1040,27 @@ app.get("/api/admin/tables/:tableName", async (req, res) => {
       limit: parseInt(limit)
     });
   } catch (error) {
-    console.error(`Error fetching ${tableName}:`, error);
-    res.status(500).json({ error: `Failed to fetch ${tableName}` });
+    logWithTimestamp('error', `Error fetching ${tableName}`, {
+      message: error.message,
+      details: error.toString(),
+      hint: error.hint || '',
+      code: error.code || ''
+    });
+
+    // Provide more helpful error messages
+    if (error.message && error.message.includes('fetch failed')) {
+      return res.status(503).json({
+        error: `Database connection failed for ${tableName}`,
+        message: 'Unable to connect to Supabase. Please check your connection and table setup.',
+        setupRequired: true
+      });
+    }
+
+    res.status(500).json({
+      error: `Failed to fetch ${tableName}`,
+      message: error.message || 'Unknown database error',
+      setupRequired: true
+    });
   }
 });
 
