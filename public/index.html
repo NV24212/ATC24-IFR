@@ -106,6 +106,96 @@
   </div>
 
   <div class="section">
+    <h2 class="section-title">Advanced Configuration</h2>
+
+    <div class="advanced-config-grid">
+      <div class="config-section">
+        <h3 class="config-section-title">Clearance Format & Phraseology</h3>
+
+        <div class="config-group">
+          <label class="config-label">Phraseology Standard</label>
+          <select id="userPhraseologyStyle" onchange="updateUserPhraseologyTemplate()">
+            <option value="ICAO">ICAO Standard</option>
+            <option value="FAA">FAA Standard</option>
+            <option value="Local">Local Adaptation</option>
+          </select>
+        </div>
+
+        <div class="config-group">
+          <label class="config-label">Custom Phraseology Format</label>
+          <textarea id="userPhraseologyTemplate" placeholder="Enter custom clearance format template...">{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.</textarea>
+          <div class="template-help">
+            Available variables: {CALLSIGN}, {ATC_STATION}, {ATIS}, {DESTINATION}, {ROUTE}, {RUNWAY}, {INITIAL_ALT}, {FLIGHT_LEVEL}, {SQUAWK}
+          </div>
+        </div>
+
+        <div class="checkbox-group">
+          <div class="checkbox-item">
+            <input type="checkbox" id="userIncludeAtis" checked>
+            <label for="userIncludeAtis">Include ATIS Information</label>
+          </div>
+
+          <div class="checkbox-item">
+            <input type="checkbox" id="userIncludeSquawk" checked>
+            <label for="userIncludeSquawk">Include Squawk Code</label>
+          </div>
+
+          <div class="checkbox-item">
+            <input type="checkbox" id="userIncludeFlightLevel" checked>
+            <label for="userIncludeFlightLevel">Include Expected Flight Level</label>
+          </div>
+
+          <div class="checkbox-item">
+            <input type="checkbox" id="userIncludeStartupApproval" checked>
+            <label for="userIncludeStartupApproval">Include Startup Approval</label>
+          </div>
+
+          <div class="checkbox-item">
+            <input type="checkbox" id="userIncludeInitialClimb" checked>
+            <label for="userIncludeInitialClimb">Include Initial Climb Instruction</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <h3 class="config-section-title">Aviation Standards</h3>
+
+        <div class="config-group">
+          <label class="config-label">Custom Altitudes (comma-separated)</label>
+          <input type="text" id="userDefaultAltitudes" placeholder="1000,2000,3000,4000,5000">
+          <div class="template-help">
+            Enter custom altitude options for initial climb
+          </div>
+        </div>
+
+        <div class="config-group">
+          <label class="config-label">Squawk Code Range (Min)</label>
+          <input type="number" id="userSquawkMin" placeholder="1000" min="1000" max="7777" value="1000">
+        </div>
+
+        <div class="config-group">
+          <label class="config-label">Squawk Code Range (Max)</label>
+          <input type="number" id="userSquawkMax" placeholder="7777" min="1000" max="7777" value="7777">
+        </div>
+
+        <div class="checkbox-group">
+          <div class="checkbox-item">
+            <input type="checkbox" id="userEnableRunwayValidation">
+            <label for="userEnableRunwayValidation">Enable Runway Format Validation</label>
+          </div>
+
+          <div class="checkbox-item">
+            <input type="checkbox" id="userEnableSIDValidation">
+            <label for="userEnableSIDValidation">Enable SID/STAR Validation</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="advanced-save-btn" onclick="saveUserSettings()">Save Configuration</button>
+  </div>
+
+  <div class="section">
     <h2 class="section-title">IFR Clearance</h2>
     <div class="clearance-output" id="clearanceOutput">
       Select a flight plan and configure ATC settings to generate clearance...
