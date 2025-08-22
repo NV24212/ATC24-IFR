@@ -817,6 +817,120 @@ app.post("/api/admin/test-visits", requireAdminAuth, async (req, res) => {
   }
 });
 
+// Supabase tables endpoints for admin panel
+app.get("/api/admin/tables/:tableName", async (req, res) => {
+  const { password } = req.query;
+  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+  if (password !== adminPassword) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const { tableName } = req.params;
+  const { limit = 50, offset = 0 } = req.query;
+
+  const allowedTables = ['page_visits', 'clearance_generations', 'flight_plans_received', 'user_sessions', 'admin_activities'];
+
+  if (!allowedTables.includes(tableName)) {
+    return res.status(400).json({ error: 'Invalid table name' });
+  }
+
+  if (!supabase) {
+    return res.status(503).json({ error: 'Supabase not configured' });
+  }
+
+  try {
+    const { data, error, count } = await supabase
+      .from(tableName)
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({
+      data: data || [],
+      totalCount: count || 0,
+      offset: parseInt(offset),
+      limit: parseInt(limit)
+    });
+  } catch (error) {
+    console.error(`Error fetching ${tableName}:`, error);
+    res.status(500).json({ error: `Failed to fetch ${tableName}` });
+  }
+});
+
+// Current users endpoint - get active sessions
+app.get("/api/admin/current-users", async (req, res) => {
+  const { password } = req.query;
+  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+  if (password !== adminPassword) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    // Get current users from memory sessions
+    const currentTime = new Date();
+    const activeThreshold = 5 * 60 * 1000; // 5 minutes
+
+    const memoryUsers = Array.from(sessions.values())
+      .filter(session => currentTime - session.lastActivity < activeThreshold)
+      .map(session => ({
+        session_id: session.id.slice(0, 8),
+        last_activity: session.lastActivity,
+        page_views: session.pageViews,
+        clearances_generated: session.clearancesGenerated || 0,
+        source: 'memory'
+      }));
+
+    let supabaseUsers = [];
+
+    // Get active users from Supabase if available
+    if (supabase) {
+      const fiveMinutesAgo = new Date(currentTime - activeThreshold).toISOString();
+
+      const { data } = await supabase
+        .from('user_sessions')
+        .select('session_id, last_activity, page_views, clearances_generated, ip_address, user_agent')
+        .gte('last_activity', fiveMinutesAgo)
+        .order('last_activity', { ascending: false });
+
+      supabaseUsers = (data || []).map(session => ({
+        session_id: session.session_id.slice(0, 8),
+        last_activity: session.last_activity,
+        page_views: session.page_views || 0,
+        clearances_generated: session.clearances_generated || 0,
+        ip_address: session.ip_address,
+        user_agent: session.user_agent,
+        source: 'supabase'
+      }));
+    }
+
+    // Combine and deduplicate users (prefer Supabase data)
+    const allUsers = [...supabaseUsers];
+
+    // Add memory users that aren't in Supabase
+    memoryUsers.forEach(memUser => {
+      if (!supabaseUsers.find(dbUser => dbUser.session_id === memUser.session_id)) {
+        allUsers.push(memUser);
+      }
+    });
+
+    res.json({
+      users: allUsers,
+      activeCount: allUsers.length,
+      memorySessionsCount: memoryUsers.length,
+      supabaseSessionsCount: supabaseUsers.length,
+      lastUpdated: currentTime.toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error fetching current users:', error);
+    res.status(500).json({ error: 'Failed to fetch current users' });
+  }
+});
+
 // Start server only if not in Vercel environment
 if (process.env.VERCEL !== '1') {
   app.listen(PORT, () => {
