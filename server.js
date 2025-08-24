@@ -1011,7 +1011,7 @@ app.get("/api/admin/password-status", (req, res) => {
 app.get("/api/admin/logs", (req, res) => {
   try {
     const { password } = req.query;
-    const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+    const adminPassword = temporaryAdminPassword || process.env.ADMIN_PASSWORD || 'bruhdang';
     if (password !== adminPassword) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -1138,7 +1138,7 @@ app.get("/health", (req, res) => {
 // Supabase tables endpoints for admin panel
 app.get("/api/admin/tables/:tableName", async (req, res) => {
   const { password } = req.query;
-  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+  const adminPassword = temporaryAdminPassword || process.env.ADMIN_PASSWORD || 'bruhdang';
   if (password !== adminPassword) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -1213,7 +1213,7 @@ app.get("/api/admin/tables/:tableName", async (req, res) => {
 // Current users endpoint - get active sessions
 app.get("/api/admin/current-users", async (req, res) => {
   const { password } = req.query;
-  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+  const adminPassword = temporaryAdminPassword || process.env.ADMIN_PASSWORD || 'bruhdang';
   if (password !== adminPassword) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
