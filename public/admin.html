@@ -791,8 +791,7 @@
     <button class="logout-btn" onclick="logout()">Logout</button>
     
     <div class="admin-header">
-      <h1>ATC24 Admin Control Panel</h1>
-      <p style="color: var(--text-muted); margin-top: 10px;">Monitor, configure, and optimize your IFR clearance system</p>
+      <h1>ATC24 Control Panel</h1>
     </div>
 
     <div class="admin-nav">
@@ -854,7 +853,6 @@
           <h3>Analytics Management</h3>
           <p style="color: var(--text-muted); margin-bottom: 15px;">Reset all analytics data (cannot be undone)</p>
           <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-            <button class="nav-btn" onclick="testAnalytics()" style="margin: 0; background: var(--primary-color); color: #000;">Generate Test Visits</button>
             <button class="danger-btn" onclick="resetAnalytics()">Reset All Analytics</button>
           </div>
         </div>
@@ -1078,11 +1076,7 @@
                 <option value="info">Info Only</option>
               </select>
               <button class="nav-btn" style="padding: 8px 16px; margin: 0;" onclick="loadDebugLogs()">Refresh Logs</button>
-              <button class="nav-btn" style="padding: 8px 16px; margin: 0;" onclick="testDebugLogsEndpoint()">Test Endpoint</button>
               <button class="nav-btn" style="padding: 8px 16px; margin: 0;" onclick="clearLogDisplay()">Clear Display</button>
-            </div>
-            <div id="logStats" style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
-              Loading log statistics...
             </div>
           </div>
           <div id="debugLogs" style="
@@ -1101,13 +1095,6 @@
           </div>
         </div>
 
-        <div style="text-align: center; margin-top: 30px; padding: 20px; background: var(--surface-color); border-radius: 12px;">
-          <h3 style="color: var(--primary-color); margin-bottom: 15px;">ATC24 IFR Clearance Generator</h3>
-          <p style="color: var(--text-muted);">Professional aviation clearance delivery system</p>
-          <p style="color: var(--text-muted); font-size: 12px; margin-top: 10px;">
-            Built with modern web technologies for reliable ATC operations
-          </p>
-        </div>
       </div>
     </div>
   </div>
@@ -1572,30 +1559,7 @@
       }
     }
 
-    async function testAnalytics() {
-      try {
-        const response = await fetch('/api/admin/test-visits', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            password: currentPassword,
-            count: 25,
-            days: 14
-          })
-        });
-
-        const result = await response.json();
-        if (result.success) {
-          showNotification('success', 'Test Data Generated', `Generated ${result.results.length} test visits over 14 days`);
-          loadAnalytics();
-        } else {
-          showNotification('error', 'Test Failed', 'Unable to generate test data. Please try again.');
-        }
-      } catch (error) {
-        console.error('Failed to generate test data:', error);
-        showNotification('error', 'Connection Error', 'Failed to communicate with server. Check your connection.');
-      }
-    }
+    // Test analytics function removed for security
 
     async function resetAnalytics() {
       if (!confirm('This will permanently delete all analytics data. Are you sure?')) {
@@ -1631,10 +1595,12 @@
 
       const levelSelect = document.getElementById('logLevel');
       const debugLogsContainer = document.getElementById('debugLogs');
-      const logStats = document.getElementById('logStats');
 
-      if (!levelSelect || !debugLogsContainer || !logStats) {
-        console.error('Debug logs UI elements not found');
+      if (!levelSelect || !debugLogsContainer) {
+        console.error('Debug logs UI elements not found', {
+          levelSelect: !!levelSelect,
+          debugLogsContainer: !!debugLogsContainer
+        });
         return;
       }
 
@@ -1642,9 +1608,8 @@
 
       try {
         debugLogsContainer.innerHTML = '<div style="color: var(--text-muted);">Loading debug logs...</div>';
-        logStats.innerHTML = 'Loading log statistics...';
 
-        const url = `/api/admin/logs?password=${encodeURIComponent(currentPassword)}&level=${encodeURIComponent(level)}&limit=200`;
+        const url = `/api/admin/logs?password=${encodeURIComponent(currentPassword)}&level=${encodeURIComponent(level)}&limit=50`;
         console.log('Fetching debug logs from:', url.replace(currentPassword, '[REDACTED]'));
 
         const response = await fetch(url);
@@ -1683,12 +1648,6 @@
           throw new Error(`Server error: ${data.error}`);
         }
 
-        // Update statistics
-        logStats.innerHTML = `
-          Showing ${data.logs?.length || 0} of ${data.filteredCount || 0} logs
-          (${data.totalCount || 0} total, max ${data.maxLogs || 0})
-          | Server start: ${data.serverStartTime ? new Date(data.serverStartTime).toLocaleString() : 'Unknown'}
-        `;
 
         // Display logs
         if (!data.logs || data.logs.length === 0) {
@@ -1767,21 +1726,23 @@
             <div>• Try refreshing the page</div>
           </div>
         `;
-        logStats.innerHTML = `Error: ${errorType}`;
+        // logStats removed - error info already displayed in debugLogsContainer
       }
     }
 
     function clearLogDisplay() {
       document.getElementById('debugLogs').innerHTML = '<div style="color: var(--text-muted);">Log display cleared. Click "Refresh Logs" to reload.</div>';
-      document.getElementById('logStats').innerHTML = 'Log display cleared';
     }
 
     async function testDebugLogsEndpoint() {
       const debugLogsContainer = document.getElementById('debugLogs');
-      const logStats = document.getElementById('logStats');
+
+      if (!debugLogsContainer) {
+        console.error('Debug logs container not found');
+        return;
+      }
 
       debugLogsContainer.innerHTML = '<div style="color: var(--primary-color);">Testing debug logs endpoint...</div>';
-      logStats.innerHTML = 'Running endpoint test...';
 
       try {
         // Test basic connectivity first
@@ -1835,7 +1796,7 @@
           </div>
         `;
 
-        logStats.innerHTML = `Test passed - ${data.totalCount || 0} logs available`;
+        // Test completed successfully
 
       } catch (error) {
         console.error('Endpoint test failed:', error);
@@ -1850,7 +1811,7 @@
           </div>
         `;
 
-        logStats.innerHTML = 'Test failed';
+        // Test failed
       }
     }
 
@@ -1991,12 +1952,22 @@
         return '<div class="table-loading">No data available</div>';
       }
 
-      // Get column names from first row
-      const columns = Object.keys(data[0]);
+      // Get column names from first row and filter out sensitive columns
+      const allColumns = Object.keys(data[0]);
+      const sensitiveColumns = ['ip_address', 'user_agent', 'raw_data'];
+      const columns = allColumns.filter(col => !sensitiveColumns.includes(col));
 
       let html = '<table class="data-table"><thead><tr>';
       columns.forEach(col => {
-        html += `<th>${col.replace(/_/g, ' ').toUpperCase()}</th>`;
+        let displayName = col.replace(/_/g, ' ').toUpperCase();
+        // Make column names more user-friendly
+        if (col === 'session_id') displayName = 'SESSION';
+        if (col === 'page_path') displayName = 'PAGE';
+        if (col === 'created_at') displayName = 'TIME';
+        if (col === 'callsign') displayName = 'CALLSIGN';
+        if (col === 'destination') displayName = 'DEST';
+        if (col === 'flight_level') displayName = 'FL';
+        html += `<th>${displayName}</th>`;
       });
       html += '</tr></thead><tbody>';
 
@@ -2020,6 +1991,9 @@
             } catch (e) {
               // Keep original value if date parsing fails
             }
+          } else if (col === 'session_id' && typeof value === 'string') {
+            // Truncate session IDs for privacy
+            value = value.substring(0, 8) + '...';
           }
 
           html += `<td>${value}</td>`;
@@ -2114,7 +2088,6 @@
               <div class="user-last-activity">
                 Last activity: ${timeAgo}
               </div>
-              ${user.ip_address ? `<div style="font-size: 10px; color: var(--text-muted); text-align: center; margin-top: 5px;">IP: ${user.ip_address}</div>` : ''}
             </div>
           `;
         });

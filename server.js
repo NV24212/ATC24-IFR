@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 
 // Runtime logs storage for debugging - moved before first usage
 let runtimeLogs = [];
-const MAX_LOGS = 500; // Keep last 500 log entries
+const MAX_LOGS = 100; // Keep last 100 log entries to prevent memory issues
 
 // Enhanced logging function - moved before first usage
 function logWithTimestamp(level, message, data = null) {
@@ -24,10 +24,14 @@ function logWithTimestamp(level, message, data = null) {
     id: uuidv4().slice(0, 8)
   };
 
-  // Add to runtime logs
-  runtimeLogs.unshift(logEntry);
-  if (runtimeLogs.length > MAX_LOGS) {
-    runtimeLogs = runtimeLogs.slice(0, MAX_LOGS);
+  // Add to runtime logs with memory safety
+  try {
+    runtimeLogs.unshift(logEntry);
+    if (runtimeLogs.length > MAX_LOGS) {
+      runtimeLogs = runtimeLogs.slice(0, MAX_LOGS);
+    }
+  } catch (error) {
+    console.error('Failed to add to runtime logs:', error);
   }
 
   // Console output with formatting
@@ -101,8 +105,9 @@ let analytics = {
 
 // Initialize analytics from Supabase in serverless environment
 async function initializeAnalyticsFromDB() {
-  if (process.env.VERCEL === '1' && supabase) {
+  if (supabase) {
     try {
+      // Fetch analytics data from Supabase
       const [visitsResult, clearancesResult, flightPlansResult] = await Promise.all([
         supabase.from('page_visits').select('*', { count: 'exact' }),
         supabase.from('clearance_generations').select('*', { count: 'exact' }),
@@ -113,15 +118,30 @@ async function initializeAnalyticsFromDB() {
       analytics.clearancesGenerated = clearancesResult.count || 0;
       analytics.flightPlansReceived = flightPlansResult.count || 0;
 
-      console.log('📊 Analytics initialized from Supabase for serverless');
+      // Also calculate daily visits for the last 30 days
+      if (visitsResult.data) {
+        const dailyVisitsMap = {};
+        visitsResult.data.forEach(visit => {
+          const date = visit.created_at.split('T')[0];
+          dailyVisitsMap[date] = (dailyVisitsMap[date] || 0) + 1;
+        });
+        analytics.dailyVisits = dailyVisitsMap;
+      }
+
+      logWithTimestamp('info', '📊 Analytics initialized from Supabase', {
+        totalVisits: analytics.totalVisits,
+        clearancesGenerated: analytics.clearancesGenerated,
+        flightPlansReceived: analytics.flightPlansReceived,
+        dailyVisitDays: Object.keys(analytics.dailyVisits).length
+      });
     } catch (error) {
-      console.error('Failed to initialize analytics from DB:', error);
+      logWithTimestamp('error', 'Failed to initialize analytics from DB', { error: error.message });
     }
   }
 }
 
-// Call initialization if in serverless
-if (process.env.VERCEL === '1' && supabase) {
+// Call initialization for both serverless and traditional environments if Supabase is available
+if (supabase) {
   initializeAnalyticsFromDB();
 }
 
@@ -160,23 +180,42 @@ const sessions = new Map();
 
 // Clean up old sessions periodically (important for serverless)
 function cleanupOldSessions() {
-  const now = new Date();
-  const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+  try {
+    const now = new Date();
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+    let cleanedCount = 0;
 
-  for (const [sessionId, session] of sessions.entries()) {
-    if (now - session.lastActivity > maxAge) {
-      sessions.delete(sessionId);
+    for (const [sessionId, session] of sessions.entries()) {
+      if (session && session.lastActivity && (now - session.lastActivity > maxAge)) {
+        sessions.delete(sessionId);
+        cleanedCount++;
+      }
     }
+
+    if (cleanedCount > 0) {
+      logWithTimestamp('info', `Cleaned up ${cleanedCount} old sessions`, {
+        totalSessions: sessions.size,
+        cleanedSessions: cleanedCount
+      });
+    }
+  } catch (error) {
+    logWithTimestamp('error', 'Session cleanup failed', { error: error.message });
   }
 }
 
-// Run cleanup every 5 minutes
-setInterval(cleanupOldSessions, 5 * 60 * 1000);
+// Run cleanup every 5 minutes with error handling
+setInterval(() => {
+  try {
+    cleanupOldSessions();
+  } catch (error) {
+    logWithTimestamp('error', 'Session cleanup interval failed', { error: error.message });
+  }
+}, 5 * 60 * 1000);
 
 // Helper function to get or create session
 function getOrCreateSession(req) {
   try {
-    // Try multiple ways to get session ID
+    // Try multiple ways to get session ID with better validation
     let sessionId = req.headers['x-session-id'] ||
                    req.headers['session-id'] ||
                    req.query.sessionId ||
@@ -187,10 +226,10 @@ function getOrCreateSession(req) {
       sessionId = uuidv4();
     }
 
-    // Validate session ID format (basic validation)
+    // Enhanced session ID validation
     if (!sessionId.match(/^[a-f0-9\-]{36}$/i)) {
       logWithTimestamp('warn', 'Invalid session ID format, generating new one', {
-        invalidId: sessionId.substring(0, 10) + '...',
+        invalidIdLength: sessionId ? sessionId.length : 0,
         ip: req.ip || 'unknown'
       });
       sessionId = uuidv4();
@@ -251,12 +290,17 @@ async function trackPageVisit(req, pagePath) {
 
     // Extract real IP address from various headers (useful for proxies/load balancers)
     const getRealIP = (req) => {
-      return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-             req.headers['x-real-ip'] ||
-             req.connection?.remoteAddress ||
-             req.socket?.remoteAddress ||
-             req.ip ||
-             'unknown';
+      try {
+        return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+               req.headers['x-real-ip'] ||
+               req.connection?.remoteAddress ||
+               req.socket?.remoteAddress ||
+               req.ip ||
+               'unknown';
+      } catch (error) {
+        logWithTimestamp('warn', 'Failed to extract IP address', { error: error.message });
+        return 'unknown';
+      }
     };
 
     const visitData = {
@@ -434,9 +478,17 @@ async function trackFlightPlanReceived(flightPlanData) {
   }
 }
 
-// Middleware to track visits
+// Middleware to track visits with error handling
 async function trackVisit(req, res, next) {
-  await trackPageVisit(req, req.path);
+  try {
+    await trackPageVisit(req, req.path);
+  } catch (error) {
+    logWithTimestamp('error', 'Visit tracking failed in middleware', {
+      error: error.message,
+      path: req.path
+    });
+    // Don't block the request if tracking fails
+  }
   next();
 }
 
@@ -512,13 +564,35 @@ function initializeWebSocket() {
       });
 
       ws.on("error", (err) => {
-        logWithTimestamp('error', 'WebSocket connection error', { error: err.message, code: err.code });
+        logWithTimestamp('error', 'WebSocket connection error', {
+          error: err.message,
+          code: err.code,
+          errno: err.errno,
+          syscall: err.syscall
+        });
+
+        // Clean up WebSocket reference on error
+        ws = null;
+
+        // Attempt to reconnect after 10 seconds if not in serverless
+        if (process.env.VERCEL !== '1') {
+          logWithTimestamp('info', 'Scheduling WebSocket reconnection in 10 seconds due to error');
+          setTimeout(initializeWebSocket, 10000);
+        }
       });
 
       ws.on("close", (code, reason) => {
-        logWithTimestamp('warn', 'WebSocket connection closed', { code, reason: reason?.toString() });
-        // Attempt to reconnect after 5 seconds if not in serverless
-        if (process.env.VERCEL !== '1') {
+        logWithTimestamp('warn', 'WebSocket connection closed', {
+          code,
+          reason: reason?.toString(),
+          timestamp: new Date().toISOString()
+        });
+
+        // Clean up WebSocket reference
+        ws = null;
+
+        // Attempt to reconnect after 5 seconds if not in serverless and not a clean close
+        if (process.env.VERCEL !== '1' && code !== 1000) {
           logWithTimestamp('info', 'Scheduling WebSocket reconnection in 5 seconds');
           setTimeout(initializeWebSocket, 5000);
         }
@@ -830,21 +904,13 @@ app.get("/api/admin/logs", (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const limit = parseInt(req.query.limit) || 100;
+    // Enhanced input validation
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 500);
     const level = req.query.level || null;
 
-    // Debug logging for endpoint access
-    console.log('Debug logs endpoint accessed:', {
-      runtimeLogsExists: !!runtimeLogs,
-      runtimeLogsLength: runtimeLogs?.length || 0,
-      isArray: Array.isArray(runtimeLogs),
-      level: level,
-      limit: limit
-    });
-
-    // Ensure runtimeLogs exists
+    // Ensure runtimeLogs exists and is safe
     if (!Array.isArray(runtimeLogs)) {
-      console.error('Runtime logs array is not initialized properly');
+      logWithTimestamp('error', 'Runtime logs array is not initialized properly');
       return res.json({
         logs: [],
         totalCount: 0,
@@ -857,17 +923,23 @@ app.get("/api/admin/logs", (req, res) => {
 
     let filteredLogs = runtimeLogs;
 
-    // Filter by log level if specified
+    // Safe filtering by log level
     if (level && level !== 'all') {
-      filteredLogs = runtimeLogs.filter(log => log && log.level === level);
+      filteredLogs = runtimeLogs.filter(log => {
+        try {
+          return log && typeof log === 'object' && log.level === level;
+        } catch (error) {
+          return false;
+        }
+      });
     }
 
-    // Limit results
+    // Safe limiting of results
     const logsToReturn = filteredLogs.slice(0, limit);
 
-    // Get server start time from oldest log or use current time
-    const serverStartTime = runtimeLogs.length > 0
-      ? runtimeLogs[runtimeLogs.length - 1]?.timestamp || new Date().toISOString()
+    // Get server start time safely
+    const serverStartTime = runtimeLogs.length > 0 && runtimeLogs[runtimeLogs.length - 1]
+      ? runtimeLogs[runtimeLogs.length - 1].timestamp || new Date().toISOString()
       : new Date().toISOString();
 
     res.json({
@@ -949,45 +1021,7 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Test endpoint to simulate visits for testing analytics
-app.post("/api/admin/test-visits", requireAdminAuth, async (req, res) => {
-  try {
-    const { count = 10, days = 7 } = req.body;
-    const results = [];
-
-    for (let i = 0; i < count; i++) {
-      // Randomly distribute visits over the specified days
-      const daysAgo = Math.floor(Math.random() * days);
-      const visitDate = new Date();
-      visitDate.setDate(visitDate.getDate() - daysAgo);
-      const visitDateStr = visitDate.toISOString().split('T')[0];
-
-      // Track the visit with custom date
-      analytics.totalVisits++;
-      analytics.dailyVisits[visitDateStr] = (analytics.dailyVisits[visitDateStr] || 0) + 1;
-
-      results.push({
-        visit: i + 1,
-        date: visitDateStr,
-        path: i % 2 === 0 ? '/' : '/license'
-      });
-    }
-
-    logWithTimestamp('info', `Generated ${count} test visits over ${days} days`);
-    res.json({
-      success: true,
-      message: `Generated ${count} test visits`,
-      results,
-      currentAnalytics: {
-        totalVisits: analytics.totalVisits,
-        dailyVisitsCount: Object.keys(analytics.dailyVisits).length
-      }
-    });
-  } catch (error) {
-    console.error('Error generating test visits:', error);
-    res.status(500).json({ error: 'Failed to generate test visits' });
-  }
-});
+// Test visits endpoint removed for security and cleanup
 
 // Supabase tables endpoints for admin panel
 app.get("/api/admin/tables/:tableName", async (req, res) => {
