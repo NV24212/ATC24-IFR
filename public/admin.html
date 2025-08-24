@@ -1517,6 +1517,9 @@
         if (analytics.lastReset) {
           document.getElementById('lastReset').textContent = new Date(analytics.lastReset).toLocaleString();
         }
+
+        // Load password status
+        loadPasswordStatus();
       } catch (error) {
         console.error('Failed to load system info:', error);
         // Show clear error state without ugly icons
