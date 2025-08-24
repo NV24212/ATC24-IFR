@@ -309,7 +309,6 @@ async function trackPageVisit(req, pagePath) {
     const visitData = {
       page_path: pagePath,
       user_agent: req.headers['user-agent'] || 'Unknown',
-      ip_address: getRealIP(req),
       referrer: req.headers.referer || null,
       session_id: session.id,
       is_first_visit: isFirstVisit
@@ -327,7 +326,7 @@ async function trackPageVisit(req, pagePath) {
       isFirstVisit,
       totalVisits: analytics.totalVisits,
       todayVisits: analytics.dailyVisits[today],
-      ip: visitData.ip_address
+      ip: getRealIP(req)
     });
 
     // Store in Supabase if available (don't let failures here affect the main app)
@@ -342,7 +341,6 @@ async function trackPageVisit(req, pagePath) {
         // Update or create user session
         const sessionData = {
           session_id: session.id,
-          ip_address: visitData.ip_address,
           user_agent: visitData.user_agent,
           last_activity: new Date().toISOString(),
           page_views: session.pageViews,
@@ -398,7 +396,6 @@ async function trackClearanceGeneration(req, clearanceData) {
     const enhancedClearanceData = {
       ...clearanceData,
       session_id: session.id,
-      ip_address: getRealIP(req),
       user_agent: req.headers['user-agent'] || 'Unknown',
       timestamp: new Date().toISOString()
     };
@@ -429,7 +426,6 @@ async function trackClearanceGeneration(req, clearanceData) {
             session_id: session.id,
             clearances_generated: session.clearancesGenerated,
             last_activity: new Date().toISOString(),
-            ip_address: getRealIP(req),
             user_agent: req.headers['user-agent'] || 'Unknown'
           });
 
@@ -893,8 +889,10 @@ app.post("/api/admin/reset-analytics", requireAdminAuth, async (req, res) => {
     if (supabase) {
       await supabase.from('admin_activities').insert({
         action: 'reset_analytics',
-        details: { timestamp: new Date().toISOString() },
-        ip_address: req.ip || req.connection.remoteAddress
+        details: {
+          timestamp: new Date().toISOString(),
+          ip_address: req.ip || req.connection.remoteAddress
+        }
       });
     }
 
@@ -936,9 +934,9 @@ app.post("/api/admin/change-password", requireAdminAuth, async (req, res) => {
           details: {
             passwordLength: trimmedPassword.length,
             timestamp: new Date().toISOString(),
-            note: 'Temporary password change - resets on deployment restart'
-          },
-          ip_address: req.ip || req.connection?.remoteAddress || 'unknown'
+            note: 'Temporary password change - resets on deployment restart',
+            ip_address: req.ip || req.connection?.remoteAddress || 'unknown'
+          }
         });
       } catch (dbError) {
         logWithTimestamp('warn', 'Failed to log password change to database', { error: dbError.message });
@@ -975,9 +973,9 @@ app.post("/api/admin/reset-password", requireAdminAuth, async (req, res) => {
           action: 'reset_password',
           details: {
             timestamp: new Date().toISOString(),
-            note: 'Reset to environment default password'
-          },
-          ip_address: req.ip || req.connection?.remoteAddress || 'unknown'
+            note: 'Reset to environment default password',
+            ip_address: req.ip || req.connection?.remoteAddress || 'unknown'
+          }
         });
       } catch (dbError) {
         logWithTimestamp('warn', 'Failed to log password reset to database', { error: dbError.message });
@@ -1243,7 +1241,7 @@ app.get("/api/admin/current-users", async (req, res) => {
 
       const { data } = await supabase
         .from('user_sessions')
-        .select('session_id, last_activity, page_views, clearances_generated, ip_address, user_agent')
+        .select('session_id, last_activity, page_views, clearances_generated, user_agent')
         .gte('last_activity', fiveMinutesAgo)
         .order('last_activity', { ascending: false });
 
@@ -1252,7 +1250,6 @@ app.get("/api/admin/current-users", async (req, res) => {
         last_activity: session.last_activity,
         page_views: session.page_views || 0,
         clearances_generated: session.clearances_generated || 0,
-        ip_address: session.ip_address,
         user_agent: session.user_agent,
         source: 'supabase'
       }));
