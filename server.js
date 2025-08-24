@@ -1239,7 +1239,7 @@ app.get("/api/admin/current-users", async (req, res) => {
 
       const { data } = await supabase
         .from('user_sessions')
-        .select('session_id, last_activity, page_views, clearances_generated, ip_address, user_agent')
+        .select('session_id, last_activity, page_views, clearances_generated, user_agent')
         .gte('last_activity', fiveMinutesAgo)
         .order('last_activity', { ascending: false });
 
@@ -1248,7 +1248,6 @@ app.get("/api/admin/current-users", async (req, res) => {
         last_activity: session.last_activity,
         page_views: session.page_views || 0,
         clearances_generated: session.clearances_generated || 0,
-        ip_address: session.ip_address,
         user_agent: session.user_agent,
         source: 'supabase'
       }));
