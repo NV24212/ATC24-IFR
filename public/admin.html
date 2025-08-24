@@ -1595,10 +1595,12 @@
 
       const levelSelect = document.getElementById('logLevel');
       const debugLogsContainer = document.getElementById('debugLogs');
-      const logStats = document.getElementById('logStats');
 
-      if (!levelSelect || !debugLogsContainer || !logStats) {
-        console.error('Debug logs UI elements not found');
+      if (!levelSelect || !debugLogsContainer) {
+        console.error('Debug logs UI elements not found', {
+          levelSelect: !!levelSelect,
+          debugLogsContainer: !!debugLogsContainer
+        });
         return;
       }
 
