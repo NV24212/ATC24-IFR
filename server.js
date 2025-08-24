@@ -428,7 +428,6 @@ async function trackClearanceGeneration(req, clearanceData) {
             session_id: session.id,
             clearances_generated: session.clearancesGenerated,
             last_activity: new Date().toISOString(),
-            ip_address: getRealIP(req),
             user_agent: req.headers['user-agent'] || 'Unknown'
           });
 
