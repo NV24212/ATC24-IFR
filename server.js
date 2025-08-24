@@ -309,7 +309,6 @@ async function trackPageVisit(req, pagePath) {
     const visitData = {
       page_path: pagePath,
       user_agent: req.headers['user-agent'] || 'Unknown',
-      ip_address: getRealIP(req),
       referrer: req.headers.referer || null,
       session_id: session.id,
       is_first_visit: isFirstVisit
