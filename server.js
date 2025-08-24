@@ -341,7 +341,6 @@ async function trackPageVisit(req, pagePath) {
         // Update or create user session
         const sessionData = {
           session_id: session.id,
-          ip_address: visitData.ip_address,
           user_agent: visitData.user_agent,
           last_activity: new Date().toISOString(),
           page_views: session.pageViews,
