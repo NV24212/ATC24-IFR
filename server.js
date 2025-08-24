@@ -164,18 +164,37 @@ const sessions = new Map();
 
 // Clean up old sessions periodically (important for serverless)
 function cleanupOldSessions() {
-  const now = new Date();
-  const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+  try {
+    const now = new Date();
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+    let cleanedCount = 0;
 
-  for (const [sessionId, session] of sessions.entries()) {
-    if (now - session.lastActivity > maxAge) {
-      sessions.delete(sessionId);
+    for (const [sessionId, session] of sessions.entries()) {
+      if (session && session.lastActivity && (now - session.lastActivity > maxAge)) {
+        sessions.delete(sessionId);
+        cleanedCount++;
+      }
     }
+
+    if (cleanedCount > 0) {
+      logWithTimestamp('info', `Cleaned up ${cleanedCount} old sessions`, {
+        totalSessions: sessions.size,
+        cleanedSessions: cleanedCount
+      });
+    }
+  } catch (error) {
+    logWithTimestamp('error', 'Session cleanup failed', { error: error.message });
   }
 }
 
-// Run cleanup every 5 minutes
-setInterval(cleanupOldSessions, 5 * 60 * 1000);
+// Run cleanup every 5 minutes with error handling
+setInterval(() => {
+  try {
+    cleanupOldSessions();
+  } catch (error) {
+    logWithTimestamp('error', 'Session cleanup interval failed', { error: error.message });
+  }
+}, 5 * 60 * 1000);
 
 // Helper function to get or create session
 function getOrCreateSession(req) {
@@ -521,13 +540,35 @@ function initializeWebSocket() {
       });
 
       ws.on("error", (err) => {
-        logWithTimestamp('error', 'WebSocket connection error', { error: err.message, code: err.code });
+        logWithTimestamp('error', 'WebSocket connection error', {
+          error: err.message,
+          code: err.code,
+          errno: err.errno,
+          syscall: err.syscall
+        });
+
+        // Clean up WebSocket reference on error
+        ws = null;
+
+        // Attempt to reconnect after 10 seconds if not in serverless
+        if (process.env.VERCEL !== '1') {
+          logWithTimestamp('info', 'Scheduling WebSocket reconnection in 10 seconds due to error');
+          setTimeout(initializeWebSocket, 10000);
+        }
       });
 
       ws.on("close", (code, reason) => {
-        logWithTimestamp('warn', 'WebSocket connection closed', { code, reason: reason?.toString() });
-        // Attempt to reconnect after 5 seconds if not in serverless
-        if (process.env.VERCEL !== '1') {
+        logWithTimestamp('warn', 'WebSocket connection closed', {
+          code,
+          reason: reason?.toString(),
+          timestamp: new Date().toISOString()
+        });
+
+        // Clean up WebSocket reference
+        ws = null;
+
+        // Attempt to reconnect after 5 seconds if not in serverless and not a clean close
+        if (process.env.VERCEL !== '1' && code !== 1000) {
           logWithTimestamp('info', 'Scheduling WebSocket reconnection in 5 seconds');
           setTimeout(initializeWebSocket, 5000);
         }
@@ -956,45 +997,7 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Test endpoint to simulate visits for testing analytics
-app.post("/api/admin/test-visits", requireAdminAuth, async (req, res) => {
-  try {
-    const { count = 10, days = 7 } = req.body;
-    const results = [];
-
-    for (let i = 0; i < count; i++) {
-      // Randomly distribute visits over the specified days
-      const daysAgo = Math.floor(Math.random() * days);
-      const visitDate = new Date();
-      visitDate.setDate(visitDate.getDate() - daysAgo);
-      const visitDateStr = visitDate.toISOString().split('T')[0];
-
-      // Track the visit with custom date
-      analytics.totalVisits++;
-      analytics.dailyVisits[visitDateStr] = (analytics.dailyVisits[visitDateStr] || 0) + 1;
-
-      results.push({
-        visit: i + 1,
-        date: visitDateStr,
-        path: i % 2 === 0 ? '/' : '/license'
-      });
-    }
-
-    logWithTimestamp('info', `Generated ${count} test visits over ${days} days`);
-    res.json({
-      success: true,
-      message: `Generated ${count} test visits`,
-      results,
-      currentAnalytics: {
-        totalVisits: analytics.totalVisits,
-        dailyVisitsCount: Object.keys(analytics.dailyVisits).length
-      }
-    });
-  } catch (error) {
-    console.error('Error generating test visits:', error);
-    res.status(500).json({ error: 'Failed to generate test visits' });
-  }
-});
+// Test visits endpoint removed for security and cleanup
 
 // Supabase tables endpoints for admin panel
 app.get("/api/admin/tables/:tableName", async (req, res) => {
