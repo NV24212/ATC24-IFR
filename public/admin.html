@@ -1559,30 +1559,7 @@
       }
     }
 
-    async function testAnalytics() {
-      try {
-        const response = await fetch('/api/admin/test-visits', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            password: currentPassword,
-            count: 25,
-            days: 14
-          })
-        });
-
-        const result = await response.json();
-        if (result.success) {
-          showNotification('success', 'Test Data Generated', `Generated ${result.results.length} test visits over 14 days`);
-          loadAnalytics();
-        } else {
-          showNotification('error', 'Test Failed', 'Unable to generate test data. Please try again.');
-        }
-      } catch (error) {
-        console.error('Failed to generate test data:', error);
-        showNotification('error', 'Connection Error', 'Failed to communicate with server. Check your connection.');
-      }
-    }
+    // Test analytics function removed for security
 
     async function resetAnalytics() {
       if (!confirm('This will permanently delete all analytics data. Are you sure?')) {
@@ -1978,12 +1955,22 @@
         return '<div class="table-loading">No data available</div>';
       }
 
-      // Get column names from first row
-      const columns = Object.keys(data[0]);
+      // Get column names from first row and filter out sensitive columns
+      const allColumns = Object.keys(data[0]);
+      const sensitiveColumns = ['ip_address', 'user_agent', 'raw_data'];
+      const columns = allColumns.filter(col => !sensitiveColumns.includes(col));
 
       let html = '<table class="data-table"><thead><tr>';
       columns.forEach(col => {
-        html += `<th>${col.replace(/_/g, ' ').toUpperCase()}</th>`;
+        let displayName = col.replace(/_/g, ' ').toUpperCase();
+        // Make column names more user-friendly
+        if (col === 'session_id') displayName = 'SESSION';
+        if (col === 'page_path') displayName = 'PAGE';
+        if (col === 'created_at') displayName = 'TIME';
+        if (col === 'callsign') displayName = 'CALLSIGN';
+        if (col === 'destination') displayName = 'DEST';
+        if (col === 'flight_level') displayName = 'FL';
+        html += `<th>${displayName}</th>`;
       });
       html += '</tr></thead><tbody>';
 
@@ -2007,6 +1994,9 @@
             } catch (e) {
               // Keep original value if date parsing fails
             }
+          } else if (col === 'session_id' && typeof value === 'string') {
+            // Truncate session IDs for privacy
+            value = value.substring(0, 8) + '...';
           }
 
           html += `<td>${value}</td>`;
@@ -2101,7 +2091,6 @@
               <div class="user-last-activity">
                 Last activity: ${timeAgo}
               </div>
-              ${user.ip_address ? `<div style="font-size: 10px; color: var(--text-muted); text-align: center; margin-top: 5px;">IP: ${user.ip_address}</div>` : ''}
             </div>
           `;
         });
