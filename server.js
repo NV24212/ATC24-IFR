@@ -695,7 +695,8 @@ app.post("/api/admin/login", requireAdminAuth, (req, res) => {
 
 app.get("/api/admin/analytics", async (req, res) => {
   const { password } = req.query;
-  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+  // Check temporary password first, then fall back to environment variable
+  const adminPassword = temporaryAdminPassword || process.env.ADMIN_PASSWORD || 'bruhdang';
   if (password !== adminPassword) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
