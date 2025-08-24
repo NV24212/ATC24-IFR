@@ -498,8 +498,14 @@ async function trackVisit(req, res, next) {
 // Admin authentication middleware
 function requireAdminAuth(req, res, next) {
   const { password } = req.body || req.query;
-  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+  // Check temporary password first, then fall back to environment variable
+  const adminPassword = temporaryAdminPassword || process.env.ADMIN_PASSWORD || 'bruhdang';
   if (password !== adminPassword) {
+    logWithTimestamp('warn', 'Failed admin authentication attempt', {
+      ip: req.ip || req.connection?.remoteAddress || 'unknown',
+      userAgent: req.headers['user-agent'] || 'unknown',
+      usingTemporaryPassword: temporaryAdminPassword !== null
+    });
     return res.status(401).json({ error: 'Invalid admin password' });
   }
   next();
