@@ -622,6 +622,22 @@
     trackClearanceGeneration();
   }
 
+  // Get or create persistent session ID
+  function getSessionId() {
+    let sessionId = localStorage.getItem('atc24_session_id');
+    if (!sessionId) {
+      // Generate a simple UUID-like string
+      sessionId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+      localStorage.setItem('atc24_session_id', sessionId);
+      console.log('Created new session ID:', sessionId.slice(0, 8) + '...');
+    }
+    return sessionId;
+  }
+
   // Track clearance generation
   async function trackClearanceGeneration() {
     try {
@@ -637,13 +653,42 @@
         clearance_text: document.getElementById("clearanceOutput").textContent
       };
 
-      await fetch('/api/clearance-generated', {
+      console.log('Tracking clearance generation:', {
+        callsign: clearanceData.callsign,
+        destination: clearanceData.destination,
+        sessionId: getSessionId().slice(0, 8) + '...'
+      });
+
+      const response = await fetch('/api/clearance-generated', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-session-id': getSessionId()
+        },
         body: JSON.stringify(clearanceData)
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Clearance tracking response:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Server reported failure');
+      }
+
     } catch (error) {
       console.error('Failed to track clearance generation:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        clearanceData: {
+          callsign: selectedFlightPlan?.callsign,
+          destination: selectedFlightPlan?.arriving
+        }
+      });
     }
   }
 
