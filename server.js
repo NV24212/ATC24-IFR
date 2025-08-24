@@ -145,6 +145,9 @@ if (supabase) {
   initializeAnalyticsFromDB();
 }
 
+// Temporary admin password (resets on deployment restart)
+let temporaryAdminPassword = null;
+
 // Admin settings with aviation defaults
 let adminSettings = {
   clearanceFormat: {
