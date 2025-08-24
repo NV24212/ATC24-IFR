@@ -1736,10 +1736,13 @@
 
     async function testDebugLogsEndpoint() {
       const debugLogsContainer = document.getElementById('debugLogs');
-      const logStats = document.getElementById('logStats');
+
+      if (!debugLogsContainer) {
+        console.error('Debug logs container not found');
+        return;
+      }
 
       debugLogsContainer.innerHTML = '<div style="color: var(--primary-color);">Testing debug logs endpoint...</div>';
-      logStats.innerHTML = 'Running endpoint test...';
 
       try {
         // Test basic connectivity first
