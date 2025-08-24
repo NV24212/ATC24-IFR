@@ -904,6 +904,110 @@ app.post("/api/admin/reset-analytics", requireAdminAuth, async (req, res) => {
   }
 });
 
+// Change temporary admin password (resets on deployment restart)
+app.post("/api/admin/change-password", requireAdminAuth, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+
+    // Validate new password
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length < 4) {
+      return res.status(400).json({
+        error: 'New password must be at least 4 characters long'
+      });
+    }
+
+    // Set temporary password
+    const trimmedPassword = newPassword.trim();
+    temporaryAdminPassword = trimmedPassword;
+
+    logWithTimestamp('info', 'Admin password changed temporarily', {
+      ip: req.ip || req.connection?.remoteAddress || 'unknown',
+      userAgent: req.headers['user-agent'] || 'unknown',
+      passwordLength: trimmedPassword.length,
+      timestamp: new Date().toISOString()
+    });
+
+    // Track admin activity
+    if (supabase) {
+      try {
+        await supabase.from('admin_activities').insert({
+          action: 'change_password',
+          details: {
+            passwordLength: trimmedPassword.length,
+            timestamp: new Date().toISOString(),
+            note: 'Temporary password change - resets on deployment restart'
+          },
+          ip_address: req.ip || req.connection?.remoteAddress || 'unknown'
+        });
+      } catch (dbError) {
+        logWithTimestamp('warn', 'Failed to log password change to database', { error: dbError.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully for this deployment session',
+      note: 'Password will reset to default when application is redeployed'
+    });
+  } catch (error) {
+    logWithTimestamp('error', 'Error changing admin password', { error: error.message });
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// Reset temporary password to default
+app.post("/api/admin/reset-password", requireAdminAuth, async (req, res) => {
+  try {
+    const originalPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
+    temporaryAdminPassword = null;
+
+    logWithTimestamp('info', 'Admin password reset to default', {
+      ip: req.ip || req.connection?.remoteAddress || 'unknown',
+      userAgent: req.headers['user-agent'] || 'unknown',
+      timestamp: new Date().toISOString()
+    });
+
+    // Track admin activity
+    if (supabase) {
+      try {
+        await supabase.from('admin_activities').insert({
+          action: 'reset_password',
+          details: {
+            timestamp: new Date().toISOString(),
+            note: 'Reset to environment default password'
+          },
+          ip_address: req.ip || req.connection?.remoteAddress || 'unknown'
+        });
+      } catch (dbError) {
+        logWithTimestamp('warn', 'Failed to log password reset to database', { error: dbError.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Password reset to deployment default'
+    });
+  } catch (error) {
+    logWithTimestamp('error', 'Error resetting admin password', { error: error.message });
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+// Get password status
+app.get("/api/admin/password-status", (req, res) => {
+  const { password } = req.query;
+  const adminPassword = temporaryAdminPassword || process.env.ADMIN_PASSWORD || 'bruhdang';
+  if (password !== adminPassword) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  res.json({
+    usingTemporaryPassword: temporaryAdminPassword !== null,
+    defaultPassword: process.env.ADMIN_PASSWORD || 'bruhdang',
+    hasEnvironmentPassword: !!process.env.ADMIN_PASSWORD
+  });
+});
+
 // Debug logs endpoint for admin
 app.get("/api/admin/logs", (req, res) => {
   try {
