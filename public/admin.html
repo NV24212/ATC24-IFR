@@ -1608,9 +1608,8 @@
 
       try {
         debugLogsContainer.innerHTML = '<div style="color: var(--text-muted);">Loading debug logs...</div>';
-        logStats.innerHTML = 'Loading log statistics...';
 
-        const url = `/api/admin/logs?password=${encodeURIComponent(currentPassword)}&level=${encodeURIComponent(level)}&limit=200`;
+        const url = `/api/admin/logs?password=${encodeURIComponent(currentPassword)}&level=${encodeURIComponent(level)}&limit=50`;
         console.log('Fetching debug logs from:', url.replace(currentPassword, '[REDACTED]'));
 
         const response = await fetch(url);
