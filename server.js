@@ -614,10 +614,7 @@ initializeWebSocket();
 app.use(cors());
 app.use(express.json());
 
-// Serve static files (like styles.css) from a 'public' directory
-app.use(express.static('public'));
-
-// Serve the frontend HTML
+// Serve the frontend HTML with tracking BEFORE static middleware
 app.get("/", trackVisit, (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
@@ -631,6 +628,10 @@ app.get("/license", trackVisit, (req, res) => {
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
+
+// Serve static files (like styles.css) from a 'public' directory
+// This must come AFTER specific route handlers to avoid bypassing tracking
+app.use(express.static('public'));
 
 // REST: Get all flight plans with serverless-aware fallback
 app.get("/flight-plans", async (req, res) => {
