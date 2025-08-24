@@ -398,7 +398,6 @@ async function trackClearanceGeneration(req, clearanceData) {
     const enhancedClearanceData = {
       ...clearanceData,
       session_id: session.id,
-      ip_address: getRealIP(req),
       user_agent: req.headers['user-agent'] || 'Unknown',
       timestamp: new Date().toISOString()
     };
