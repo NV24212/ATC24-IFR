@@ -105,8 +105,9 @@ let analytics = {
 
 // Initialize analytics from Supabase in serverless environment
 async function initializeAnalyticsFromDB() {
-  if (process.env.VERCEL === '1' && supabase) {
+  if (supabase) {
     try {
+      // Fetch analytics data from Supabase
       const [visitsResult, clearancesResult, flightPlansResult] = await Promise.all([
         supabase.from('page_visits').select('*', { count: 'exact' }),
         supabase.from('clearance_generations').select('*', { count: 'exact' }),
@@ -117,15 +118,30 @@ async function initializeAnalyticsFromDB() {
       analytics.clearancesGenerated = clearancesResult.count || 0;
       analytics.flightPlansReceived = flightPlansResult.count || 0;
 
-      console.log('📊 Analytics initialized from Supabase for serverless');
+      // Also calculate daily visits for the last 30 days
+      if (visitsResult.data) {
+        const dailyVisitsMap = {};
+        visitsResult.data.forEach(visit => {
+          const date = visit.created_at.split('T')[0];
+          dailyVisitsMap[date] = (dailyVisitsMap[date] || 0) + 1;
+        });
+        analytics.dailyVisits = dailyVisitsMap;
+      }
+
+      logWithTimestamp('info', '📊 Analytics initialized from Supabase', {
+        totalVisits: analytics.totalVisits,
+        clearancesGenerated: analytics.clearancesGenerated,
+        flightPlansReceived: analytics.flightPlansReceived,
+        dailyVisitDays: Object.keys(analytics.dailyVisits).length
+      });
     } catch (error) {
-      console.error('Failed to initialize analytics from DB:', error);
+      logWithTimestamp('error', 'Failed to initialize analytics from DB', { error: error.message });
     }
   }
 }
 
-// Call initialization if in serverless
-if (process.env.VERCEL === '1' && supabase) {
+// Call initialization for both serverless and traditional environments if Supabase is available
+if (supabase) {
   initializeAnalyticsFromDB();
 }
 
@@ -462,9 +478,17 @@ async function trackFlightPlanReceived(flightPlanData) {
   }
 }
 
-// Middleware to track visits
+// Middleware to track visits with error handling
 async function trackVisit(req, res, next) {
-  await trackPageVisit(req, req.path);
+  try {
+    await trackPageVisit(req, req.path);
+  } catch (error) {
+    logWithTimestamp('error', 'Visit tracking failed in middleware', {
+      error: error.message,
+      path: req.path
+    });
+    // Don't block the request if tracking fails
+  }
   next();
 }
 
