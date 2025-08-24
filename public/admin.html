@@ -1647,12 +1647,6 @@
           throw new Error(`Server error: ${data.error}`);
         }
 
-        // Update statistics
-        logStats.innerHTML = `
-          Showing ${data.logs?.length || 0} of ${data.filteredCount || 0} logs
-          (${data.totalCount || 0} total, max ${data.maxLogs || 0})
-          | Server start: ${data.serverStartTime ? new Date(data.serverStartTime).toLocaleString() : 'Unknown'}
-        `;
 
         // Display logs
         if (!data.logs || data.logs.length === 0) {
