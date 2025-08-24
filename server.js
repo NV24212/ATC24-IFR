@@ -326,7 +326,7 @@ async function trackPageVisit(req, pagePath) {
       isFirstVisit,
       totalVisits: analytics.totalVisits,
       todayVisits: analytics.dailyVisits[today],
-      ip: visitData.ip_address
+      ip: getRealIP(req)
     });
 
     // Store in Supabase if available (don't let failures here affect the main app)
@@ -889,8 +889,10 @@ app.post("/api/admin/reset-analytics", requireAdminAuth, async (req, res) => {
     if (supabase) {
       await supabase.from('admin_activities').insert({
         action: 'reset_analytics',
-        details: { timestamp: new Date().toISOString() },
-        ip_address: req.ip || req.connection.remoteAddress
+        details: {
+          timestamp: new Date().toISOString(),
+          ip_address: req.ip || req.connection.remoteAddress
+        }
       });
     }
 
@@ -932,9 +934,9 @@ app.post("/api/admin/change-password", requireAdminAuth, async (req, res) => {
           details: {
             passwordLength: trimmedPassword.length,
             timestamp: new Date().toISOString(),
-            note: 'Temporary password change - resets on deployment restart'
-          },
-          ip_address: req.ip || req.connection?.remoteAddress || 'unknown'
+            note: 'Temporary password change - resets on deployment restart',
+            ip_address: req.ip || req.connection?.remoteAddress || 'unknown'
+          }
         });
       } catch (dbError) {
         logWithTimestamp('warn', 'Failed to log password change to database', { error: dbError.message });
@@ -971,9 +973,9 @@ app.post("/api/admin/reset-password", requireAdminAuth, async (req, res) => {
           action: 'reset_password',
           details: {
             timestamp: new Date().toISOString(),
-            note: 'Reset to environment default password'
-          },
-          ip_address: req.ip || req.connection?.remoteAddress || 'unknown'
+            note: 'Reset to environment default password',
+            ip_address: req.ip || req.connection?.remoteAddress || 'unknown'
+          }
         });
       } catch (dbError) {
         logWithTimestamp('warn', 'Failed to log password reset to database', { error: dbError.message });
