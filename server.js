@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 
 // Runtime logs storage for debugging - moved before first usage
 let runtimeLogs = [];
-const MAX_LOGS = 500; // Keep last 500 log entries
+const MAX_LOGS = 100; // Keep last 100 log entries to prevent memory issues
 
 // Enhanced logging function - moved before first usage
 function logWithTimestamp(level, message, data = null) {
@@ -24,10 +24,14 @@ function logWithTimestamp(level, message, data = null) {
     id: uuidv4().slice(0, 8)
   };
 
-  // Add to runtime logs
-  runtimeLogs.unshift(logEntry);
-  if (runtimeLogs.length > MAX_LOGS) {
-    runtimeLogs = runtimeLogs.slice(0, MAX_LOGS);
+  // Add to runtime logs with memory safety
+  try {
+    runtimeLogs.unshift(logEntry);
+    if (runtimeLogs.length > MAX_LOGS) {
+      runtimeLogs = runtimeLogs.slice(0, MAX_LOGS);
+    }
+  } catch (error) {
+    console.error('Failed to add to runtime logs:', error);
   }
 
   // Console output with formatting
@@ -176,7 +180,7 @@ setInterval(cleanupOldSessions, 5 * 60 * 1000);
 // Helper function to get or create session
 function getOrCreateSession(req) {
   try {
-    // Try multiple ways to get session ID
+    // Try multiple ways to get session ID with better validation
     let sessionId = req.headers['x-session-id'] ||
                    req.headers['session-id'] ||
                    req.query.sessionId ||
@@ -187,10 +191,10 @@ function getOrCreateSession(req) {
       sessionId = uuidv4();
     }
 
-    // Validate session ID format (basic validation)
+    // Enhanced session ID validation
     if (!sessionId.match(/^[a-f0-9\-]{36}$/i)) {
       logWithTimestamp('warn', 'Invalid session ID format, generating new one', {
-        invalidId: sessionId.substring(0, 10) + '...',
+        invalidIdLength: sessionId ? sessionId.length : 0,
         ip: req.ip || 'unknown'
       });
       sessionId = uuidv4();
@@ -251,12 +255,17 @@ async function trackPageVisit(req, pagePath) {
 
     // Extract real IP address from various headers (useful for proxies/load balancers)
     const getRealIP = (req) => {
-      return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-             req.headers['x-real-ip'] ||
-             req.connection?.remoteAddress ||
-             req.socket?.remoteAddress ||
-             req.ip ||
-             'unknown';
+      try {
+        return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+               req.headers['x-real-ip'] ||
+               req.connection?.remoteAddress ||
+               req.socket?.remoteAddress ||
+               req.ip ||
+               'unknown';
+      } catch (error) {
+        logWithTimestamp('warn', 'Failed to extract IP address', { error: error.message });
+        return 'unknown';
+      }
     };
 
     const visitData = {
@@ -830,21 +839,13 @@ app.get("/api/admin/logs", (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const limit = parseInt(req.query.limit) || 100;
+    // Enhanced input validation
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 500);
     const level = req.query.level || null;
 
-    // Debug logging for endpoint access
-    console.log('Debug logs endpoint accessed:', {
-      runtimeLogsExists: !!runtimeLogs,
-      runtimeLogsLength: runtimeLogs?.length || 0,
-      isArray: Array.isArray(runtimeLogs),
-      level: level,
-      limit: limit
-    });
-
-    // Ensure runtimeLogs exists
+    // Ensure runtimeLogs exists and is safe
     if (!Array.isArray(runtimeLogs)) {
-      console.error('Runtime logs array is not initialized properly');
+      logWithTimestamp('error', 'Runtime logs array is not initialized properly');
       return res.json({
         logs: [],
         totalCount: 0,
@@ -857,17 +858,23 @@ app.get("/api/admin/logs", (req, res) => {
 
     let filteredLogs = runtimeLogs;
 
-    // Filter by log level if specified
+    // Safe filtering by log level
     if (level && level !== 'all') {
-      filteredLogs = runtimeLogs.filter(log => log && log.level === level);
+      filteredLogs = runtimeLogs.filter(log => {
+        try {
+          return log && typeof log === 'object' && log.level === level;
+        } catch (error) {
+          return false;
+        }
+      });
     }
 
-    // Limit results
+    // Safe limiting of results
     const logsToReturn = filteredLogs.slice(0, limit);
 
-    // Get server start time from oldest log or use current time
-    const serverStartTime = runtimeLogs.length > 0
-      ? runtimeLogs[runtimeLogs.length - 1]?.timestamp || new Date().toISOString()
+    // Get server start time safely
+    const serverStartTime = runtimeLogs.length > 0 && runtimeLogs[runtimeLogs.length - 1]
+      ? runtimeLogs[runtimeLogs.length - 1].timestamp || new Date().toISOString()
       : new Date().toISOString();
 
     res.json({
