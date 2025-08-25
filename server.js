@@ -6,6 +6,12 @@ const { createClient } = require('@supabase/supabase-js');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
+// Discord OAuth configuration
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
+const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
+const SESSION_SECRET = process.env.SESSION_SECRET || 'default_session_secret_change_in_production';
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -311,7 +317,9 @@ async function trackPageVisit(req, pagePath) {
       user_agent: req.headers['user-agent'] || 'Unknown',
       referrer: req.headers.referer || null,
       session_id: session.id,
-      is_first_visit: isFirstVisit
+      is_first_visit: isFirstVisit,
+      user_id: req.session?.user?.id || null,
+      discord_username: req.session?.user?.username || null
     };
 
     // Track in local analytics for fallback (always do this first)
@@ -397,7 +405,9 @@ async function trackClearanceGeneration(req, clearanceData) {
       ...clearanceData,
       session_id: session.id,
       user_agent: req.headers['user-agent'] || 'Unknown',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      user_id: req.session?.user?.id || clearanceData.user_id || null,
+      discord_username: req.session?.user?.username || clearanceData.discord_username || null
     };
 
     logWithTimestamp('info', 'Clearance generation tracked', {
@@ -507,6 +517,125 @@ function requireAdminAuth(req, res, next) {
   next();
 }
 
+// Discord OAuth helper functions
+function generateDiscordAuthURL() {
+  const scope = 'identify email';
+  const state = uuidv4();
+  const params = new URLSearchParams({
+    client_id: DISCORD_CLIENT_ID,
+    redirect_uri: DISCORD_REDIRECT_URI,
+    response_type: 'code',
+    scope: scope,
+    state: state
+  });
+
+  return {
+    url: `https://discord.com/api/oauth2/authorize?${params.toString()}`,
+    state: state
+  };
+}
+
+async function exchangeCodeForToken(code) {
+  const data = {
+    client_id: DISCORD_CLIENT_ID,
+    client_secret: DISCORD_CLIENT_SECRET,
+    grant_type: 'authorization_code',
+    code: code,
+    redirect_uri: DISCORD_REDIRECT_URI
+  };
+
+  const response = await fetch('https://discord.com/api/oauth2/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams(data)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discord token exchange failed: ${response.statusText}`);
+  }
+
+  return await response.json();
+}
+
+async function getDiscordUser(accessToken) {
+  const response = await fetch('https://discord.com/api/users/@me', {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discord user fetch failed: ${response.statusText}`);
+  }
+
+  return await response.json();
+}
+
+async function createOrUpdateUser(discordUser, tokenData) {
+  if (!supabase) {
+    throw new Error('Supabase not configured');
+  }
+
+  const avatar = discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : null;
+
+  // First try to update from Discord login (this will handle pending admin users)
+  const { data: updateData, error: updateError } = await supabase.rpc('update_user_from_discord_login', {
+    p_discord_id: discordUser.id,
+    p_username: discordUser.username,
+    p_email: discordUser.email,
+    p_avatar: avatar
+  });
+
+  if (updateError) {
+    // Fallback to regular upsert
+    const { data, error } = await supabase.rpc('upsert_discord_user', {
+      p_discord_id: discordUser.id,
+      p_username: discordUser.username,
+      p_discriminator: discordUser.discriminator,
+      p_email: discordUser.email,
+      p_avatar: avatar,
+      p_access_token: tokenData.access_token,
+      p_refresh_token: tokenData.refresh_token,
+      p_token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+    });
+
+    if (error) {
+      throw new Error(`Database user creation failed: ${error.message}`);
+    }
+
+    return data[0];
+  }
+
+  return updateData[0];
+}
+
+// Discord authentication middleware
+function requireDiscordAuth(req, res, next) {
+  const user = req.session?.user;
+  if (!user || !user.discord_id) {
+    return res.status(401).json({
+      error: 'Discord authentication required',
+      loginUrl: '/auth/discord'
+    });
+  }
+  req.user = user;
+  next();
+}
+
+// Optional Discord authentication (doesn't block if not authenticated)
+function optionalDiscordAuth(req, res, next) {
+  const user = req.session?.user;
+  if (user && user.discord_id) {
+    req.user = user;
+  }
+  next();
+}
+
+// Simple session store (in production, use Redis or database)
+const sessionStore = new Map();
+
 // WebSocket connection - only initialize if not in serverless environment
 let ws = null;
 
@@ -611,8 +740,28 @@ function initializeWebSocket() {
 // Initialize WebSocket connection
 initializeWebSocket();
 
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json());
+
+// Simple session middleware
+app.use((req, res, next) => {
+  // Try to get session ID from various sources
+  const sessionId = req.headers['x-session-id'] ||
+                   req.headers['authorization']?.replace('Bearer ', '') ||
+                   req.query.sessionId;
+
+  if (sessionId && sessionStore.has(sessionId)) {
+    req.session = sessionStore.get(sessionId);
+    // Update last activity
+    req.session.lastActivity = new Date();
+    sessionStore.set(sessionId, req.session);
+  }
+
+  next();
+});
 
 // Serve the frontend HTML with tracking BEFORE static middleware
 app.get("/", trackVisit, (req, res) => {
@@ -684,6 +833,302 @@ app.post("/api/clearance-generated", async (req, res) => {
   }
 });
 
+// Discord OAuth routes
+app.get("/auth/discord", (req, res) => {
+  try {
+    if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_REDIRECT_URI) {
+      return res.status(500).json({
+        error: 'Discord OAuth not configured',
+        message: 'Please set DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, and DISCORD_REDIRECT_URI environment variables'
+      });
+    }
+
+    const { url, state } = generateDiscordAuthURL();
+
+    // Store state in session for CSRF protection
+    if (!req.session) {
+      req.session = {};
+    }
+    req.session.oauthState = state;
+
+    logWithTimestamp('info', 'Discord OAuth initiated', {
+      ip: req.ip,
+      userAgent: req.headers['user-agent']
+    });
+
+    res.redirect(url);
+  } catch (error) {
+    logWithTimestamp('error', 'Discord OAuth initiation failed', { error: error.message });
+    res.status(500).json({ error: 'OAuth initiation failed' });
+  }
+});
+
+app.get("/auth/discord/callback", async (req, res) => {
+  try {
+    const { code, state, error: oauthError } = req.query;
+
+    // Check for OAuth errors
+    if (oauthError) {
+      logWithTimestamp('warn', 'Discord OAuth error', { error: oauthError });
+      return res.redirect('/?error=oauth_cancelled');
+    }
+
+    // Validate required parameters
+    if (!code) {
+      logWithTimestamp('warn', 'Discord OAuth callback missing code');
+      return res.redirect('/?error=missing_code');
+    }
+
+    // CSRF protection - validate state (optional but recommended)
+    if (req.session?.oauthState && req.session.oauthState !== state) {
+      logWithTimestamp('warn', 'Discord OAuth state mismatch', {
+        expected: req.session.oauthState,
+        received: state
+      });
+      return res.redirect('/?error=invalid_state');
+    }
+
+    // Exchange code for access token
+    const tokenData = await exchangeCodeForToken(code);
+
+    // Get user information from Discord
+    const discordUser = await getDiscordUser(tokenData.access_token);
+
+    // Create or update user in database
+    const user = await createOrUpdateUser(discordUser, tokenData);
+
+    // Create session
+    const sessionId = uuidv4();
+    req.session = {
+      id: sessionId,
+      user: {
+        id: user.id,
+        discord_id: user.discord_id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+        is_admin: user.is_admin,
+        roles: user.roles
+      },
+      createdAt: new Date(),
+      lastActivity: new Date()
+    };
+
+    // Store session
+    sessionStore.set(sessionId, req.session);
+
+    logWithTimestamp('info', 'Discord OAuth successful', {
+      userId: user.id,
+      discordId: user.discord_id,
+      username: user.username,
+      ip: req.ip
+    });
+
+    // Redirect to main page with success
+    res.redirect('/?auth=success');
+
+  } catch (error) {
+    logWithTimestamp('error', 'Discord OAuth callback failed', {
+      error: error.message,
+      stack: error.stack
+    });
+    res.redirect('/?error=auth_failed');
+  }
+});
+
+// Get current user info
+app.get("/api/auth/user", (req, res) => {
+  const user = req.session?.user;
+  if (user) {
+    res.json({
+      authenticated: true,
+      user: {
+        id: user.id,
+        discord_id: user.discord_id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+        is_admin: user.is_admin,
+        roles: user.roles
+      }
+    });
+  } else {
+    res.json({
+      authenticated: false,
+      user: null
+    });
+  }
+});
+
+// Logout endpoint
+app.post("/api/auth/logout", (req, res) => {
+  try {
+    const sessionId = req.session?.id;
+
+    if (sessionId) {
+      // Remove from session store
+      sessionStore.delete(sessionId);
+
+      logWithTimestamp('info', 'User logged out', {
+        sessionId: sessionId.slice(0, 8),
+        userId: req.session?.user?.id
+      });
+    }
+
+    // Clear session
+    req.session = null;
+
+    res.json({ success: true, message: 'Logged out successfully' });
+  } catch (error) {
+    logWithTimestamp('error', 'Logout failed', { error: error.message });
+    res.json({ success: true }); // Still return success
+  }
+});
+
+// Admin user management routes
+app.get("/api/admin/users", async (req, res) => {
+  try {
+    // Check if user is authenticated and is admin
+    if (!req.session?.user || !req.session.user.is_admin) {
+      return res.status(401).json({ error: 'Admin access required' });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    const { data, error } = await supabase.rpc('get_admin_users');
+
+    if (error) {
+      throw new Error(`Failed to fetch admin users: ${error.message}`);
+    }
+
+    res.json({
+      success: true,
+      users: data || []
+    });
+
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to fetch admin users', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch admin users' });
+  }
+});
+
+app.post("/api/admin/users", async (req, res) => {
+  try {
+    // Check if user is authenticated and is admin
+    if (!req.session?.user || !req.session.user.is_admin) {
+      return res.status(401).json({ error: 'Admin access required' });
+    }
+
+    const { username, roles } = req.body;
+
+    if (!username || !username.trim()) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    const { data, error } = await supabase.rpc('add_admin_user_by_username', {
+      p_username: username.trim(),
+      p_roles: JSON.stringify(roles || ['admin'])
+    });
+
+    if (error) {
+      throw new Error(`Failed to add admin user: ${error.message}`);
+    }
+
+    const result = data[0];
+
+    // Log admin activity
+    await supabase.from('admin_activities').insert({
+      action: 'add_admin_user',
+      details: {
+        admin_user: req.session.user.username,
+        target_username: username,
+        roles: roles,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+    logWithTimestamp('info', 'Admin user added', {
+      adminUser: req.session.user.username,
+      targetUsername: username,
+      roles: roles
+    });
+
+    res.json({
+      success: result.success,
+      message: result.message,
+      user_id: result.user_id
+    });
+
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to add admin user', { error: error.message });
+    res.status(500).json({ error: 'Failed to add admin user' });
+  }
+});
+
+app.delete("/api/admin/users/:userId", async (req, res) => {
+  try {
+    // Check if user is authenticated and is admin
+    if (!req.session?.user || !req.session.user.is_admin) {
+      return res.status(401).json({ error: 'Admin access required' });
+    }
+
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Prevent self-removal
+    if (userId === req.session.user.id) {
+      return res.status(400).json({ error: 'Cannot remove yourself as admin' });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    const { data, error } = await supabase.rpc('remove_admin_user', {
+      p_user_id: userId
+    });
+
+    if (error) {
+      throw new Error(`Failed to remove admin user: ${error.message}`);
+    }
+
+    const result = data[0];
+
+    // Log admin activity
+    await supabase.from('admin_activities').insert({
+      action: 'remove_admin_user',
+      details: {
+        admin_user: req.session.user.username,
+        target_user_id: userId,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+    logWithTimestamp('info', 'Admin user removed', {
+      adminUser: req.session.user.username,
+      targetUserId: userId
+    });
+
+    res.json({
+      success: result.success,
+      message: result.message
+    });
+
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to remove admin user', { error: error.message });
+    res.status(500).json({ error: 'Failed to remove admin user' });
+  }
+});
+
 // Admin API endpoints
 app.post("/api/admin/login", requireAdminAuth, (req, res) => {
   logWithTimestamp('info', 'Admin login successful', { ip: req.ip, userAgent: req.headers['user-agent'] });
@@ -691,11 +1136,9 @@ app.post("/api/admin/login", requireAdminAuth, (req, res) => {
 });
 
 app.get("/api/admin/analytics", async (req, res) => {
-  const { password } = req.query;
-  // Check temporary password first, then fall back to environment variable
-  const adminPassword = temporaryAdminPassword || process.env.ADMIN_PASSWORD || 'bruhdang';
-  if (password !== adminPassword) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  // Check if user is authenticated and is admin
+  if (!req.session?.user || !req.session.user.is_admin) {
+    return res.status(401).json({ error: 'Admin access required' });
   }
 
   try {
@@ -848,26 +1291,34 @@ app.get("/api/admin/analytics", async (req, res) => {
 
 app.get("/api/admin/settings", (req, res) => {
   const { password } = req.query;
-  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
-  if (password !== adminPassword) {
-    // Allow guest access to basic settings for the main app
-    if (password === 'guest') {
-      const guestSettings = {
-        clearanceFormat: adminSettings.clearanceFormat,
-        aviation: {
-          defaultAltitudes: adminSettings.aviation.defaultAltitudes,
-          squawkRanges: adminSettings.aviation.squawkRanges
-        }
-      };
-      return res.json(guestSettings);
-    }
-    return res.status(401).json({ error: 'Unauthorized' });
+
+  // Allow guest access to basic settings for the main app
+  if (password === 'guest') {
+    const guestSettings = {
+      clearanceFormat: adminSettings.clearanceFormat,
+      aviation: {
+        defaultAltitudes: adminSettings.aviation.defaultAltitudes,
+        squawkRanges: adminSettings.aviation.squawkRanges
+      }
+    };
+    return res.json(guestSettings);
   }
+
+  // Check if user is authenticated and is admin
+  if (!req.session?.user || !req.session.user.is_admin) {
+    return res.status(401).json({ error: 'Admin access required' });
+  }
+
   res.json(adminSettings);
 });
 
-app.post("/api/admin/settings", requireAdminAuth, (req, res) => {
+app.post("/api/admin/settings", (req, res) => {
   try {
+    // Check if user is authenticated and is admin
+    if (!req.session?.user || !req.session.user.is_admin) {
+      return res.status(401).json({ error: 'Admin access required' });
+    }
+
     adminSettings = { ...adminSettings, ...req.body.settings };
     res.json({ success: true, settings: adminSettings });
   } catch (error) {
@@ -875,8 +1326,13 @@ app.post("/api/admin/settings", requireAdminAuth, (req, res) => {
   }
 });
 
-app.post("/api/admin/reset-analytics", requireAdminAuth, async (req, res) => {
+app.post("/api/admin/reset-analytics", async (req, res) => {
   try {
+    // Check if user is authenticated and is admin
+    if (!req.session?.user || !req.session.user.is_admin) {
+      return res.status(401).json({ error: 'Admin access required' });
+    }
+
     // Reset local analytics
     analytics = {
       totalVisits: 0,
@@ -891,6 +1347,7 @@ app.post("/api/admin/reset-analytics", requireAdminAuth, async (req, res) => {
       await supabase.from('admin_activities').insert({
         action: 'reset_analytics',
         details: {
+          admin_user: req.session.user.username,
           timestamp: new Date().toISOString(),
           ip_address: req.ip || req.connection.remoteAddress
         }
@@ -1011,10 +1468,9 @@ app.get("/api/admin/password-status", (req, res) => {
 // Debug logs endpoint for admin
 app.get("/api/admin/logs", (req, res) => {
   try {
-    const { password } = req.query;
-    const adminPassword = temporaryAdminPassword || process.env.ADMIN_PASSWORD || 'bruhdang';
-    if (password !== adminPassword) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    // Check if user is authenticated and is admin
+    if (!req.session?.user || !req.session.user.is_admin) {
+      return res.status(401).json({ error: 'Admin access required' });
     }
 
     // Enhanced input validation
@@ -1138,10 +1594,9 @@ app.get("/health", (req, res) => {
 
 // Supabase tables endpoints for admin panel
 app.get("/api/admin/tables/:tableName", async (req, res) => {
-  const { password } = req.query;
-  const adminPassword = temporaryAdminPassword || process.env.ADMIN_PASSWORD || 'bruhdang';
-  if (password !== adminPassword) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  // Check if user is authenticated and is admin
+  if (!req.session?.user || !req.session.user.is_admin) {
+    return res.status(401).json({ error: 'Admin access required' });
   }
 
   const { tableName } = req.params;
@@ -1213,10 +1668,9 @@ app.get("/api/admin/tables/:tableName", async (req, res) => {
 
 // Current users endpoint - get active sessions
 app.get("/api/admin/current-users", async (req, res) => {
-  const { password } = req.query;
-  const adminPassword = temporaryAdminPassword || process.env.ADMIN_PASSWORD || 'bruhdang';
-  if (password !== adminPassword) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  // Check if user is authenticated and is admin
+  if (!req.session?.user || !req.session.user.is_admin) {
+    return res.status(401).json({ error: 'Admin access required' });
   }
 
   try {
