@@ -808,10 +808,11 @@ function initializeWebSocket() {
             // Track analytics in Supabase
             await trackFlightPlanReceived(flightPlan);
 
-            // Add new flight plan to array, keep configurable amount
+            // Add new flight plan to array, respecting the configured limit
             flightPlans.unshift(flightPlan);
-            if (flightPlans.length > adminSettings.system.maxFlightPlansStored) {
-              flightPlans = flightPlans.slice(0, adminSettings.system.maxFlightPlansStored);
+            const limit = adminSettings.system.maxFlightPlansStored || 20;
+            if (flightPlans.length > limit) {
+              flightPlans = flightPlans.slice(0, limit);
             }
 
             logWithTimestamp('info', `Received ${flightPlan.source} flight plan`, {
@@ -820,8 +821,9 @@ function initializeWebSocket() {
               route: flightPlan.route
             });
 
+            // Log detailed data only if the setting is enabled
             if (adminSettings.system.enableDetailedLogging) {
-              logWithTimestamp('debug', `Detailed flight plan data`, flightPlan);
+              logWithTimestamp('debug', `Detailed flight plan data for ${flightPlan.callsign}`, flightPlan);
             }
           }
           // Also handle METAR data to extract runway information
@@ -1679,6 +1681,35 @@ app.get("/health", (req, res) => {
 
 // Test visits endpoint removed for security and cleanup
 
+// Endpoint for chart data
+app.get("/api/admin/charts", async (req, res) => {
+  // Check if user is authenticated and is admin
+  if (!req.session?.user || !req.session.user.is_admin) {
+    return res.status(401).json({ error: 'Admin access required' });
+  }
+
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('get_charts_data');
+
+    if (error) {
+      logWithTimestamp('error', 'Failed to fetch chart data from RPC', { error: error.message });
+      throw new Error(`Failed to fetch chart data: ${error.message}`);
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching chart data:', error);
+    res.status(500).json({
+      error: 'Failed to fetch chart data from Supabase',
+      message: error.message
+    });
+  }
+});
+
 // Supabase tables endpoints for admin panel
 app.get("/api/admin/tables/:tableName", async (req, res) => {
   // Check if user is authenticated and is admin
@@ -1689,7 +1720,7 @@ app.get("/api/admin/tables/:tableName", async (req, res) => {
   const { tableName } = req.params;
   const { limit = 50, offset = 0 } = req.query;
 
-  const allowedTables = ['page_visits', 'clearance_generations', 'flight_plans_received', 'user_sessions', 'admin_activities'];
+  const allowedTables = ['page_visits', 'clearance_generations', 'flight_plans_received', 'user_sessions', 'admin_activities', 'discord_users'];
 
   if (!allowedTables.includes(tableName)) {
     return res.status(400).json({ error: 'Invalid table name' });
