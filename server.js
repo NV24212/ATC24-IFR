@@ -947,6 +947,11 @@ app.get("/license", trackVisit, (req, res) => {
   res.sendFile(path.join(__dirname, "public", "license.html"));
 });
 
+// Serve the maintenance page
+app.get("/maintenance", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "maintenance.html"));
+});
+
 // Serve admin panel (don't track admin visits to avoid skewing analytics)
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
