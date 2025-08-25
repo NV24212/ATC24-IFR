@@ -405,7 +405,9 @@ async function trackClearanceGeneration(req, clearanceData) {
       ...clearanceData,
       session_id: session.id,
       user_agent: req.headers['user-agent'] || 'Unknown',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      user_id: req.session?.user?.id || clearanceData.user_id || null,
+      discord_username: req.session?.user?.username || clearanceData.discord_username || null
     };
 
     logWithTimestamp('info', 'Clearance generation tracked', {
