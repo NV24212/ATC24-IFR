@@ -67,7 +67,7 @@ function logWithTimestamp(level, message, data = null) {
 
 // Initialize Supabase client with proper validation
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_ANON_KEY;
 let supabase = null;
 
 // Validate Supabase configuration
@@ -85,8 +85,8 @@ if (supabaseUrl && supabaseKey &&
       }
     });
     logWithTimestamp('info', 'Supabase client initialized successfully', {
-      usingServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-      keyType: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'service_role' : 'anon'
+      usingServiceRole: !!process.env.SUPABASE_SERVICE_ROLE,
+      keyType: process.env.SUPABASE_SERVICE_ROLE ? 'service_role' : 'anon'
     });
   } catch (error) {
     logWithTimestamp('error', 'Failed to initialize Supabase', { error: error.message });
@@ -1304,150 +1304,75 @@ app.get("/api/admin/analytics", async (req, res) => {
     return res.status(401).json({ error: 'Admin access required' });
   }
 
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
   try {
-    let analyticsData = { ...analytics };
-    const today = new Date().toISOString().split('T')[0];
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const { data, error } = await supabase.rpc('get_analytics_summary');
+
+    if (error) {
+      logWithTimestamp('error', 'Failed to fetch analytics summary from RPC', { error: error.message });
+      throw new Error(`Failed to fetch analytics summary: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      logWithTimestamp('warn', 'Analytics summary RPC returned no data');
+      return res.json({
+        totalVisits: 0,
+        unique_visitors: 0,
+        clearances_generated: 0,
+        flight_plans_received: 0,
+        authenticated_sessions: 0,
+        last_7_days_visits: 0,
+        last_30_days_visits: 0,
+        error: 'No analytics data returned from database.'
+      });
+    }
+
+    const summary = data[0];
+
+    // The frontend expects some different key names, so let's adapt.
+    const analyticsData = {
+      totalVisits: summary.total_visits,
+      uniqueVisitors: summary.unique_visitors,
+      clearancesGenerated: summary.clearances_generated,
+      flightPlansReceived: summary.flight_plans_received,
+      authenticatedSessions: summary.authenticated_sessions,
+      last7Days: summary.last_7_days_visits,
+      last30Days: summary.last_30_days_visits,
+      currentDate: new Date().toISOString()
+    };
+
+    // For the daily chart, we still need to fetch daily visits.
+    // The RPC could be updated for this, but for now, we'll keep this one part.
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const { data: dailyData, error: dailyError } = await supabase
+      .from('page_visits')
+      .select('created_at')
+      .gte('created_at', thirtyDaysAgo.toISOString());
 
-    if (supabase) {
-      // Get comprehensive analytics from Supabase with graceful error handling
-      let visitsResult = { count: 0 };
-      let clearancesResult = { count: 0 };
-      let flightPlansResult = { count: 0 };
-      let sessionsResult = { count: 0 };
-
-      try {
-        visitsResult = await supabase.from('page_visits').select('*', { count: 'exact' });
-      } catch (error) {
-        logWithTimestamp('warn', 'page_visits table not accessible', { error: error.message });
-      }
-
-      try {
-        clearancesResult = await supabase.from('clearance_generations').select('*', { count: 'exact' });
-      } catch (error) {
-        logWithTimestamp('warn', 'clearance_generations table not accessible', { error: error.message });
-      }
-
-      try {
-        flightPlansResult = await supabase.from('flight_plans_received').select('*', { count: 'exact' });
-      } catch (error) {
-        logWithTimestamp('warn', 'flight_plans_received table not accessible', { error: error.message });
-      }
-
-      try {
-        sessionsResult = await supabase.from('user_sessions').select('*', { count: 'exact' });
-      } catch (error) {
-        logWithTimestamp('warn', 'user_sessions table not accessible', { error: error.message });
-      }
-
-      // Get daily analytics for the last 30 days
-      let dailyData = null;
-      try {
-        const result = await supabase
-          .from('page_visits')
-          .select('created_at')
-          .gte('created_at', thirtyDaysAgo.toISOString());
-        dailyData = result.data;
-      } catch (error) {
-        logWithTimestamp('warn', 'Failed to fetch daily visit data', { error: error.message });
-      }
-
-      // Process daily visits with proper date handling
-      const dailyVisits = {};
-      const last7DaysData = {};
-      const last30DaysData = {};
-
-      if (dailyData) {
-        dailyData.forEach(visit => {
-          const date = visit.created_at.split('T')[0];
-          dailyVisits[date] = (dailyVisits[date] || 0) + 1;
-
-          const visitDate = new Date(date);
-          if (visitDate >= sevenDaysAgo) {
-            last7DaysData[date] = (last7DaysData[date] || 0) + 1;
-          }
-          if (visitDate >= thirtyDaysAgo) {
-            last30DaysData[date] = (last30DaysData[date] || 0) + 1;
-          }
-        });
-      }
-
-      // Calculate totals for last 7 and 30 days
-      const last7Days = Object.values(last7DaysData).reduce((total, visits) => total + visits, 0);
-      const last30Days = Object.values(last30DaysData).reduce((total, visits) => total + visits, 0);
-
-      // Get unique visitors count
-      let uniqueVisitors = null;
-      try {
-        const result = await supabase
-          .from('user_sessions')
-          .select('session_id', { count: 'exact' });
-        uniqueVisitors = result.data;
-      } catch (error) {
-        logWithTimestamp('warn', 'Failed to fetch unique visitors', { error: error.message });
-      }
-
-      analyticsData = {
-        totalVisits: visitsResult.count || 0,
-        clearancesGenerated: clearancesResult.count || 0,
-        flightPlansReceived: flightPlansResult.count || 0,
-        uniqueVisitors: uniqueVisitors?.length || 0,
-        dailyVisits,
-        last7Days,
-        last30Days,
-        currentDate: new Date().toISOString(),
-        lastReset: analytics.lastReset
-      };
-    } else {
-      // Fallback to local analytics with proper date filtering
-      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
-      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
-
-      const last7Days = Object.entries(analytics.dailyVisits)
-        .filter(([date]) => date >= sevenDaysAgoStr)
-        .reduce((total, [date, visits]) => total + visits, 0);
-
-      const last30Days = Object.entries(analytics.dailyVisits)
-        .filter(([date]) => date >= thirtyDaysAgoStr)
-        .reduce((total, [date, visits]) => total + visits, 0);
-
-      analyticsData = {
-        ...analytics,
-        last7Days,
-        last30Days,
-        currentDate: new Date().toISOString()
-      };
+    if (dailyError) {
+        logWithTimestamp('warn', 'Failed to fetch daily visit data for chart', { error: dailyError.message });
     }
+
+    const dailyVisits = {};
+    if (dailyData) {
+        dailyData.forEach(visit => {
+            const date = visit.created_at.split('T')[0];
+            dailyVisits[date] = (dailyVisits[date] || 0) + 1;
+        });
+    }
+    analyticsData.dailyVisits = dailyVisits;
+
 
     res.json(analyticsData);
   } catch (error) {
     console.error('Error fetching analytics:', error);
-    // Fallback to local analytics on error with proper date filtering
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
-    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
-
-    const last7Days = Object.entries(analytics.dailyVisits)
-      .filter(([date]) => date >= sevenDaysAgoStr)
-      .reduce((total, [date, visits]) => total + visits, 0);
-
-    const last30Days = Object.entries(analytics.dailyVisits)
-      .filter(([date]) => date >= thirtyDaysAgoStr)
-      .reduce((total, [date, visits]) => total + visits, 0);
-
-    res.json({
-      ...analytics,
-      last7Days,
-      last30Days,
-      currentDate: new Date().toISOString(),
-      error: 'Failed to fetch from Supabase, showing local data'
+    res.status(500).json({
+      error: 'Failed to fetch analytics from Supabase',
+      message: error.message
     });
   }
 });
