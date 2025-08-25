@@ -412,6 +412,109 @@
     return effective;
   }
 
+  // Load controllers data from server
+  async function loadControllers() {
+    try {
+      const response = await fetch('/controllers');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+      controllers = data.controllers || [];
+
+      updateControllersUI(data);
+
+      console.log('Controllers loaded:', {
+        total: data.totalPositions,
+        active: data.activePositions,
+        available: data.availablePositions
+      });
+
+    } catch (error) {
+      console.error('Failed to load controllers:', error);
+      updateControllersUI({ controllers: [], totalPositions: 0, activePositions: 0, availablePositions: 0 });
+    }
+  }
+
+  // Update controllers UI elements
+  function updateControllersUI(data) {
+    const controllerSelect = document.getElementById('controllerSelect');
+    const controllersStatus = document.getElementById('controllersStatus');
+
+    // Clear existing options except the first two (Select... and Manual)
+    while (controllerSelect.children.length > 2) {
+      controllerSelect.removeChild(controllerSelect.lastChild);
+    }
+
+    // Add active controllers to the dropdown
+    const activeControllers = controllers.filter(controller => controller.isActive && controller.callSign);
+
+    if (activeControllers.length > 0) {
+      activeControllers.forEach(controller => {
+        const option = document.createElement('option');
+        option.value = controller.callSign;
+        option.textContent = `${controller.callSign} (${controller.holder})`;
+        option.dataset.airport = controller.airport;
+        option.dataset.position = controller.position;
+        option.dataset.holder = controller.holder;
+        controllerSelect.appendChild(option);
+      });
+
+      // Auto-select first ground controller if available and no selection exists
+      if (!selectedController) {
+        const groundController = activeControllers.find(c => c.position.toUpperCase().includes('GND') || c.position.toUpperCase().includes('GROUND'));
+        if (groundController) {
+          controllerSelect.value = groundController.callSign;
+          handleControllerSelection();
+        }
+      }
+    }
+
+    // Update status
+    controllersStatus.innerHTML = `
+      <span class="status-text">
+        📡 ${data.activePositions} active • ${data.availablePositions} available • ${data.totalPositions} total
+        ${data.lastUpdated ? `• Updated: ${new Date(data.lastUpdated).toLocaleTimeString()}` : ''}
+      </span>
+      <button class="refresh-controllers-btn" onclick="loadControllers()" title="Refresh Controllers">
+        🔄
+      </button>
+    `;
+  }
+
+  // Handle controller selection
+  function handleControllerSelection() {
+    const controllerSelect = document.getElementById('controllerSelect');
+    const groundCallsignInput = document.getElementById('groundCallsign');
+    const selectedValue = controllerSelect.value;
+
+    if (selectedValue === 'manual' || selectedValue === '') {
+      // Show manual input
+      groundCallsignInput.style.display = 'block';
+      groundCallsignInput.value = '';
+      groundCallsignInput.focus();
+      selectedController = null;
+    } else {
+      // Use selected controller
+      groundCallsignInput.style.display = 'none';
+      groundCallsignInput.value = selectedValue;
+
+      // Find and store selected controller data
+      selectedController = controllers.find(c => c.callSign === selectedValue);
+
+      if (selectedController) {
+        console.log('Selected controller:', {
+          callSign: selectedController.callSign,
+          airport: selectedController.airport,
+          position: selectedController.position,
+          holder: selectedController.holder
+        });
+
+        // Show selection feedback
+        showNotification(`Selected ${selectedController.callSign} (${selectedController.holder})`, 'success');
+      }
+    }
+  }
+
   function handleRoutingTypeChange() {
     const routingType = document.getElementById("routingType").value;
     const sidInput = document.getElementById("sidInput");
