@@ -196,6 +196,55 @@ body {
   line-height: 1.5;
 }
 
+/* Controller selection styles */
+.controller-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.controller-selection select {
+  background: var(--surface-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--text-color);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.controller-selection select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(245, 222, 64, 0.1);
+}
+
+.controller-selection select option {
+  background: var(--surface-color);
+  color: var(--text-color);
+  padding: 8px;
+}
+
+.controllers-status {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(245, 222, 64, 0.1);
+  border: 1px solid rgba(245, 222, 64, 0.2);
+  border-radius: 6px;
+  font-size: 12px;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.status-text {
+  color: var(--primary-color);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .config-group {
   margin-bottom: 25px;
   animation: slideInUp 0.4s ease-out;
