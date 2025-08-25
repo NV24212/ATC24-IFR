@@ -6,6 +6,12 @@ const { createClient } = require('@supabase/supabase-js');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
+// Discord OAuth configuration
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
+const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
+const SESSION_SECRET = process.env.SESSION_SECRET || 'default_session_secret_change_in_production';
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
