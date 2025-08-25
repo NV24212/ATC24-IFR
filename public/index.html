@@ -903,6 +903,21 @@
     }, interval);
   }
 
+  function startControllerPolling(interval) {
+    if (controllerRefreshInterval) {
+      clearInterval(controllerRefreshInterval);
+    }
+
+    controllerRefreshInterval = setInterval(async () => {
+      try {
+        await loadControllers();
+        console.log('Controllers refreshed via polling');
+      } catch (error) {
+        console.error('Controller polling refresh failed:', error);
+      }
+    }, interval);
+  }
+
   function showEnvironmentNotification() {
     const notification = document.createElement('div');
     notification.style.cssText = `
