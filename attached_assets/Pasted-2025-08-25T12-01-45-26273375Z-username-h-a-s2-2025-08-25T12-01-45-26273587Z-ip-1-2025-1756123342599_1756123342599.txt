@@ -1,0 +1,50 @@
+2025-08-25T12:01:45.26273375Z   username: 'h.a.s2',
+2025-08-25T12:01:45.26273587Z   ip: '::1'
+2025-08-25T12:01:45.26273795Z }
+2025-08-25T12:01:45.577072512Z [2025-08-25T12:01:45.576Z] INFO: New session created {
+2025-08-25T12:01:45.577085092Z   sessionId: '256ed53c',
+2025-08-25T12:01:45.577087262Z   totalSessions: 10,
+2025-08-25T12:01:45.577089052Z   authenticated: false,
+2025-08-25T12:01:45.577090842Z   username: 'anonymous',
+2025-08-25T12:01:45.577092572Z   ip: '::1'
+2025-08-25T12:01:45.577094352Z }
+2025-08-25T12:01:45.577215835Z [2025-08-25T12:01:45.577Z] INFO: Page visit tracked {
+2025-08-25T12:01:45.577221485Z   path: '/',
+2025-08-25T12:01:45.577224545Z   sessionId: '256ed53c',
+2025-08-25T12:01:45.577226275Z   isFirstVisit: true,
+2025-08-25T12:01:45.577228125Z   totalVisits: 6,
+2025-08-25T12:01:45.577229785Z   todayVisits: 6,
+2025-08-25T12:01:45.577232295Z   ip: '193.188.123.48'
+2025-08-25T12:01:45.577234155Z }
+2025-08-25T12:01:46.515742631Z [2025-08-25T12:01:46.515Z] ERROR: Failed to track page visit in Supabase {
+2025-08-25T12:01:46.515769311Z   error: 'Session upsert failed: new row violates row-level security policy for table "user_sessions"',
+2025-08-25T12:01:46.515773382Z   sessionId: '256ed53c',
+2025-08-25T12:01:46.515775852Z   path: '/'
+2025-08-25T12:01:46.515777992Z }
+2025-08-25T12:01:47.176933674Z [2025-08-25T12:01:47.176Z] ERROR: Discord OAuth callback failed {
+2025-08-25T12:01:47.176958904Z   error: 'Discord token exchange failed: Bad Request',
+2025-08-25T12:01:47.176962075Z   stack: 'Error: Discord token exchange failed: Bad Request\n' +
+2025-08-25T12:01:47.176964495Z     '    at exchangeCodeForToken (/app/server.js:597:11)\n' +
+2025-08-25T12:01:47.176967244Z     '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+2025-08-25T12:01:47.176970555Z     '    at async /app/server.js:1013:23'
+2025-08-25T12:01:47.176972675Z }
+2025-08-25T12:01:47.503897105Z [2025-08-25T12:01:47.496Z] INFO: New session created {
+2025-08-25T12:01:47.503917285Z   sessionId: '0cb1ffd7',
+2025-08-25T12:01:47.503920725Z   totalSessions: 11,
+2025-08-25T12:01:47.503923325Z   authenticated: false,
+2025-08-25T12:01:47.503925695Z   username: 'anonymous',
+2025-08-25T12:01:47.503928115Z   ip: '::1'
+2025-08-25T12:01:47.503930575Z }
+2025-08-25T12:01:47.503933065Z [2025-08-25T12:01:47.497Z] INFO: Page visit tracked {
+2025-08-25T12:01:47.503935926Z   path: '/',
+2025-08-25T12:01:47.503938066Z   sessionId: '0cb1ffd7',
+2025-08-25T12:01:47.503940266Z   isFirstVisit: true,
+2025-08-25T12:01:47.503942526Z   totalVisits: 7,
+2025-08-25T12:01:47.503945226Z   todayVisits: 7,
+2025-08-25T12:01:47.503947596Z   ip: '193.188.123.48'
+2025-08-25T12:01:47.503949976Z }
+2025-08-25T12:01:48.020056806Z [2025-08-25T12:01:48.019Z] ERROR: Failed to track page visit in Supabase {
+2025-08-25T12:01:48.020079356Z   error: 'Session upsert failed: new row violates row-level security policy for table "user_sessions"',
+2025-08-25T12:01:48.020096957Z   sessionId: '0cb1ffd7',
+2025-08-25T12:01:48.020099697Z   path: '/'
+2025-08-25T12:01:48.020101927Z }
