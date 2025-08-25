@@ -415,23 +415,61 @@
   // Load controllers data from server
   async function loadControllers() {
     try {
+      console.log('Loading controllers from /controllers endpoint...');
       const response = await fetch('/controllers');
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      console.log('Controllers response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Controllers endpoint error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}. Response: ${errorText}`);
+      }
 
       const data = await response.json();
+      console.log('Controllers data received:', {
+        hasControllers: !!data.controllers,
+        controllersLength: data.controllers ? data.controllers.length : 0,
+        totalPositions: data.totalPositions,
+        activePositions: data.activePositions,
+        availablePositions: data.availablePositions,
+        lastUpdated: data.lastUpdated,
+        debug: data.debug
+      });
+
       controllers = data.controllers || [];
 
       updateControllersUI(data);
 
-      console.log('Controllers loaded:', {
+      console.log('Controllers loaded successfully:', {
         total: data.totalPositions,
         active: data.activePositions,
-        available: data.availablePositions
+        available: data.availablePositions,
+        controllersArray: controllers.length
       });
 
     } catch (error) {
-      console.error('Failed to load controllers:', error);
-      updateControllersUI({ controllers: [], totalPositions: 0, activePositions: 0, availablePositions: 0 });
+      console.error('Failed to load controllers:', {
+        error: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+
+      // Show user-friendly error in UI
+      updateControllersUI({
+        controllers: [],
+        totalPositions: 0,
+        activePositions: 0,
+        availablePositions: 0,
+        error: error.message
+      });
+
+      // Show notification to user
+      showNotification(`Failed to load controllers: ${error.message}`, 'error');
     }
   }
 
