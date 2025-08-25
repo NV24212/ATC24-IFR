@@ -235,13 +235,26 @@ function getOrCreateSession(req) {
       sessionId = uuidv4();
     }
 
-    // Enhanced session ID validation
-    if (!sessionId.match(/^[a-f0-9\-]{36}$/i)) {
+    // Enhanced session ID validation - handle both UUID and shorter formats
+    if (!sessionId.match(/^[a-f0-9\-]{8,36}$/i)) {
       logWithTimestamp('warn', 'Invalid session ID format, generating new one', {
         invalidIdLength: sessionId ? sessionId.length : 0,
+        invalidId: sessionId ? sessionId.slice(0, 10) + '...' : 'null',
         ip: req.ip || 'unknown'
       });
       sessionId = uuidv4();
+    }
+
+    // Ensure full UUID format
+    if (sessionId.length < 36 && sessionId.match(/^[a-f0-9]{8}$/i)) {
+      // Convert 8-character hex to full UUID format for consistency
+      const fullUuid = uuidv4();
+      sessionId = sessionId + fullUuid.slice(8);
+      logWithTimestamp('info', 'Extended short session ID to full UUID', {
+        originalLength: 8,
+        newId: sessionId.slice(0, 8) + '...',
+        ip: req.ip || 'unknown'
+      });
     }
 
     // Create session if it doesn't exist
@@ -346,18 +359,34 @@ async function trackPageVisit(req, pagePath) {
           throw new Error(`Page visit insert failed: ${visitError.message}`);
         }
 
-        // Update or create user session
+        // Update or create user session with proper conflict resolution
         const sessionData = {
           session_id: session.id,
           user_agent: visitData.user_agent,
           last_activity: new Date().toISOString(),
           page_views: session.pageViews,
-          clearances_generated: session.clearancesGenerated || 0
+          clearances_generated: session.clearancesGenerated || 0,
+          updated_at: new Date().toISOString()
         };
 
-        const { error: sessionError } = await supabase.from('user_sessions').upsert(sessionData);
-        if (sessionError) {
-          throw new Error(`Session upsert failed: ${sessionError.message}`);
+        // First try to update existing session
+        const { data: updateData, error: updateError } = await supabase
+          .from('user_sessions')
+          .update(sessionData)
+          .eq('session_id', session.id)
+          .select();
+
+        // If no rows were updated, insert new session
+        if (!updateError && (!updateData || updateData.length === 0)) {
+          const { error: insertError } = await supabase
+            .from('user_sessions')
+            .insert(sessionData);
+
+          if (insertError && !insertError.message.includes('duplicate key')) {
+            throw new Error(`Session insert failed: ${insertError.message}`);
+          }
+        } else if (updateError) {
+          throw new Error(`Session update failed: ${updateError.message}`);
         }
 
       } catch (error) {
@@ -438,18 +467,36 @@ async function trackClearanceGeneration(req, clearanceData) {
           throw new Error(`Clearance insert failed: ${clearanceError.message}`);
         }
 
-        // Update session clearance count and activity
-        const { error: sessionError } = await supabase
-          .from('user_sessions')
-          .upsert({
-            session_id: session.id,
-            clearances_generated: session.clearancesGenerated,
-            last_activity: new Date().toISOString(),
-            user_agent: req.headers['user-agent'] || 'Unknown'
-          });
+        // Update session clearance count and activity with proper conflict resolution
+        const sessionUpdateData = {
+          clearances_generated: session.clearancesGenerated,
+          last_activity: new Date().toISOString(),
+          user_agent: req.headers['user-agent'] || 'Unknown',
+          updated_at: new Date().toISOString()
+        };
 
-        if (sessionError) {
-          throw new Error(`Session update failed: ${sessionError.message}`);
+        // First try to update existing session
+        const { data: updateData, error: updateError } = await supabase
+          .from('user_sessions')
+          .update(sessionUpdateData)
+          .eq('session_id', session.id)
+          .select();
+
+        // If no rows were updated, create new session
+        if (!updateError && (!updateData || updateData.length === 0)) {
+          const { error: insertError } = await supabase
+            .from('user_sessions')
+            .insert({
+              session_id: session.id,
+              ...sessionUpdateData,
+              page_views: 0
+            });
+
+          if (insertError && !insertError.message.includes('duplicate key')) {
+            throw new Error(`Session insert failed: ${insertError.message}`);
+          }
+        } else if (updateError) {
+          throw new Error(`Session update failed: ${updateError.message}`);
         }
 
       } catch (error) {
