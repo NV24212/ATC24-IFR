@@ -1328,6 +1328,11 @@ app.post("/api/admin/settings", (req, res) => {
 
 app.post("/api/admin/reset-analytics", async (req, res) => {
   try {
+    // Check if user is authenticated and is admin
+    if (!req.session?.user || !req.session.user.is_admin) {
+      return res.status(401).json({ error: 'Admin access required' });
+    }
+
     // Reset local analytics
     analytics = {
       totalVisits: 0,
@@ -1342,6 +1347,7 @@ app.post("/api/admin/reset-analytics", async (req, res) => {
       await supabase.from('admin_activities').insert({
         action: 'reset_analytics',
         details: {
+          admin_user: req.session.user.username,
           timestamp: new Date().toISOString(),
           ip_address: req.ip || req.connection.remoteAddress
         }
