@@ -822,8 +822,9 @@ input[type="text"]::placeholder {
   background: var(--surface-color);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 8px 16px;
+  padding: 12px 20px;
   transition: all 0.3s ease;
+  justify-content: center;
 }
 
 .user-info:hover {
