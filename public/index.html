@@ -650,7 +650,13 @@
         initial_altitude: parseInt(document.getElementById("ifl").value),
         atc_station: document.getElementById("groundCallsign").value,
         atis_info: document.getElementById("atisInfo").value,
-        clearance_text: document.getElementById("clearanceOutput").textContent
+        clearance_text: document.getElementById("clearanceOutput").textContent,
+        controller_info: selectedController ? {
+          airport: selectedController.airport,
+          position: selectedController.position,
+          holder: selectedController.holder,
+          auto_selected: true
+        } : { auto_selected: false }
       };
 
       console.log('Tracking clearance generation:', {
