@@ -1595,7 +1595,12 @@
 
     async function loadSettings() {
       try {
-        const response = await fetch(`/api/admin/settings?password=${encodeURIComponent(currentPassword)}`);
+        const response = await fetch(`/api/admin/settings`, {
+          headers: {
+            'X-Session-ID': sessionId,
+            'Authorization': `Bearer ${sessionId}`
+          }
+        });
         settings = await response.json();
 
         // Clearance format settings
@@ -1747,8 +1752,12 @@
 
         const response = await fetch('/api/admin/settings', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: currentPassword, settings: newSettings })
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Session-ID': sessionId,
+            'Authorization': `Bearer ${sessionId}`
+          },
+          body: JSON.stringify({ settings: newSettings })
         });
 
         const result = await response.json();
@@ -1774,8 +1783,11 @@
       try {
         const response = await fetch('/api/admin/reset-analytics', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: currentPassword })
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Session-ID': sessionId,
+            'Authorization': `Bearer ${sessionId}`
+          }
         });
 
         const result = await response.json();
@@ -2177,7 +2189,12 @@
     // Current users functionality
     async function loadCurrentUsers() {
       try {
-        const response = await fetch(`/api/admin/current-users?password=${encodeURIComponent(currentPassword)}`);
+        const response = await fetch(`/api/admin/current-users`, {
+          headers: {
+            'X-Session-ID': sessionId,
+            'Authorization': `Bearer ${sessionId}`
+          }
+        });
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);

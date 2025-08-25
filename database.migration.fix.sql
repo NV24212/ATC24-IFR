@@ -157,6 +157,63 @@ CREATE INDEX IF NOT EXISTS idx_admin_activities_created_at ON admin_activities(c
 CREATE INDEX IF NOT EXISTS idx_admin_activities_action ON admin_activities(action);
 
 -- =============================================================================
+-- TABLE: admin_settings
+-- Stores persistent admin panel settings
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS admin_settings (
+    id INT PRIMARY KEY DEFAULT 1,
+    settings JSONB NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT single_row_constraint CHECK (id = 1)
+);
+
+-- Enable RLS for admin_settings
+ALTER TABLE admin_settings ENABLE ROW LEVEL SECURITY;
+
+-- Policies for admin_settings: service_role can do anything, authenticated admins can read/write
+CREATE POLICY "Service role full access on admin_settings" ON admin_settings FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Admins can manage settings" ON admin_settings FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+
+
+-- Insert default settings if the table is empty
+-- This ensures that on first setup, there's a settings row to work with.
+DO $$
+DECLARE
+  default_settings JSONB := '{
+    "clearanceFormat": {
+      "includeAtis": true,
+      "includeSquawk": true,
+      "includeFlightLevel": true,
+      "phraseologyStyle": "ICAO",
+      "customTemplate": "{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.",
+      "includeStartupApproval": true,
+      "includeInitialClimb": true
+    },
+    "aviation": {
+      "defaultAltitudes": [1000, 2000, 3000, 4000, 5000],
+      "enableRunwayValidation": false,
+      "enableSIDValidation": false,
+      "squawkRanges": {
+        "min": 1000,
+        "max": 7777,
+        "exclude": [7500, 7600, 7700]
+      },
+      "atisLetters": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
+    },
+    "system": {
+      "maxFlightPlansStored": 20,
+      "enableDetailedLogging": false,
+      "autoRefreshInterval": 30000,
+      "enableFlightPlanFiltering": false
+    }
+  }';
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM admin_settings WHERE id = 1) THEN
+    INSERT INTO admin_settings (id, settings) VALUES (1, default_settings);
+  END IF;
+END $$;
+
+-- =============================================================================
 -- FUNCTION: is_admin (NEW)
 -- Checks if the currently authenticated user has admin privileges.
 -- =============================================================================
