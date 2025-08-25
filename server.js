@@ -221,27 +221,41 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-// Helper function to get or create session
+// Helper function to get or create session with unified handling
 function getOrCreateSession(req) {
   try {
     // Try multiple ways to get session ID with better validation
     let sessionId = req.headers['x-session-id'] ||
                    req.headers['session-id'] ||
                    req.query.sessionId ||
-                   req.session?.id;
+                   req.session?.id ||
+                   req.trackingSession?.id;
 
     // Generate new session ID if none found
     if (!sessionId || typeof sessionId !== 'string' || sessionId.trim() === '') {
       sessionId = uuidv4();
     }
 
-    // Enhanced session ID validation
-    if (!sessionId.match(/^[a-f0-9\-]{36}$/i)) {
+    // Enhanced session ID validation - handle both UUID and shorter formats
+    if (!sessionId.match(/^[a-f0-9\-]{8,36}$/i)) {
       logWithTimestamp('warn', 'Invalid session ID format, generating new one', {
         invalidIdLength: sessionId ? sessionId.length : 0,
+        invalidId: sessionId ? sessionId.slice(0, 10) + '...' : 'null',
         ip: req.ip || 'unknown'
       });
       sessionId = uuidv4();
+    }
+
+    // Ensure full UUID format
+    if (sessionId.length < 36 && sessionId.match(/^[a-f0-9]{8}$/i)) {
+      // Convert 8-character hex to full UUID format for consistency
+      const fullUuid = uuidv4();
+      sessionId = sessionId + fullUuid.slice(8);
+      logWithTimestamp('info', 'Extended short session ID to full UUID', {
+        originalLength: 8,
+        newId: sessionId.slice(0, 8) + '...',
+        ip: req.ip || 'unknown'
+      });
     }
 
     // Create session if it doesn't exist
@@ -251,7 +265,10 @@ function getOrCreateSession(req) {
         createdAt: new Date(),
         lastActivity: new Date(),
         pageViews: 0,
-        clearancesGenerated: 0
+        clearancesGenerated: 0,
+        // Add user info if authenticated
+        user_id: req.session?.user?.id || null,
+        discord_username: req.session?.user?.username || null
       };
 
       sessions.set(sessionId, newSession);
@@ -259,13 +276,21 @@ function getOrCreateSession(req) {
       logWithTimestamp('info', 'New session created', {
         sessionId: sessionId.slice(0, 8),
         totalSessions: sessions.size,
+        authenticated: !!req.session?.user,
+        username: req.session?.user?.username || 'anonymous',
         ip: req.ip || 'unknown'
       });
     }
 
-    // Update session activity
+    // Update session activity and sync user info if authenticated
     const session = sessions.get(sessionId);
     session.lastActivity = new Date();
+
+    // Sync authenticated user info to tracking session
+    if (req.session?.user && !session.user_id) {
+      session.user_id = req.session.user.id;
+      session.discord_username = req.session.user.username;
+    }
 
     return session;
 
@@ -346,16 +371,16 @@ async function trackPageVisit(req, pagePath) {
           throw new Error(`Page visit insert failed: ${visitError.message}`);
         }
 
-        // Update or create user session
-        const sessionData = {
-          session_id: session.id,
-          user_agent: visitData.user_agent,
-          last_activity: new Date().toISOString(),
-          page_views: session.pageViews,
-          clearances_generated: session.clearancesGenerated || 0
-        };
+        // Use unified session management RPC
+        const { data: sessionResult, error: sessionError } = await supabase.rpc('upsert_user_session', {
+          p_session_id: session.id,
+          p_user_id: session.user_id || visitData.user_id || null,
+          p_user_agent: visitData.user_agent,
+          p_ip_address: getRealIP(req),
+          p_page_views: session.pageViews,
+          p_clearances_generated: session.clearancesGenerated || 0
+        });
 
-        const { error: sessionError } = await supabase.from('user_sessions').upsert(sessionData);
         if (sessionError) {
           throw new Error(`Session upsert failed: ${sessionError.message}`);
         }
@@ -438,18 +463,17 @@ async function trackClearanceGeneration(req, clearanceData) {
           throw new Error(`Clearance insert failed: ${clearanceError.message}`);
         }
 
-        // Update session clearance count and activity
-        const { error: sessionError } = await supabase
-          .from('user_sessions')
-          .upsert({
-            session_id: session.id,
-            clearances_generated: session.clearancesGenerated,
-            last_activity: new Date().toISOString(),
-            user_agent: req.headers['user-agent'] || 'Unknown'
-          });
+        // Update session clearance count using unified RPC
+        const { data: sessionResult, error: sessionError } = await supabase.rpc('upsert_user_session', {
+          p_session_id: session.id,
+          p_user_id: session.user_id || enhancedClearanceData.user_id || null,
+          p_user_agent: req.headers['user-agent'] || 'Unknown',
+          p_ip_address: getRealIP(req),
+          p_clearances_generated: session.clearancesGenerated
+        });
 
         if (sessionError) {
-          throw new Error(`Session update failed: ${sessionError.message}`);
+          throw new Error(`Session upsert failed: ${sessionError.message}`);
         }
 
       } catch (error) {
@@ -755,18 +779,27 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Simple session middleware
+// Unified session middleware
 app.use((req, res, next) => {
   // Try to get session ID from various sources
   const sessionId = req.headers['x-session-id'] ||
                    req.headers['authorization']?.replace('Bearer ', '') ||
                    req.query.sessionId;
 
-  if (sessionId && sessionStore.has(sessionId)) {
-    req.session = sessionStore.get(sessionId);
-    // Update last activity
-    req.session.lastActivity = new Date();
-    sessionStore.set(sessionId, req.session);
+  // Check both session stores for authenticated and anonymous sessions
+  if (sessionId) {
+    // First check OAuth session store (for authenticated users)
+    if (sessionStore.has(sessionId)) {
+      req.session = sessionStore.get(sessionId);
+      req.session.lastActivity = new Date();
+      sessionStore.set(sessionId, req.session);
+    }
+    // Also check anonymous session store (for tracking purposes)
+    if (sessions.has(sessionId)) {
+      req.trackingSession = sessions.get(sessionId);
+      req.trackingSession.lastActivity = new Date();
+      sessions.set(sessionId, req.trackingSession);
+    }
   }
 
   next();
@@ -906,7 +939,7 @@ app.get("/auth/discord/callback", async (req, res) => {
     // Create or update user in database
     const user = await createOrUpdateUser(discordUser, tokenData);
 
-    // Create session
+    // Create unified session for OAuth user
     const sessionId = uuidv4();
     req.session = {
       id: sessionId,
@@ -923,8 +956,20 @@ app.get("/auth/discord/callback", async (req, res) => {
       lastActivity: new Date()
     };
 
-    // Store session
+    // Create corresponding tracking session
+    const trackingSession = {
+      id: sessionId,
+      createdAt: new Date(),
+      lastActivity: new Date(),
+      pageViews: 0,
+      clearancesGenerated: 0,
+      user_id: user.id,
+      discord_username: user.username
+    };
+
+    // Store in both session stores
     sessionStore.set(sessionId, req.session);
+    sessions.set(sessionId, trackingSession);
 
     logWithTimestamp('info', 'Discord OAuth successful', {
       userId: user.id,
