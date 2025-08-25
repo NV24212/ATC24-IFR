@@ -651,19 +651,31 @@
     trackClearanceGeneration();
   }
 
-  // Get or create persistent session ID
+  // Get or create persistent session ID with validation
   function getSessionId() {
     let sessionId = localStorage.getItem('atc24_session_id');
+
+    // Validate existing session ID
+    if (sessionId && !sessionId.match(/^[a-f0-9\-]{36}$/i)) {
+      console.warn('Invalid session ID format detected, generating new one');
+      sessionId = null;
+    }
+
     if (!sessionId) {
-      // Generate a simple UUID-like string
+      // Generate a proper UUID v4
       sessionId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
         const r = Math.random() * 16 | 0;
         const v = c == 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
       });
+
+      // Store and log
       localStorage.setItem('atc24_session_id', sessionId);
       console.log('Created new session ID:', sessionId.slice(0, 8) + '...');
+    } else {
+      console.log('Using existing session ID:', sessionId.slice(0, 8) + '...');
     }
+
     return sessionId;
   }
 
@@ -708,7 +720,8 @@
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
       }
 
       const result = await response.json();
@@ -724,15 +737,15 @@
       }
 
     } catch (error) {
-      console.error('Failed to track clearance generation:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        clearanceData: {
-          callsign: selectedFlightPlan?.callsign,
-          destination: selectedFlightPlan?.arriving
-        }
+      console.error('Failed to track clearance generation:', {
+        error: error.message,
+        sessionId: getSessionId().slice(0, 8) + '...',
+        callsign: selectedFlightPlan?.callsign,
+        destination: selectedFlightPlan?.arriving,
+        timestamp: new Date().toISOString(),
+        stack: error.stack
       });
+      // Continue without breaking user experience
     }
   }
 
