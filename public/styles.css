@@ -245,25 +245,6 @@ body {
   gap: 5px;
 }
 
-.refresh-controllers-btn {
-  background: var(--surface-hover);
-  border: 1px solid var(--border-color);
-  color: var(--text-color);
-  border-radius: 4px;
-  padding: 4px 8px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.3s ease;
-  margin-left: 10px;
-  float: right;
-}
-
-.refresh-controllers-btn:hover {
-  background: var(--primary-color);
-  color: #000;
-  border-color: var(--primary-color);
-  transform: rotate(180deg);
-}
 
 .config-group {
   margin-bottom: 25px;
