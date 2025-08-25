@@ -1203,7 +1203,7 @@
     let analytics = {};
     let settings = {};
     let dailyVisitChart = null;
-    let currentPassword = localStorage.getItem('admin_password'); // Load password from localStorage
+    // let currentPassword = localStorage.getItem('admin_password'); // DEPRECATED for security
 
     // Notification System
     function showNotification(type, title, message) {
@@ -1261,6 +1261,13 @@
 
     // Authentication Functions
     async function checkAuthStatus() {
+      const currentSessionId = getSessionId();
+      if (!currentSessionId) {
+        console.log('No session ID found. Showing login required.');
+        showLoginRequired();
+        return;
+      }
+
       try {
         document.getElementById('authLoading').style.display = 'block';
         document.getElementById('authLoginRequired').style.display = 'none';
@@ -1268,7 +1275,7 @@
 
         const response = await fetch('/api/auth/user', {
           headers: {
-            'X-Session-ID': getSessionId()
+            'X-Session-ID': currentSessionId
           }
         });
 
@@ -1276,19 +1283,24 @@
           const authData = await response.json();
           if (authData.authenticated && authData.user.is_admin) {
             currentUser = authData.user;
-            sessionId = getSessionId();
+            sessionId = currentSessionId;
             showAdminPanel();
           } else if (authData.authenticated && !authData.user.is_admin) {
             showNoAccess();
           } else {
+            // Session ID was invalid or expired
+            localStorage.removeItem('atc24_session_id');
             showLoginRequired();
           }
         } else {
+          // Handle server errors (e.g., 500)
+          showAuthError('Server error during authentication check.');
           showLoginRequired();
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        showAuthError('Failed to check authentication status');
+        showAuthError('Network error: Failed to check authentication status.');
+        showLoginRequired(); // Show login as a fallback
       }
     }
 
@@ -1345,12 +1357,10 @@
       // Try to get session ID from URL parameters first
       const urlParams = new URLSearchParams(window.location.search);
       const urlSessionId = urlParams.get('session');
-
       if (urlSessionId) {
         localStorage.setItem('atc24_session_id', urlSessionId);
         // Clean up URL
-        urlParams.delete('session');
-        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+        const newUrl = window.location.pathname + (window.location.search.replace(/&?session=[^&]*/, '').replace(/^\?$/, ''));
         window.history.replaceState({}, document.title, newUrl);
         return urlSessionId;
       }
@@ -1365,17 +1375,8 @@
         }
       }
 
-      // Fallback to localStorage
-      let sessionId = localStorage.getItem('atc24_session_id');
-      if (!sessionId) {
-        sessionId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-          const r = Math.random() * 16 | 0;
-          const v = c == 'x' ? r : (r & 0x3 | 0x8);
-          return v.toString(16);
-        });
-        localStorage.setItem('atc24_session_id', sessionId);
-      }
-      return sessionId;
+      // Fallback to localStorage, return null if not found
+      return localStorage.getItem('atc24_session_id');
     }
 
     function showAuthError(message) {
@@ -1792,19 +1793,12 @@
 
     // Debug logs functionality
     async function loadDebugLogs() {
-      if (!currentPassword) {
-        console.log('No admin password available for debug logs');
-        return;
-      }
-
+      // The backend now uses session authentication, so no password is needed.
       const levelSelect = document.getElementById('logLevel');
       const debugLogsContainer = document.getElementById('debugLogs');
 
       if (!levelSelect || !debugLogsContainer) {
-        console.error('Debug logs UI elements not found', {
-          levelSelect: !!levelSelect,
-          debugLogsContainer: !!debugLogsContainer
-        });
+        console.error('Debug logs UI elements not found');
         return;
       }
 
@@ -1813,39 +1807,20 @@
       try {
         debugLogsContainer.innerHTML = '<div style="color: var(--text-muted);">Loading debug logs...</div>';
 
-        const url = `/api/admin/logs?password=${encodeURIComponent(currentPassword)}&level=${encodeURIComponent(level)}&limit=50`;
-        console.log('Fetching debug logs from:', url.replace(currentPassword, '[REDACTED]'));
-
-        const response = await fetch(url);
-        console.log('Debug logs response status:', response.status, response.statusText);
-
-        // Handle response based on content type and status
-        let data;
-        try {
-          if (!response.ok) {
-            // Try to get error details, but handle cases where response body is already consumed
-            let errorDetails = '';
-            try {
-              const responseClone = response.clone();
-              errorDetails = await responseClone.text();
-            } catch (textError) {
-              errorDetails = 'Unable to read error details';
-              console.warn('Could not read error response text:', textError);
-            }
-            console.error('Debug logs error response:', errorDetails);
-            throw new Error(`HTTP ${response.status}: ${response.statusText}${errorDetails ? ` - ${errorDetails}` : ''}`);
+        const url = `/api/admin/logs?level=${encodeURIComponent(level)}&limit=50`;
+        const response = await fetch(url, {
+          headers: {
+            'X-Session-ID': sessionId,
+            'Authorization': `Bearer ${sessionId}`
           }
-
-          data = await response.json();
-        } catch (jsonError) {
-          console.error('Failed to parse JSON response:', jsonError);
-          throw new Error(`Invalid response format: ${jsonError.message}`);
-        }
-        console.log('Debug logs data received:', {
-          logCount: data.logs?.length || 0,
-          totalCount: data.totalCount,
-          hasError: !!data.error
         });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Invalid response from server' }));
+            throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorData.error || 'No error details'}`);
+        }
+
+        const data = await response.json();
 
         // Check for server-side error
         if (data.error) {
@@ -1891,46 +1866,17 @@
         // Auto-scroll to top for newest logs
         debugLogsContainer.scrollTop = 0;
 
-        console.log('Debug logs loaded successfully');
-
       } catch (error) {
         console.error('Failed to load debug logs:', error);
-
-        // Handle different types of errors
-        let errorMessage = 'Unknown error';
-        let errorType = 'General Error';
-
-        if (error instanceof TypeError && error.message.includes('fetch')) {
-          errorType = 'Network Error';
-          errorMessage = 'Unable to connect to server. Check your internet connection.';
-        } else if (error instanceof SyntaxError) {
-          errorType = 'Parse Error';
-          errorMessage = 'Server returned invalid data format.';
-        } else if (error.message) {
-          errorMessage = error.message;
-          if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-            errorType = 'Authentication Error';
-            errorMessage = 'Invalid admin password or session expired.';
-          } else if (error.message.includes('404')) {
-            errorType = 'Endpoint Error';
-            errorMessage = 'Debug logs endpoint not found on server.';
-          } else if (error.message.includes('500')) {
-            errorType = 'Server Error';
-            errorMessage = 'Internal server error. Check server logs.';
-          }
-        }
-
         debugLogsContainer.innerHTML = `
           <div style="color: #ff6b6b; margin-bottom: 10px;">Failed to load debug logs</div>
-          <div style="color: #ffa500; font-size: 12px; margin-bottom: 5px;">Error Type: ${escapeHtml(errorType)}</div>
-          <div style="color: #999; font-size: 11px; margin-bottom: 10px;">Details: ${escapeHtml(errorMessage)}</div>
+          <div style="color: #ffa500; font-size: 12px; margin-bottom: 5px;">Error Details</div>
+          <div style="color: #999; font-size: 11px; margin-bottom: 10px;">${escapeHtml(error.message)}</div>
           <div style="color: #666; font-size: 10px;">
             <div>• Check console (F12) for technical details</div>
-            <div>• Verify admin authentication</div>
-            <div>• Try refreshing the page</div>
+            <div>• Verify admin session is active</div>
           </div>
         `;
-        // logStats removed - error info already displayed in debugLogsContainer
       }
     }
 
@@ -1952,21 +1898,22 @@
         // Test basic connectivity first
         console.log('Testing basic endpoint connectivity...');
 
-        const testUrl = `/api/admin/logs?password=${encodeURIComponent(currentPassword)}&level=all&limit=5`;
-        console.log('Test URL (password redacted):', testUrl.replace(currentPassword, '[REDACTED]'));
+        const testUrl = `/api/admin/logs?level=all&limit=5`;
+        console.log('Test URL:', testUrl);
 
         const response = await fetch(testUrl, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-Session-ID': sessionId,
+            'Authorization': `Bearer ${sessionId}`
           }
         });
 
         console.log('Test response received:', {
           status: response.status,
           statusText: response.statusText,
-          headers: Object.fromEntries(response.headers.entries()),
           ok: response.ok
         });
 
@@ -2000,8 +1947,6 @@
           </div>
         `;
 
-        // Test completed successfully
-
       } catch (error) {
         console.error('Endpoint test failed:', error);
 
@@ -2014,8 +1959,6 @@
             See console for full technical details
           </div>
         `;
-
-        // Test failed
       }
     }
 
@@ -2061,36 +2004,43 @@
     }
 
     async function fetchTableData() {
+      const tableDisplay = document.getElementById('tableDisplay');
       try {
-        const tableDisplay = document.getElementById('tableDisplay');
         tableDisplay.innerHTML = '<div class="table-loading">Loading table data...</div>';
 
-        const url = `/api/admin/tables/${currentTable}?password=${encodeURIComponent(currentPassword)}&limit=${pageSize}&offset=${currentOffset}`;
-        const response = await fetch(url);
+        // Removed insecure password from URL. Session auth is handled by the browser cookie.
+        const url = `/api/admin/tables/${currentTable}?limit=${pageSize}&offset=${currentOffset}`;
+        const response = await fetch(url, {
+          headers: {
+            'X-Session-ID': sessionId,
+            'Authorization': `Bearer ${sessionId}`
+          }
+        });
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const errorData = await response.json().catch(() => ({ error: 'Invalid response from server' }));
+            throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorData.error || 'No error details'}`);
         }
 
         const data = await response.json();
         totalRecords = data.totalCount || 0;
 
-        // Handle setup required cases
-        if (data.setupRequired || data.message) {
+        // Handle cases where setup is required
+        if (data.setupRequired) {
           tableDisplay.innerHTML = `
             <div style="padding: 40px; text-align: center; color: var(--text-muted);">
-              <div style="font-size: 18px; color: var(--primary-color); margin-bottom: 15px;">⚠ Database Setup Required</div>
-              <div style="margin-bottom: 20px;">${data.message || 'Tables need to be created in Supabase'}</div>
+              <div style="font-size: 18px; color: var(--primary-color); margin-bottom: 15px;">⚠️ Database Setup Required</div>
+              <div style="margin-bottom: 20px;">${data.message || 'The required table does not exist.'}</div>
               <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin: 20px auto; max-width: 600px; text-align: left;">
-                <div style="font-weight: 600; margin-bottom: 10px; color: var(--primary-color);">Setup Instructions:</div>
+                <div style="font-weight: 600; margin-bottom: 10px; color: var(--primary-color);">Next Steps:</div>
                 <div style="font-size: 13px; line-height: 1.6;">
-                  1. Open your <a href="https://supabase.com/dashboard/projects" target="_blank" style="color: var(--primary-color);">Supabase Dashboard</a><br>
-                  2. Go to <strong>SQL Editor</strong> in the left sidebar<br>
-                  3. Copy and run the contents of <code>supabase_tables.sql</code><br>
-                  4. Refresh this page to see your data
+                  1. Go to your <a href="https://supabase.com/dashboard" target="_blank" style="color: var(--primary-color);">Supabase Dashboard</a> and select this project.<br>
+                  2. Navigate to the <strong>SQL Editor</strong>.<br>
+                  3. Run the provided SQL migration script to create all necessary tables and functions.<br>
+                  4. After the script runs successfully, refresh this page.
                 </div>
               </div>
-              <button class="nav-btn" onclick="refreshCurrentTable()" style="margin: 10px;">Refresh After Setup</button>
+              <button class="nav-btn" onclick="refreshCurrentTable()" style="margin: 10px;">Retry after Setup</button>
             </div>
           `;
           document.getElementById('tableRecordCount').textContent = 'Setup required';
@@ -2099,8 +2049,8 @@
         }
 
         if (!data.data || data.data.length === 0) {
-          tableDisplay.innerHTML = '<div class="table-loading">No data found in this table</div>';
-          document.getElementById('tableRecordCount').textContent = 'No records';
+          tableDisplay.innerHTML = '<div class="table-loading">No records found in this table.</div>';
+          document.getElementById('tableRecordCount').textContent = '0 records';
           document.getElementById('tablePagination').style.display = 'none';
           return;
         }
@@ -2119,35 +2069,16 @@
 
       } catch (error) {
         console.error('Error fetching table data:', error);
-
-        let errorMessage = 'Error loading table data';
-        let helpText = '';
-
-        if (error.message.includes('HTTP 500')) {
-          errorMessage = 'Database Setup Required';
-          helpText = `
-            <div style="margin-top: 15px; font-size: 13px; text-align: left;">
-              <strong>Next steps:</strong><br>
-              1. Run the SQL setup in your Supabase dashboard<br>
-              2. Check the supabase_tables.sql file for setup instructions<br>
-              3. Refresh this page after setup
-            </div>
-          `;
-        } else if (error.message.includes('503')) {
-          errorMessage = 'Database Connection Failed';
-          helpText = '<div style="margin-top: 10px; font-size: 13px;">Check your Supabase configuration</div>';
-        }
-
-        document.getElementById('tableDisplay').innerHTML = `
-          <div style="padding: 40px; text-align: center; color: var(--text-muted);">
-            <div style="font-size: 18px; color: #ff6b6b; margin-bottom: 10px;"> ${errorMessage}</div>
-            <div style="margin-bottom: 10px;">${error.message}</div>
-            ${helpText}
-            <button class="nav-btn" onclick="refreshCurrentTable()" style="margin-top: 15px;">Try Again</button>
+        tableDisplay.innerHTML = `
+          <div style="padding: 40px; text-align: center; color: #ff6b6b;">
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">❌ Failed to Load Table Data</div>
+            <div style="font-family: 'SF Mono', 'Monaco', monospace; font-size: 13px; color: #ffa500; margin-bottom: 20px;">${escapeHtml(error.message)}</div>
+            <div style="color: var(--text-muted); font-size: 13px;">This could be due to a database connection issue, a problem with the server, or incorrect RLS policies. Check the server logs for more details.</div>
+            <button class="nav-btn" onclick="refreshCurrentTable()" style="margin-top: 20px;">Try Again</button>
           </div>
         `;
         document.getElementById('tableRecordCount').textContent = 'Error';
-        showNotification('error', 'Table Load Error', errorMessage);
+        showNotification('error', 'Table Load Error', `Failed to fetch data for ${currentTable}.`);
       }
     }
 

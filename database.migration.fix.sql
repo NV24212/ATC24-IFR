@@ -222,7 +222,7 @@ BEGIN
         last_activity = NOW(),
         updated_at = NOW();
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- =============================================================================
 -- FUNCTION: upsert_discord_user (FIXED to avoid ambiguous columns)
@@ -245,7 +245,9 @@ CREATE OR REPLACE FUNCTION upsert_discord_user(
     avatar TEXT,
     is_admin BOOLEAN,
     roles JSONB
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 DECLARE
     v_user_id UUID;
 BEGIN
@@ -291,7 +293,7 @@ BEGIN
     SELECT du.id, du.discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles
     FROM discord_users du WHERE du.discord_id = p_discord_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
 -- =============================================================================
@@ -311,7 +313,9 @@ CREATE OR REPLACE FUNCTION update_user_from_discord_login(
     avatar TEXT,
     is_admin BOOLEAN,
     roles JSONB
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 DECLARE
     v_pending_user_id UUID;
     v_existing_user_id UUID;
@@ -366,7 +370,7 @@ BEGIN
     SELECT du.id, du.discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles
     FROM discord_users du WHERE du.discord_id = p_discord_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- =============================================================================
 -- Drop existing functions if they exist with different signatures
@@ -392,7 +396,9 @@ RETURNS TABLE(
     roles JSONB,
     last_login TIMESTAMPTZ,
     created_at TIMESTAMPTZ
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT 
@@ -409,7 +415,7 @@ BEGIN
     WHERE du.is_admin = TRUE
     ORDER BY du.last_login DESC;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- =============================================================================
 -- FUNCTION: add_admin_user_by_username
@@ -422,7 +428,9 @@ CREATE OR REPLACE FUNCTION add_admin_user_by_username(
     success BOOLEAN,
     message TEXT,
     user_id UUID
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 DECLARE
     v_user_id UUID;
     v_found BOOLEAN := FALSE;
@@ -470,7 +478,7 @@ BEGIN
         END as message,
         v_user_id as user_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- =============================================================================
 -- FUNCTION: remove_admin_user
@@ -481,7 +489,9 @@ CREATE OR REPLACE FUNCTION remove_admin_user(
 ) RETURNS TABLE(
     success BOOLEAN,
     message TEXT
-) AS $$
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     UPDATE discord_users
     SET 
@@ -496,7 +506,7 @@ BEGIN
         RETURN QUERY SELECT FALSE as success, 'User not found' as message;
     END IF;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- =============================================================================
 -- FUNCTION: get_analytics_summary
@@ -526,19 +536,21 @@ BEGIN
         (SELECT COUNT(*) FROM page_visits WHERE created_at >= NOW() - INTERVAL '7 days') as last_7_days_visits,
         (SELECT COUNT(*) FROM page_visits WHERE created_at >= NOW() - INTERVAL '30 days') as last_30_days_visits;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- =============================================================================
 -- TRIGGER FUNCTION: update_updated_at_column
 -- Automatically updates the updated_at timestamp
 -- =============================================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Create triggers for updated_at columns
 DROP TRIGGER IF EXISTS update_discord_users_updated_at ON discord_users;
