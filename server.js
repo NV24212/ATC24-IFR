@@ -1312,8 +1312,13 @@ app.get("/api/admin/settings", (req, res) => {
   res.json(adminSettings);
 });
 
-app.post("/api/admin/settings", requireAdminAuth, (req, res) => {
+app.post("/api/admin/settings", (req, res) => {
   try {
+    // Check if user is authenticated and is admin
+    if (!req.session?.user || !req.session.user.is_admin) {
+      return res.status(401).json({ error: 'Admin access required' });
+    }
+
     adminSettings = { ...adminSettings, ...req.body.settings };
     res.json({ success: true, settings: adminSettings });
   } catch (error) {
@@ -1321,7 +1326,7 @@ app.post("/api/admin/settings", requireAdminAuth, (req, res) => {
   }
 });
 
-app.post("/api/admin/reset-analytics", requireAdminAuth, async (req, res) => {
+app.post("/api/admin/reset-analytics", async (req, res) => {
   try {
     // Reset local analytics
     analytics = {
