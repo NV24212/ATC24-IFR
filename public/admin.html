@@ -1433,6 +1433,9 @@
       } else if (sectionName === 'tables') {
         loadCurrentUsers();
         loadTable('page_visits');
+      } else if (sectionName === 'users') {
+        loadCurrentAdminInfo();
+        loadAdminUsers();
       } else if (sectionName === 'system') {
         loadSystemInfo();
         loadDebugLogs();
