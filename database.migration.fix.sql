@@ -32,6 +32,8 @@ CREATE TABLE discord_users (
     token_expires_at TIMESTAMPTZ,
     is_admin BOOLEAN DEFAULT FALSE,
     roles JSONB DEFAULT '[]'::JSONB,
+    vatsim_cid TEXT,
+    is_controller BOOLEAN DEFAULT FALSE,
     last_login TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -42,6 +44,8 @@ CREATE INDEX IF NOT EXISTS idx_discord_users_discord_id ON discord_users(discord
 CREATE INDEX IF NOT EXISTS idx_discord_users_username ON discord_users(username);
 CREATE INDEX IF NOT EXISTS idx_discord_users_is_admin ON discord_users(is_admin);
 CREATE INDEX IF NOT EXISTS idx_discord_users_last_login ON discord_users(last_login);
+CREATE INDEX IF NOT EXISTS idx_discord_users_vatsim_cid ON discord_users(vatsim_cid);
+CREATE INDEX IF NOT EXISTS idx_discord_users_is_controller ON discord_users(is_controller);
 
 -- =============================================================================
 -- TABLE: page_visits  
@@ -295,7 +299,8 @@ CREATE OR REPLACE FUNCTION upsert_discord_user(
     p_avatar TEXT DEFAULT NULL,
     p_access_token TEXT DEFAULT NULL,
     p_refresh_token TEXT DEFAULT NULL,
-    p_token_expires_at TIMESTAMPTZ DEFAULT NULL
+    p_token_expires_at TIMESTAMPTZ DEFAULT NULL,
+    p_vatsim_cid TEXT DEFAULT NULL
 ) RETURNS TABLE(
     id UUID,
     discord_id TEXT,
@@ -303,7 +308,9 @@ CREATE OR REPLACE FUNCTION upsert_discord_user(
     email TEXT,
     avatar TEXT,
     is_admin BOOLEAN,
-    roles JSONB
+    roles JSONB,
+    vatsim_cid TEXT,
+    is_controller BOOLEAN
 )
 LANGUAGE plpgsql
 AS $$
@@ -324,6 +331,7 @@ BEGIN
             access_token = p_access_token,
             refresh_token = p_refresh_token,
             token_expires_at = p_token_expires_at,
+            vatsim_cid = COALESCE(p_vatsim_cid, discord_users.vatsim_cid),
             is_admin = CASE
                 WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN TRUE
                 ELSE discord_users.is_admin -- Preserve existing value
@@ -338,9 +346,9 @@ BEGIN
     ELSE
         -- Insert new user
         INSERT INTO discord_users (
-            discord_id, username, discriminator, email, avatar, access_token, refresh_token, token_expires_at, is_admin, roles, last_login, created_at, updated_at
+            discord_id, username, discriminator, email, avatar, access_token, refresh_token, token_expires_at, vatsim_cid, is_admin, roles, last_login, created_at, updated_at
         ) VALUES (
-            p_discord_id, p_username, p_discriminator, p_email, p_avatar, p_access_token, p_refresh_token, p_token_expires_at,
+            p_discord_id, p_username, p_discriminator, p_email, p_avatar, p_access_token, p_refresh_token, p_token_expires_at, p_vatsim_cid,
             CASE WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN TRUE ELSE FALSE END,
             CASE WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN '["admin", "super_admin"]'::JSONB ELSE '[]'::JSONB END,
             NOW(), NOW(), NOW()
@@ -349,7 +357,7 @@ BEGIN
 
     -- Return the user's data
     RETURN QUERY
-    SELECT du.id, du.discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles
+    SELECT du.id, du.discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles, du.vatsim_cid, du.is_controller
     FROM discord_users du WHERE du.discord_id = p_discord_id;
 END;
 $$;
@@ -363,7 +371,8 @@ CREATE OR REPLACE FUNCTION update_user_from_discord_login(
     p_discord_id TEXT,
     p_username TEXT,
     p_email TEXT DEFAULT NULL,
-    p_avatar TEXT DEFAULT NULL
+    p_avatar TEXT DEFAULT NULL,
+    p_vatsim_cid TEXT DEFAULT NULL
 ) RETURNS TABLE(
     id UUID,
     discord_id TEXT,
@@ -371,7 +380,9 @@ CREATE OR REPLACE FUNCTION update_user_from_discord_login(
     email TEXT,
     avatar TEXT,
     is_admin BOOLEAN,
-    roles JSONB
+    roles JSONB,
+    vatsim_cid TEXT,
+    is_controller BOOLEAN
 )
 LANGUAGE plpgsql
 AS $$
@@ -392,6 +403,7 @@ BEGIN
             discord_id = p_discord_id,
             email = p_email,
             avatar = p_avatar,
+            vatsim_cid = COALESCE(p_vatsim_cid, discord_users.vatsim_cid),
             last_login = NOW(),
             updated_at = NOW()
         WHERE id = v_pending_user_id;
@@ -406,6 +418,7 @@ BEGIN
                 username = p_username,
                 email = p_email,
                 avatar = p_avatar,
+                vatsim_cid = COALESCE(p_vatsim_cid, discord_users.vatsim_cid),
                 -- We preserve the is_admin and roles fields, as promotion is handled by add_admin_user_by_username
                 last_login = NOW(),
                 updated_at = NOW()
@@ -413,9 +426,9 @@ BEGIN
         ELSE
             -- User does not exist, create a new one
             INSERT INTO discord_users (
-                discord_id, username, email, avatar, is_admin, roles, last_login, created_at, updated_at
+                discord_id, username, email, avatar, vatsim_cid, is_admin, roles, last_login, created_at, updated_at
             ) VALUES (
-                p_discord_id, p_username, p_email, p_avatar,
+                p_discord_id, p_username, p_email, p_avatar, p_vatsim_cid,
                 -- New users are not admin unless they match the hardcoded values
                 CASE WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN TRUE ELSE FALSE END,
                 CASE WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN '["admin", "super_admin"]'::JSONB ELSE '[]'::JSONB END,
@@ -426,10 +439,31 @@ BEGIN
 
     -- Return the final state of the user
     RETURN QUERY
-    SELECT du.id, du.discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles
+    SELECT du.id, du.discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles, du.vatsim_cid, du.is_controller
     FROM discord_users du WHERE du.discord_id = p_discord_id;
 END;
 $$;
+
+-- =============================================================================
+-- FUNCTION: set_user_controller_status
+-- Updates the controller status for a given user.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION set_user_controller_status(
+    p_user_id UUID,
+    p_is_controller BOOLEAN
+) RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    UPDATE discord_users
+    SET
+        is_controller = p_is_controller,
+        updated_at = NOW()
+    WHERE id = p_user_id;
+END;
+$$;
+
 
 -- =============================================================================
 -- Drop existing functions if they exist with different signatures
