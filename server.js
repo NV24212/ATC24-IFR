@@ -880,13 +880,15 @@ app.post("/api/clearance-generated", async (req, res) => {
   }
 });
 
-// Discord OAuth routes
+// Discord OAuth routes with enhanced error handling
 app.get("/auth/discord", (req, res) => {
   try {
-    if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_REDIRECT_URI) {
+    if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
+      logWithTimestamp('error', 'Discord OAuth attempted but credentials not configured');
       return res.status(500).json({
         error: 'Discord OAuth not configured',
-        message: 'Please set DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, and DISCORD_REDIRECT_URI environment variables'
+        message: 'Discord authentication is not available. Please contact the administrator.',
+        configured: false
       });
     }
 
@@ -941,8 +943,23 @@ app.get("/auth/discord/callback", async (req, res) => {
     // Get user information from Discord
     const discordUser = await getDiscordUser(tokenData.access_token);
 
-    // Create or update user in database
-    const user = await createOrUpdateUser(discordUser, tokenData);
+    // Create or update user in database (with fallback if database unavailable)
+    let user;
+    try {
+      user = await createOrUpdateUser(discordUser, tokenData);
+    } catch (dbError) {
+      logWithTimestamp('error', 'Database operation failed during Discord auth, using fallback', { error: dbError.message });
+      // Fallback user object for when database is unavailable
+      user = {
+        id: discordUser.id,
+        discord_id: discordUser.id,
+        username: discordUser.username,
+        email: discordUser.email,
+        avatar: discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : null,
+        is_admin: false,
+        roles: []
+      };
+    }
 
     // Create session
     const sessionId = uuidv4();
