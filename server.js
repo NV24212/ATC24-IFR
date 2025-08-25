@@ -613,7 +613,7 @@ async function trackVisit(req, res, next) {
 
 // Discord OAuth helper functions
 function generateDiscordAuthURL() {
-  const scope = 'identify email';
+  const scope = 'identify';
   const state = uuidv4();
   const params = new URLSearchParams({
     client_id: DISCORD_CLIENT_ID,
@@ -1296,7 +1296,7 @@ app.post("/api/admin/users", async (req, res) => {
 
     const { data, error } = await supabase.rpc('add_admin_user_by_username', {
       p_username: username.trim(),
-      p_roles: JSON.stringify(roles || ['admin'])
+      p_roles: roles || ['admin']
     });
 
     if (error) {
