@@ -104,6 +104,36 @@ if (supabaseUrl && supabaseKey &&
 
 let flightPlans = []; // Store multiple flight plans
 
+// Controller data cache and polling
+let controllerCache = {
+  data: [],
+  lastUpdated: null,
+  source: 'cache'
+};
+
+async function pollControllers() {
+  try {
+    const response = await fetch('https://24data.ptfs.app/controllers');
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+    }
+    const data = await response.json();
+    controllerCache = {
+      data: data,
+      lastUpdated: new Date().toISOString(),
+      source: 'live'
+    };
+    logWithTimestamp('info', 'Fetched controller data successfully', { count: data.length });
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to fetch controller data', { error: error.message });
+    controllerCache.source = 'stale'; // Mark data as potentially stale
+  }
+}
+
+// Poll immediately on startup, then set interval
+pollControllers();
+setInterval(pollControllers, 6000); // Poll every 6 seconds as per docs
+
 // Initialize startup log
 logWithTimestamp('info', 'ATC24 Server starting up', {
   environment: process.env.VERCEL === '1' ? 'serverless' : 'traditional',
@@ -935,6 +965,11 @@ app.get("/health", (req, res) => {
     wsConnected: ws && ws.readyState === WebSocket.OPEN,
     version: "1.0.0"
   });
+});
+
+// REST: Get all online controllers
+app.get("/controllers", (req, res) => {
+  res.json(controllerCache);
 });
 
 // REST: Get all flight plans with serverless-aware fallback

@@ -4,6 +4,49 @@
   <title>ATC24 IFR Clearance Generator</title>
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <style>
+    .controller-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .controller-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+    .status-light {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #888; /* Default gray */
+        transition: background-color 0.3s ease;
+    }
+    .status-light.online {
+        background-color: #2ecc71; /* Green */
+    }
+    .status-light.stale {
+        background-color: #f39c12; /* Orange */
+    }
+    .controller-selection-wrapper {
+        display: flex;
+        gap: 10px;
+    }
+    #groundCallsignSelect {
+        flex: 1;
+    }
+    .refresh-btn.small-btn {
+        padding: 10px;
+        line-height: 1;
+        min-width: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+  </style>
 </head>
 <body>
 <div class="container">
@@ -57,8 +100,22 @@
       <h2 class="section-title">ATC Configuration</h2>
 
       <div class="config-group">
-        <label class="config-label">ATC Call Sign</label>
-        <input type="text" id="groundCallsign" placeholder="e.g., EBBR_GND">
+        <div class="controller-header">
+          <label class="config-label">ATC Call Sign</label>
+          <div class="controller-status" id="controllerStatus">
+            <span class="status-light"></span>
+            <span id="statusText">Loading...</span>
+          </div>
+        </div>
+        <div class="controller-selection-wrapper">
+          <select id="groundCallsignSelect" onchange="onControllerSelect()">
+            <option value="">Loading controllers...</option>
+          </select>
+          <button class="refresh-btn small-btn" id="refreshControllersBtn" onclick="loadControllers()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L20.49 15a9 9 0 0 1-14.85 3.36L3.51 9z"></path></svg>
+          </button>
+        </div>
+        <input type="text" id="groundCallsignManual" placeholder="Or enter callsign manually" style="display: none; margin-top: 10px;">
       </div>
 
       <div class="config-group">
