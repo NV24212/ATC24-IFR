@@ -785,7 +785,7 @@ input[type="text"]::placeholder {
   gap: 10px;
   background: var(--surface-hover);
   border: 2px solid var(--border-color);
-  color: var(--primary-color);
+  color: #5865F2;
   padding: 12px 20px;
   border-radius: 8px;
   cursor: pointer;
@@ -797,10 +797,10 @@ input[type="text"]::placeholder {
 }
 
 .discord-login-btn:hover {
-  background: var(--primary-color);
-  color: #000;
+  background: #5865F2;
+  color: white;
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(245, 222, 64, 0.3);
+  box-shadow: 0 5px 15px rgba(88, 101, 242, 0.3);
 }
 
 .discord-login-btn:active {
@@ -811,8 +811,34 @@ input[type="text"]::placeholder {
   flex-shrink: 0;
 }
 
-.discord-login-btn:hover svg path {
+@keyframes glowing-border {
+  0% { box-shadow: 0 0 3px var(--primary-color); }
+  50% { box-shadow: 0 0 15px var(--primary-color); }
+  100% { box-shadow: 0 0 3px var(--primary-color); }
+}
+
+.discord-login-btn.discord-login-main {
+  color: white;
+  border-color: var(--primary-color);
+  animation: glowing-border 2.5s ease-in-out infinite;
+}
+
+.discord-login-btn.discord-login-main svg path {
+  fill: white;
+}
+
+.discord-login-btn.discord-login-main:hover {
+  background: var(--primary-color);
+  color: #000;
+  box-shadow: 0 5px 20px rgba(245, 222, 64, 0.4);
+}
+
+.discord-login-btn.discord-login-main:hover svg path {
   fill: #000;
+}
+
+.discord-login-btn:hover svg path {
+    fill: white;
 }
 
 .user-info {
