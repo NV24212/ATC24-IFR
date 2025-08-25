@@ -99,10 +99,19 @@ logWithTimestamp('error', 'This is a test error log for debugging');
 // Controllers data fetching and caching
 async function fetchControllersData() {
   try {
+    logWithTimestamp('info', 'Attempting to fetch controllers data from 24data API...');
+
     const response = await fetch('https://24data.ptfs.app/controllers', {
       headers: {
         'User-Agent': 'ATC24-IFR-Clearance-Generator/1.0'
-      }
+      },
+      timeout: 10000 // 10 second timeout
+    });
+
+    logWithTimestamp('info', `24data API response received`, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries())
     });
 
     if (!response.ok) {
@@ -110,20 +119,38 @@ async function fetchControllersData() {
     }
 
     const data = await response.json();
-    controllers = data || [];
+
+    logWithTimestamp('info', `Raw 24data API response`, {
+      dataType: typeof data,
+      isArray: Array.isArray(data),
+      length: Array.isArray(data) ? data.length : 'not-array',
+      sampleData: Array.isArray(data) && data.length > 0 ? data[0] : data
+    });
+
+    // Ensure we have an array
+    const controllersArray = Array.isArray(data) ? data : [];
+    controllers = controllersArray;
     lastControllersUpdate = new Date().toISOString();
 
-    logWithTimestamp('info', `Fetched ${controllers.length} controller positions`, {
+    logWithTimestamp('info', `Successfully fetched ${controllers.length} controller positions`, {
       totalPositions: controllers.length,
-      claimedPositions: controllers.filter(c => c.holder).length,
-      availablePositions: controllers.filter(c => c.claimable && !c.holder).length
+      claimedPositions: controllers.filter(c => c && c.holder).length,
+      availablePositions: controllers.filter(c => c && c.claimable && !c.holder).length,
+      sampleController: controllers.length > 0 ? {
+        airport: controllers[0].airport,
+        position: controllers[0].position,
+        holder: controllers[0].holder,
+        claimable: controllers[0].claimable
+      } : null
     });
 
     return controllers;
   } catch (error) {
     logWithTimestamp('error', 'Failed to fetch controllers data from 24data API', {
       error: error.message,
-      url: 'https://24data.ptfs.app/controllers'
+      stack: error.stack,
+      url: 'https://24data.ptfs.app/controllers',
+      errorType: error.constructor.name
     });
     return null;
   }
@@ -131,8 +158,15 @@ async function fetchControllersData() {
 
 // Initialize controllers data on startup
 if (process.env.VERCEL !== '1') {
-  // Initial fetch of controllers data
-  fetchControllersData();
+  // Initial fetch of controllers data with delay to ensure server is ready
+  setTimeout(async () => {
+    logWithTimestamp('info', 'Starting initial controllers data fetch...');
+    try {
+      await fetchControllersData();
+    } catch (error) {
+      logWithTimestamp('error', 'Initial controllers fetch failed', { error: error.message });
+    }
+  }, 2000); // 2 second delay
 
   // Set up polling for controllers data (every 6 seconds as recommended)
   setInterval(async () => {
@@ -575,13 +609,20 @@ function initializeWebSocket() {
           // Handle controllers data
           if (parsed.t === "CONTROLLERS") {
             const controllerData = parsed.d;
-            controllers = controllerData || [];
+
+            logWithTimestamp('info', `WebSocket: Received controllers data`, {
+              dataType: typeof controllerData,
+              isArray: Array.isArray(controllerData),
+              length: Array.isArray(controllerData) ? controllerData.length : 'not-array'
+            });
+
+            controllers = Array.isArray(controllerData) ? controllerData : [];
             lastControllersUpdate = new Date().toISOString();
 
             logWithTimestamp('info', `WebSocket: Updated controllers data`, {
               totalPositions: controllers.length,
-              claimedPositions: controllers.filter(c => c.holder).length,
-              availablePositions: controllers.filter(c => c.claimable && !c.holder).length
+              claimedPositions: controllers.filter(c => c && c.holder).length,
+              availablePositions: controllers.filter(c => c && c.claimable && !c.holder).length
             });
           }
 
@@ -698,18 +739,37 @@ app.get("/admin", (req, res) => {
 // REST: Get controllers data
 app.get("/controllers", async (req, res) => {
   try {
+    logWithTimestamp('info', 'Controllers endpoint called', {
+      controllersLength: controllers.length,
+      lastUpdate: lastControllersUpdate,
+      environment: process.env.VERCEL === '1' ? 'serverless' : 'traditional'
+    });
+
     // If we're in serverless environment or have no cached data, fetch fresh data
     if (process.env.VERCEL === '1' || controllers.length === 0 || !lastControllersUpdate) {
+      logWithTimestamp('info', 'Fetching fresh controllers data...');
       const freshData = await fetchControllersData();
       if (freshData !== null) {
         controllers = freshData;
+        logWithTimestamp('info', `Fresh controllers data received: ${controllers.length} positions`);
+      } else {
+        logWithTimestamp('warn', 'Failed to fetch fresh controllers data, using cached data');
       }
+    }
+
+    // Ensure controllers is an array
+    if (!Array.isArray(controllers)) {
+      logWithTimestamp('warn', 'Controllers data is not an array, initializing as empty array', {
+        controllersType: typeof controllers,
+        controllersValue: controllers
+      });
+      controllers = [];
     }
 
     // Enhance controllers data with call sign suggestions
     const enhancedControllers = controllers.map(controller => {
       let callSign = '';
-      if (controller.holder && controller.airport && controller.position) {
+      if (controller && controller.holder && controller.airport && controller.position) {
         // Generate standard ICAO call sign format
         switch (controller.position.toUpperCase()) {
           case 'GND':
@@ -739,22 +799,45 @@ app.get("/controllers", async (req, res) => {
       };
     });
 
-    res.json({
+    const responseData = {
       controllers: enhancedControllers,
       totalPositions: controllers.length,
-      activePositions: controllers.filter(c => c.holder).length,
-      availablePositions: controllers.filter(c => c.claimable && !c.holder).length,
-      lastUpdated: lastControllersUpdate
+      activePositions: controllers.filter(c => c && c.holder).length,
+      availablePositions: controllers.filter(c => c && c.claimable && !c.holder).length,
+      lastUpdated: lastControllersUpdate,
+      debug: {
+        originalControllersLength: controllers.length,
+        enhancedControllersLength: enhancedControllers.length,
+        sampleController: controllers.length > 0 ? controllers[0] : null
+      }
+    };
+
+    logWithTimestamp('info', 'Controllers endpoint response prepared', {
+      totalPositions: responseData.totalPositions,
+      activePositions: responseData.activePositions,
+      availablePositions: responseData.availablePositions
     });
+
+    res.json(responseData);
   } catch (error) {
-    logWithTimestamp('error', 'Error in controllers endpoint', { error: error.message });
+    logWithTimestamp('error', 'Error in controllers endpoint', {
+      error: error.message,
+      stack: error.stack,
+      controllersLength: Array.isArray(controllers) ? controllers.length : 'not-array',
+      controllersType: typeof controllers
+    });
     res.status(500).json({
       error: 'Failed to fetch controllers data',
+      message: error.message,
       controllers: [],
       totalPositions: 0,
       activePositions: 0,
       availablePositions: 0,
-      lastUpdated: null
+      lastUpdated: null,
+      debug: {
+        errorOccurred: true,
+        errorMessage: error.message
+      }
     });
   }
 });
