@@ -171,6 +171,8 @@ CREATE TABLE IF NOT EXISTS admin_settings (
 ALTER TABLE admin_settings ENABLE ROW LEVEL SECURITY;
 
 -- Policies for admin_settings: service_role can do anything, authenticated admins can read/write
+DROP POLICY IF EXISTS "Service role full access on admin_settings" ON admin_settings;
+DROP POLICY IF EXISTS "Admins can manage settings" ON admin_settings;
 CREATE POLICY "Service role full access on admin_settings" ON admin_settings FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Admins can manage settings" ON admin_settings FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
 
