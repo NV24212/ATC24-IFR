@@ -805,6 +805,158 @@ app.post("/api/clearance-generated", async (req, res) => {
   }
 });
 
+// Discord OAuth routes
+app.get("/auth/discord", (req, res) => {
+  try {
+    if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_REDIRECT_URI) {
+      return res.status(500).json({
+        error: 'Discord OAuth not configured',
+        message: 'Please set DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, and DISCORD_REDIRECT_URI environment variables'
+      });
+    }
+
+    const { url, state } = generateDiscordAuthURL();
+
+    // Store state in session for CSRF protection
+    if (!req.session) {
+      req.session = {};
+    }
+    req.session.oauthState = state;
+
+    logWithTimestamp('info', 'Discord OAuth initiated', {
+      ip: req.ip,
+      userAgent: req.headers['user-agent']
+    });
+
+    res.redirect(url);
+  } catch (error) {
+    logWithTimestamp('error', 'Discord OAuth initiation failed', { error: error.message });
+    res.status(500).json({ error: 'OAuth initiation failed' });
+  }
+});
+
+app.get("/auth/discord/callback", async (req, res) => {
+  try {
+    const { code, state, error: oauthError } = req.query;
+
+    // Check for OAuth errors
+    if (oauthError) {
+      logWithTimestamp('warn', 'Discord OAuth error', { error: oauthError });
+      return res.redirect('/?error=oauth_cancelled');
+    }
+
+    // Validate required parameters
+    if (!code) {
+      logWithTimestamp('warn', 'Discord OAuth callback missing code');
+      return res.redirect('/?error=missing_code');
+    }
+
+    // CSRF protection - validate state (optional but recommended)
+    if (req.session?.oauthState && req.session.oauthState !== state) {
+      logWithTimestamp('warn', 'Discord OAuth state mismatch', {
+        expected: req.session.oauthState,
+        received: state
+      });
+      return res.redirect('/?error=invalid_state');
+    }
+
+    // Exchange code for access token
+    const tokenData = await exchangeCodeForToken(code);
+
+    // Get user information from Discord
+    const discordUser = await getDiscordUser(tokenData.access_token);
+
+    // Create or update user in database
+    const user = await createOrUpdateUser(discordUser, tokenData);
+
+    // Create session
+    const sessionId = uuidv4();
+    req.session = {
+      id: sessionId,
+      user: {
+        id: user.id,
+        discord_id: user.discord_id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+        is_admin: user.is_admin,
+        roles: user.roles
+      },
+      createdAt: new Date(),
+      lastActivity: new Date()
+    };
+
+    // Store session
+    sessionStore.set(sessionId, req.session);
+
+    logWithTimestamp('info', 'Discord OAuth successful', {
+      userId: user.id,
+      discordId: user.discord_id,
+      username: user.username,
+      ip: req.ip
+    });
+
+    // Redirect to main page with success
+    res.redirect('/?auth=success');
+
+  } catch (error) {
+    logWithTimestamp('error', 'Discord OAuth callback failed', {
+      error: error.message,
+      stack: error.stack
+    });
+    res.redirect('/?error=auth_failed');
+  }
+});
+
+// Get current user info
+app.get("/api/auth/user", (req, res) => {
+  const user = req.session?.user;
+  if (user) {
+    res.json({
+      authenticated: true,
+      user: {
+        id: user.id,
+        discord_id: user.discord_id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+        is_admin: user.is_admin,
+        roles: user.roles
+      }
+    });
+  } else {
+    res.json({
+      authenticated: false,
+      user: null
+    });
+  }
+});
+
+// Logout endpoint
+app.post("/api/auth/logout", (req, res) => {
+  try {
+    const sessionId = req.session?.id;
+
+    if (sessionId) {
+      // Remove from session store
+      sessionStore.delete(sessionId);
+
+      logWithTimestamp('info', 'User logged out', {
+        sessionId: sessionId.slice(0, 8),
+        userId: req.session?.user?.id
+      });
+    }
+
+    // Clear session
+    req.session = null;
+
+    res.json({ success: true, message: 'Logged out successfully' });
+  } catch (error) {
+    logWithTimestamp('error', 'Logout failed', { error: error.message });
+    res.json({ success: true }); // Still return success
+  }
+});
+
 // Admin API endpoints
 app.post("/api/admin/login", requireAdminAuth, (req, res) => {
   logWithTimestamp('info', 'Admin login successful', { ip: req.ip, userAgent: req.headers['user-agent'] });
