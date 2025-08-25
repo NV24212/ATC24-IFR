@@ -401,10 +401,19 @@ async function trackClearanceGeneration(req, clearanceData) {
              'unknown';
     };
 
+    // Prepare clearance data matching the database schema
     const enhancedClearanceData = {
-      ...clearanceData,
       session_id: session.id,
+      ip_address: getRealIP(req),
       user_agent: req.headers['user-agent'] || 'Unknown',
+      callsign: clearanceData?.callsign || null,
+      destination: clearanceData?.destination || null,
+      route: clearanceData?.route || null,
+      runway: clearanceData?.runway || null,
+      squawk_code: clearanceData?.squawk_code || clearanceData?.squawk || null,
+      flight_level: clearanceData?.flight_level || clearanceData?.flightLevel || null,
+      atis_letter: clearanceData?.atis_letter || clearanceData?.atis || null,
+      clearance_text: clearanceData?.clearance_text || clearanceData?.clearance || null,
       timestamp: new Date().toISOString(),
       user_id: req.session?.user?.id || clearanceData.user_id || null,
       discord_username: req.session?.user?.username || clearanceData.discord_username || null
