@@ -192,9 +192,201 @@ BEGIN
 END;
 $$;
 
+-- Create function to get all admin users
+CREATE OR REPLACE FUNCTION get_admin_users()
+RETURNS TABLE (
+    id UUID,
+    discord_id VARCHAR,
+    username VARCHAR,
+    email VARCHAR,
+    avatar VARCHAR,
+    is_admin BOOLEAN,
+    roles JSONB,
+    created_at TIMESTAMPTZ,
+    last_login TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        u.id,
+        u.discord_id,
+        u.username,
+        u.email,
+        u.avatar,
+        u.is_admin,
+        u.roles,
+        u.created_at,
+        u.last_login
+    FROM users u
+    WHERE u.is_admin = true
+    ORDER BY u.created_at DESC;
+END;
+$$;
+
+-- Create function to add admin user by username
+CREATE OR REPLACE FUNCTION add_admin_user_by_username(
+    p_username VARCHAR,
+    p_roles JSONB DEFAULT '["admin"]'::jsonb
+)
+RETURNS TABLE (
+    success BOOLEAN,
+    message TEXT,
+    user_id UUID
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    found_user_id UUID;
+BEGIN
+    -- Try to find user by username (case insensitive)
+    SELECT id INTO found_user_id
+    FROM users
+    WHERE LOWER(username) = LOWER(p_username)
+    LIMIT 1;
+
+    IF found_user_id IS NULL THEN
+        -- User not found, create a placeholder entry
+        INSERT INTO users (discord_id, username, is_admin, roles)
+        VALUES ('pending_' || p_username, p_username, true, p_roles)
+        RETURNING id INTO found_user_id;
+
+        RETURN QUERY
+        SELECT true, 'User added as admin (will be activated when they login with Discord)', found_user_id;
+    ELSE
+        -- User exists, update their admin status
+        UPDATE users
+        SET is_admin = true, roles = p_roles, updated_at = NOW()
+        WHERE id = found_user_id;
+
+        RETURN QUERY
+        SELECT true, 'User granted admin access', found_user_id;
+    END IF;
+END;
+$$;
+
+-- Create function to remove admin user
+CREATE OR REPLACE FUNCTION remove_admin_user(p_user_id UUID)
+RETURNS TABLE (
+    success BOOLEAN,
+    message TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    admin_count INTEGER;
+BEGIN
+    -- Check if there will be at least one admin left
+    SELECT COUNT(*) INTO admin_count
+    FROM users
+    WHERE is_admin = true AND id != p_user_id;
+
+    IF admin_count = 0 THEN
+        RETURN QUERY
+        SELECT false, 'Cannot remove the last admin user';
+        RETURN;
+    END IF;
+
+    -- Remove admin privileges
+    UPDATE users
+    SET is_admin = false, roles = '[]'::jsonb, updated_at = NOW()
+    WHERE id = p_user_id;
+
+    IF FOUND THEN
+        RETURN QUERY
+        SELECT true, 'Admin privileges removed successfully';
+    ELSE
+        RETURN QUERY
+        SELECT false, 'User not found';
+    END IF;
+END;
+$$;
+
+-- Create function to update user admin status when they login with Discord
+CREATE OR REPLACE FUNCTION update_user_from_discord_login(
+    p_discord_id VARCHAR,
+    p_username VARCHAR,
+    p_email VARCHAR DEFAULT NULL,
+    p_avatar VARCHAR DEFAULT NULL
+)
+RETURNS TABLE (
+    id UUID,
+    discord_id VARCHAR,
+    username VARCHAR,
+    email VARCHAR,
+    avatar VARCHAR,
+    is_admin BOOLEAN,
+    roles JSONB,
+    created_at TIMESTAMPTZ,
+    last_login TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    pending_user_id UUID;
+    final_is_admin BOOLEAN := false;
+    final_roles JSONB := '[]'::jsonb;
+BEGIN
+    -- Check if there's a pending user with this username
+    SELECT u.id, u.is_admin, u.roles INTO pending_user_id, final_is_admin, final_roles
+    FROM users u
+    WHERE u.discord_id = 'pending_' || p_username AND u.username = p_username
+    LIMIT 1;
+
+    IF pending_user_id IS NOT NULL THEN
+        -- Update the pending user with real Discord data
+        UPDATE users
+        SET
+            discord_id = p_discord_id,
+            email = p_email,
+            avatar = p_avatar,
+            last_login = NOW(),
+            updated_at = NOW()
+        WHERE id = pending_user_id;
+
+        -- Return the updated user
+        RETURN QUERY
+        SELECT
+            u.id,
+            u.discord_id,
+            u.username,
+            u.email,
+            u.avatar,
+            u.is_admin,
+            u.roles,
+            u.created_at,
+            u.last_login
+        FROM users u
+        WHERE u.id = pending_user_id;
+    ELSE
+        -- Use the existing upsert function
+        RETURN QUERY
+        SELECT * FROM upsert_discord_user(
+            p_discord_id,
+            p_username,
+            NULL, -- discriminator
+            p_email,
+            p_avatar,
+            NULL, -- access_token
+            NULL, -- refresh_token
+            NULL  -- token_expires_at
+        );
+    END IF;
+END;
+$$;
+
 -- Grant necessary permissions
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT SELECT ON users TO anon, authenticated;
 GRANT ALL ON users TO service_role;
 GRANT EXECUTE ON FUNCTION get_user_by_discord_id(TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION upsert_discord_user(VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, TEXT, TEXT, TIMESTAMPTZ) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION get_admin_users() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION add_admin_user_by_username(VARCHAR, JSONB) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION remove_admin_user(UUID) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION update_user_from_discord_login(VARCHAR, VARCHAR, VARCHAR, VARCHAR) TO anon, authenticated, service_role;
