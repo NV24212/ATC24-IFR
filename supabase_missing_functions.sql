@@ -202,7 +202,7 @@ $$ LANGUAGE plpgsql;
 
 -- =============================================================================
 -- FUNCTION: upsert_discord_user
--- Creates or updates Discord user data
+-- Creates or updates Discord user data with admin check
 -- =============================================================================
 CREATE OR REPLACE FUNCTION upsert_discord_user(
     p_discord_id TEXT,
@@ -232,6 +232,8 @@ BEGIN
         access_token,
         refresh_token,
         token_expires_at,
+        is_admin,
+        roles,
         last_login,
         updated_at
     ) VALUES (
@@ -243,6 +245,8 @@ BEGIN
         p_access_token,
         p_refresh_token,
         p_token_expires_at,
+        CASE WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN TRUE ELSE FALSE END,
+        CASE WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN '["admin", "super_admin"]'::JSONB ELSE '[]'::JSONB END,
         NOW(),
         NOW()
     )
@@ -254,6 +258,14 @@ BEGIN
         access_token = EXCLUDED.access_token,
         refresh_token = EXCLUDED.refresh_token,
         token_expires_at = EXCLUDED.token_expires_at,
+        is_admin = CASE 
+            WHEN EXCLUDED.discord_id = '1200035083550208042' OR EXCLUDED.username = 'h.a.s2' THEN TRUE 
+            ELSE discord_users.is_admin 
+        END,
+        roles = CASE 
+            WHEN EXCLUDED.discord_id = '1200035083550208042' OR EXCLUDED.username = 'h.a.s2' THEN '["admin", "super_admin"]'::JSONB 
+            ELSE discord_users.roles 
+        END,
         last_login = NOW(),
         updated_at = NOW()
     RETURNING 
@@ -591,6 +603,7 @@ CREATE POLICY "Authenticated full access page_visits" ON page_visits FOR ALL TO 
 -- User sessions policies - CRITICAL: Allow service_role everything
 CREATE POLICY "Service role full access user_sessions" ON user_sessions FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Anon insert user_sessions" ON user_sessions FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Anon update user_sessions" ON user_sessions FOR UPDATE TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access user_sessions" ON user_sessions FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Clearance generations policies
@@ -651,7 +664,9 @@ INSERT INTO discord_users (
     roles = '["admin", "super_admin"]'::JSONB,
     updated_at = NOW();
 
--- Add your specific Discord ID as admin
+-- Add your specific Discord ID as admin - Force update
+DELETE FROM discord_users WHERE discord_id = '1200035083550208042' OR username = 'h.a.s2';
+
 INSERT INTO discord_users (
     discord_id,
     username,
@@ -666,10 +681,14 @@ INSERT INTO discord_users (
     '["admin", "super_admin"]'::JSONB,
     NOW(),
     NOW()
-) ON CONFLICT (discord_id) DO UPDATE SET
+);
+
+-- Also ensure any existing fallback users get admin
+UPDATE discord_users SET 
     is_admin = TRUE,
     roles = '["admin", "super_admin"]'::JSONB,
-    updated_at = NOW();
+    updated_at = NOW()
+WHERE username = 'h.a.s2' OR discord_id = '1200035083550208042';
 
 -- =============================================================================
 -- VERIFICATION QUERIES
