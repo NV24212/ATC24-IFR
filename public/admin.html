@@ -2455,33 +2455,229 @@
       }
     }
 
+    // User Management Functions
+    async function loadCurrentAdminInfo() {
+      try {
+        const currentAdminDiv = document.getElementById('currentAdminInfo');
+        if (currentUser) {
+          currentAdminDiv.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 15px;">
+              ${currentUser.avatar ? `<img src="${currentUser.avatar}" alt="Avatar" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--primary-color);">` : ''}
+              <div style="flex: 1;">
+                <div style="font-size: 18px; font-weight: 600; color: var(--primary-color); margin-bottom: 5px;">
+                  ${currentUser.username}
+                </div>
+                <div style="color: var(--text-muted); font-size: 14px;">
+                  Discord ID: ${currentUser.discord_id} | Email: ${currentUser.email || 'N/A'}
+                </div>
+                <div style="color: var(--text-muted); font-size: 12px; margin-top: 5px;">
+                  Roles: ${currentUser.roles ? currentUser.roles.join(', ') : 'admin'}
+                </div>
+              </div>
+              <div style="padding: 8px 16px; background: var(--primary-color); color: #000; border-radius: 6px; font-size: 12px; font-weight: 600;">
+                ADMIN ACCESS
+              </div>
+            </div>
+          `;
+        }
+      } catch (error) {
+        console.error('Failed to load current admin info:', error);
+      }
+    }
+
+    async function loadAdminUsers() {
+      try {
+        const response = await fetch('/api/admin/users', {
+          headers: {
+            'X-Session-ID': sessionId,
+            'Authorization': `Bearer ${sessionId}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          displayAdminUsers(data.users || []);
+        } else {
+          document.getElementById('adminUsersList').innerHTML = `
+            <div style="padding: 20px; text-align: center; color: #ff6b6b;">
+              Failed to load admin users
+            </div>
+          `;
+        }
+      } catch (error) {
+        console.error('Failed to load admin users:', error);
+        document.getElementById('adminUsersList').innerHTML = `
+          <div style="padding: 20px; text-align: center; color: #ff6b6b;">
+            Error loading admin users
+          </div>
+        `;
+      }
+    }
+
+    function displayAdminUsers(users) {
+      const container = document.getElementById('adminUsersList');
+
+      if (users.length === 0) {
+        container.innerHTML = `
+          <div style="padding: 20px; text-align: center; color: var(--text-muted);">
+            No admin users found
+          </div>
+        `;
+        return;
+      }
+
+      let html = '<div style="padding: 20px;">';
+      users.forEach(user => {
+        html += `
+          <div style="display: flex; align-items: center; gap: 15px; padding: 15px; background: var(--surface-hover); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 15px;">
+            ${user.avatar ? `<img src="${user.avatar}" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--primary-color);">` : ''}
+            <div style="flex: 1;">
+              <div style="font-weight: 600; color: var(--text-color); margin-bottom: 3px;">
+                ${user.username}
+              </div>
+              <div style="color: var(--text-muted); font-size: 12px;">
+                Discord ID: ${user.discord_id} | Last login: ${new Date(user.last_login).toLocaleDateString()}
+              </div>
+              <div style="color: var(--text-muted); font-size: 11px; margin-top: 3px;">
+                Roles: ${user.roles ? user.roles.join(', ') : 'admin'}
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              ${user.discord_id !== currentUser.discord_id ? `
+                <button class="nav-btn" onclick="removeAdminUser('${user.id}')" style="margin: 0; padding: 6px 12px; font-size: 12px; background: #ff6b6b; border-color: #ff6b6b; color: white;">
+                  Remove
+                </button>
+              ` : `
+                <span style="color: var(--primary-color); font-size: 12px; font-weight: 600; padding: 6px 12px;">
+                  YOU
+                </span>
+              `}
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    async function addAdminUser() {
+      const username = document.getElementById('newAdminUsername').value.trim();
+      const isAdmin = document.getElementById('roleAdmin').checked;
+      const isSuperAdmin = document.getElementById('roleSuperAdmin').checked;
+
+      if (!username) {
+        showNotification('error', 'Validation Error', 'Please enter a Discord username');
+        return;
+      }
+
+      const roles = [];
+      if (isAdmin) roles.push('admin');
+      if (isSuperAdmin) roles.push('super_admin');
+
+      try {
+        const response = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Session-ID': sessionId,
+            'Authorization': `Bearer ${sessionId}`
+          },
+          body: JSON.stringify({
+            username: username,
+            roles: roles
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          showNotification('success', 'User Added', `${username} has been granted admin access`);
+          clearAddUserForm();
+          loadAdminUsers();
+        } else {
+          showNotification('error', 'Add Failed', data.error || 'Failed to add admin user');
+        }
+      } catch (error) {
+        console.error('Error adding admin user:', error);
+        showNotification('error', 'Network Error', 'Failed to connect to server');
+      }
+    }
+
+    async function removeAdminUser(userId) {
+      if (!confirm('Are you sure you want to remove this admin user? This cannot be undone.')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/admin/users/${userId}`, {
+          method: 'DELETE',
+          headers: {
+            'X-Session-ID': sessionId,
+            'Authorization': `Bearer ${sessionId}`
+          }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          showNotification('success', 'User Removed', 'Admin user has been removed');
+          loadAdminUsers();
+        } else {
+          showNotification('error', 'Remove Failed', data.error || 'Failed to remove admin user');
+        }
+      } catch (error) {
+        console.error('Error removing admin user:', error);
+        showNotification('error', 'Network Error', 'Failed to connect to server');
+      }
+    }
+
+    function clearAddUserForm() {
+      document.getElementById('newAdminUsername').value = '';
+      document.getElementById('roleAdmin').checked = true;
+      document.getElementById('roleSuperAdmin').checked = false;
+    }
+
+    function showRemoveAdminDialog() {
+      // This could be enhanced with a proper modal dialog
+      const username = prompt('Enter the Discord username of the admin user to remove:');
+      if (username) {
+        // In a real implementation, you'd look up the user ID first
+        showNotification('info', 'Feature Coming Soon', 'Use the Remove button next to each user in the list above');
+      }
+    }
+
     // Auto-refresh analytics every 30 seconds
     setInterval(() => {
-      if (currentPassword && document.getElementById('analytics').classList.contains('active')) {
+      if (sessionId && document.getElementById('analytics').classList.contains('active')) {
         loadAnalytics();
       }
     }, 30000);
 
     // Auto-refresh debug logs every 15 seconds when system section is active
     setInterval(() => {
-      if (currentPassword && document.getElementById('system').classList.contains('active')) {
+      if (sessionId && document.getElementById('system').classList.contains('active')) {
         loadDebugLogs();
       }
     }, 15000);
 
     // Auto-refresh tables and current users every 10 seconds when tables section is active
     setInterval(() => {
-      if (currentPassword && document.getElementById('tables').classList.contains('active')) {
+      if (sessionId && document.getElementById('tables').classList.contains('active')) {
         loadCurrentUsers();
-        // Don't auto-refresh the table data to avoid disrupting pagination
       }
     }, 10000);
 
-    // Handle Enter key in password field
-    document.getElementById('adminPassword').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        login();
+    // Auto-refresh user management every 30 seconds when users section is active
+    setInterval(() => {
+      if (sessionId && document.getElementById('users').classList.contains('active')) {
+        loadAdminUsers();
       }
+    }, 30000);
+
+    // Initialize admin panel
+    document.addEventListener('DOMContentLoaded', () => {
+      checkAuthParams();
+      checkAuthStatus();
     });
   </script>
 </body>
