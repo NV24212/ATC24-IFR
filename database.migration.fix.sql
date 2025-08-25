@@ -157,6 +157,28 @@ CREATE INDEX IF NOT EXISTS idx_admin_activities_created_at ON admin_activities(c
 CREATE INDEX IF NOT EXISTS idx_admin_activities_action ON admin_activities(action);
 
 -- =============================================================================
+-- FUNCTION: is_admin (NEW)
+-- Checks if the currently authenticated user has admin privileges.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF auth.role() = 'authenticated' THEN
+    RETURN (
+      SELECT is_admin
+      FROM public.discord_users
+      WHERE id = auth.uid()
+    );
+  ELSE
+    RETURN FALSE;
+  END IF;
+END;
+$$;
+
+-- =============================================================================
 -- FUNCTION: upsert_user_session
 -- Creates or updates user session data safely
 -- =============================================================================
@@ -489,7 +511,10 @@ RETURNS TABLE(
     authenticated_sessions BIGINT,
     last_7_days_visits BIGINT,
     last_30_days_visits BIGINT
-) AS $$
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -529,7 +554,7 @@ CREATE TRIGGER update_user_sessions_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- =============================================================================
--- ROW LEVEL SECURITY (RLS) POLICIES
+-- ROW LEVEL SECURITY (RLS) POLICIES (REVISED FOR ADMIN ACCESS)
 -- =============================================================================
 
 -- Enable RLS on all tables
@@ -540,52 +565,73 @@ ALTER TABLE clearance_generations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE flight_plans_received ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_activities ENABLE ROW LEVEL SECURITY;
 
--- Create policies for anon and authenticated users
--- Allow service_role to bypass RLS for server operations
+-- Drop all existing policies to avoid conflicts
+DROP POLICY IF EXISTS "Service role full access discord_users" ON discord_users;
+DROP POLICY IF EXISTS "Anon read discord_users" ON discord_users;
+DROP POLICY IF EXISTS "Authenticated read discord_users" ON discord_users;
+DROP POLICY IF EXISTS "Admins have full access to discord_users" ON discord_users;
+DROP POLICY IF EXISTS "Authenticated full access page_visits" ON page_visits;
+DROP POLICY IF EXISTS "Authenticated full access user_sessions" ON user_sessions;
+DROP POLICY IF EXISTS "Authenticated full access clearance_generations" ON clearance_generations;
+DROP POLICY IF EXISTS "Authenticated read flight_plans_received" ON flight_plans_received;
+DROP POLICY IF EXISTS "Authenticated read admin_activities" ON admin_activities;
 
--- Drop existing policies first
-DROP POLICY IF EXISTS "Allow service role full access" ON discord_users;
-DROP POLICY IF EXISTS "Allow anon read access" ON discord_users;
-DROP POLICY IF EXISTS "Allow authenticated read access" ON discord_users;
-DROP POLICY IF EXISTS "Allow service role full access" ON page_visits;
-DROP POLICY IF EXISTS "Allow anon insert access" ON page_visits;
-DROP POLICY IF EXISTS "Allow authenticated full access" ON page_visits;
-DROP POLICY IF EXISTS "Allow service role full access" ON user_sessions;
-DROP POLICY IF EXISTS "Allow anon insert access" ON user_sessions;
-DROP POLICY IF EXISTS "Allow authenticated full access" ON user_sessions;
+DROP POLICY IF EXISTS "Service role full access" ON discord_users;
+DROP POLICY IF EXISTS "Service role full access" ON page_visits;
+DROP POLICY IF EXISTS "Service role full access" ON user_sessions;
+DROP POLICY IF EXISTS "Service role full access" ON clearance_generations;
+DROP POLICY IF EXISTS "Service role full access" ON flight_plans_received;
+DROP POLICY IF EXISTS "Service role full access" ON admin_activities;
 
--- Discord users policies
-CREATE POLICY "Service role full access discord_users" ON discord_users FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "Anon read discord_users" ON discord_users FOR SELECT TO anon USING (true);
-CREATE POLICY "Authenticated read discord_users" ON discord_users FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Admins have full access to page_visits" ON page_visits;
+DROP POLICY IF EXISTS "Admins have full access to user_sessions" ON user_sessions;
+DROP POLICY IF EXISTS "Admins have full access to clearance_generations" ON clearance_generations;
+DROP POLICY IF EXISTS "Admins can read flight_plans_received" ON flight_plans_received;
+DROP POLICY IF EXISTS "Admins can read admin_activities" ON admin_activities;
+DROP POLICY IF EXISTS "Anon insert page_visits" ON page_visits;
+DROP POLICY IF EXISTS "Anon insert user_sessions" ON user_sessions;
+DROP POLICY IF EXISTS "Anon update user_sessions" ON user_sessions;
+DROP POLICY IF EXISTS "Anon insert clearance_generations" ON clearance_generations;
 
--- Page visits policies - Allow service_role everything, anon can insert
-CREATE POLICY "Service role full access page_visits" ON page_visits FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "Anon insert page_visits" ON page_visits FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Authenticated full access page_visits" ON page_visits FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- User sessions policies - CRITICAL: Allow service_role everything
-CREATE POLICY "Service role full access user_sessions" ON user_sessions FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "Anon insert user_sessions" ON user_sessions FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Anon update user_sessions" ON user_sessions FOR UPDATE TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated full access user_sessions" ON user_sessions FOR ALL TO authenticated USING (true) WITH CHECK (true);
+-- Service role should have unrestricted access to all tables
+CREATE POLICY "Service role full access" ON discord_users FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access" ON page_visits FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access" ON user_sessions FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access" ON clearance_generations FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access" ON flight_plans_received FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access" ON admin_activities FOR ALL TO service_role USING (true) WITH CHECK (true);
 
--- Clearance generations policies
-CREATE POLICY "Service role full access clearance_generations" ON clearance_generations FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "Anon insert clearance_generations" ON clearance_generations FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Authenticated full access clearance_generations" ON clearance_generations FOR ALL TO authenticated USING (true) WITH CHECK (true);
+-- Discord users policies: Admins can see all users, but regular users can't see any (for admin panel)
+CREATE POLICY "Admins have full access to discord_users" ON public.discord_users FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
 
--- Flight plans policies
-CREATE POLICY "Service role full access flight_plans_received" ON flight_plans_received FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "Anon read flight_plans_received" ON flight_plans_received FOR SELECT TO anon USING (true);
-CREATE POLICY "Authenticated read flight_plans_received" ON flight_plans_received FOR SELECT TO authenticated USING (true);
+-- Page visits policies: Anon can insert, but only admins can see/manage the data
+CREATE POLICY "Anon insert page_visits" ON public.page_visits FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Admins have full access to page_visits" ON public.page_visits FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
 
--- Admin activities policies
-CREATE POLICY "Service role full access admin_activities" ON admin_activities FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated read admin_activities" ON admin_activities FOR SELECT TO authenticated USING (true);
+-- User sessions policies: Anon can insert/update, but only admins can see/manage the data
+CREATE POLICY "Anon insert user_sessions" ON public.user_sessions FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Anon update user_sessions" ON public.user_sessions FOR UPDATE TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Admins have full access to user_sessions" ON public.user_sessions FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
 
--- CRITICAL: Disable RLS temporarily for service_role operations
+-- Clearance generations policies: Anon can insert, but only admins can see/manage
+CREATE POLICY "Anon insert clearance_generations" ON public.clearance_generations FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Admins have full access to clearance_generations" ON public.clearance_generations FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+
+-- Flight plans policies: Anon and authenticated can read, but only admins can do more (if needed)
+-- For now, let's restrict all but service role. If client needs read, change to is_admin()
+CREATE POLICY "Admins can read flight_plans_received" ON public.flight_plans_received FOR SELECT TO authenticated USING (is_admin());
+
+-- Admin activities policies: Only admins can read
+CREATE POLICY "Admins can read admin_activities" ON public.admin_activities FOR SELECT TO authenticated USING (is_admin());
+
+-- Force RLS on all tables, which is best practice
+ALTER TABLE discord_users FORCE ROW LEVEL SECURITY;
+ALTER TABLE page_visits FORCE ROW LEVEL SECURITY;
 ALTER TABLE user_sessions FORCE ROW LEVEL SECURITY;
+ALTER TABLE clearance_generations FORCE ROW LEVEL SECURITY;
+ALTER TABLE flight_plans_received FORCE ROW LEVEL SECURITY;
+ALTER TABLE admin_activities FORCE ROW LEVEL SECURITY;
 
 -- =============================================================================
 -- GRANT PERMISSIONS
