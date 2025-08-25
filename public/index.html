@@ -29,7 +29,19 @@
 
       <div class="config-group">
         <label class="config-label">ATC Call Sign</label>
-        <input type="text" id="groundCallsign" placeholder="e.g., EBBR_GND">
+        <div class="controller-selection">
+          <select id="controllerSelect" onchange="handleControllerSelection()">
+            <option value="">Select Online Controller...</option>
+            <option value="manual">Manual Entry</option>
+          </select>
+          <input type="text" id="groundCallsign" placeholder="e.g., EBBR_GND" style="display: none; margin-top: 10px;">
+        </div>
+        <div class="controllers-status" id="controllersStatus">
+          <span class="status-text">Loading controllers...</span>
+          <button class="refresh-controllers-btn" onclick="loadControllers()" title="Refresh Controllers">
+            🔄
+          </button>
+        </div>
       </div>
 
       <div class="config-group">
