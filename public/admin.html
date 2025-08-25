@@ -12,17 +12,28 @@
       justify-content: center;
       min-height: 100vh;
       background: var(--background-color);
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+
+    .admin-login.fade-out {
+      opacity: 0;
+      visibility: hidden;
+      display: none;
     }
 
     .admin-container {
-      display: none;
+      display: block;
+      opacity: 0;
+      visibility: hidden;
       max-width: 1600px;
       margin: 0 auto;
       padding: 20px;
+      transition: opacity 0.5s ease 0.5s, visibility 0.5s ease 0.5s;
     }
 
     .admin-container.authenticated {
-      display: block;
+      opacity: 1;
+      visibility: visible;
     }
 
     .login-box {
@@ -1468,7 +1479,7 @@
     }
 
     function showAdminPanel() {
-      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('loginScreen').classList.add('fade-out');
       document.getElementById('adminPanel').classList.add('authenticated');
       showNotification('success', 'Access Granted', `Welcome ${currentUser.username}! Admin access confirmed.`);
       loadAdminData();
