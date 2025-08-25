@@ -513,6 +513,121 @@ function requireAdminAuth(req, res, next) {
   next();
 }
 
+// Discord OAuth helper functions
+function generateDiscordAuthURL() {
+  const scope = 'identify email';
+  const state = uuidv4();
+  const params = new URLSearchParams({
+    client_id: DISCORD_CLIENT_ID,
+    redirect_uri: DISCORD_REDIRECT_URI,
+    response_type: 'code',
+    scope: scope,
+    state: state
+  });
+
+  return {
+    url: `https://discord.com/api/oauth2/authorize?${params.toString()}`,
+    state: state
+  };
+}
+
+async function exchangeCodeForToken(code) {
+  const data = {
+    client_id: DISCORD_CLIENT_ID,
+    client_secret: DISCORD_CLIENT_SECRET,
+    grant_type: 'authorization_code',
+    code: code,
+    redirect_uri: DISCORD_REDIRECT_URI
+  };
+
+  const response = await fetch('https://discord.com/api/oauth2/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams(data)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discord token exchange failed: ${response.statusText}`);
+  }
+
+  return await response.json();
+}
+
+async function getDiscordUser(accessToken) {
+  const response = await fetch('https://discord.com/api/users/@me', {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discord user fetch failed: ${response.statusText}`);
+  }
+
+  return await response.json();
+}
+
+async function createOrUpdateUser(discordUser, tokenData) {
+  if (!supabase) {
+    throw new Error('Supabase not configured');
+  }
+
+  const userData = {
+    discord_id: discordUser.id,
+    username: discordUser.username,
+    discriminator: discordUser.discriminator,
+    email: discordUser.email,
+    avatar: discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : null,
+    access_token: tokenData.access_token,
+    refresh_token: tokenData.refresh_token,
+    token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+  };
+
+  const { data, error } = await supabase.rpc('upsert_discord_user', {
+    p_discord_id: userData.discord_id,
+    p_username: userData.username,
+    p_discriminator: userData.discriminator,
+    p_email: userData.email,
+    p_avatar: userData.avatar,
+    p_access_token: userData.access_token,
+    p_refresh_token: userData.refresh_token,
+    p_token_expires_at: userData.token_expires_at
+  });
+
+  if (error) {
+    throw new Error(`Database user creation failed: ${error.message}`);
+  }
+
+  return data[0];
+}
+
+// Discord authentication middleware
+function requireDiscordAuth(req, res, next) {
+  const user = req.session?.user;
+  if (!user || !user.discord_id) {
+    return res.status(401).json({
+      error: 'Discord authentication required',
+      loginUrl: '/auth/discord'
+    });
+  }
+  req.user = user;
+  next();
+}
+
+// Optional Discord authentication (doesn't block if not authenticated)
+function optionalDiscordAuth(req, res, next) {
+  const user = req.session?.user;
+  if (user && user.discord_id) {
+    req.user = user;
+  }
+  next();
+}
+
+// Simple session store (in production, use Redis or database)
+const sessionStore = new Map();
+
 // WebSocket connection - only initialize if not in serverless environment
 let ws = null;
 
