@@ -320,6 +320,15 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =============================================================================
+-- Drop existing functions if they exist with different signatures
+-- =============================================================================
+DROP FUNCTION IF EXISTS get_admin_users();
+DROP FUNCTION IF EXISTS add_admin_user_by_username(TEXT);
+DROP FUNCTION IF EXISTS add_admin_user_by_username(TEXT, JSONB);
+DROP FUNCTION IF EXISTS remove_admin_user(UUID);
+DROP FUNCTION IF EXISTS get_analytics_summary();
+
+-- =============================================================================
 -- FUNCTION: get_admin_users
 -- Gets all admin users for management
 -- =============================================================================
