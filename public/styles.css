@@ -882,20 +882,15 @@ input[type="text"]::placeholder {
 
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
-  .header-top {
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-  }
-
   .auth-section {
-    min-height: auto;
+    margin: 15px 0;
   }
 
   .user-info {
     flex-direction: column;
     gap: 8px;
     text-align: center;
+    padding: 16px;
   }
 
   .user-actions {
@@ -906,5 +901,11 @@ input[type="text"]::placeholder {
   .discord-login-btn {
     font-size: 13px;
     padding: 10px 16px;
+    gap: 8px;
+  }
+
+  .discord-login-btn svg {
+    width: 16px;
+    height: 16px;
   }
 }
