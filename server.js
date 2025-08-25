@@ -6,11 +6,19 @@ const { createClient } = require('@supabase/supabase-js');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
-// Discord OAuth configuration
+// Discord OAuth configuration with deployment safety
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
+const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || `${process.env.DEPLOY_URL || 'http://localhost:3000'}/auth/discord/callback`;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'default_session_secret_change_in_production';
+
+// Log configuration status for debugging deployment issues
+console.log('🔧 Environment Configuration:');
+console.log(`   PORT: ${process.env.PORT || 3000}`);
+console.log(`   NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+console.log(`   Discord OAuth: ${DISCORD_CLIENT_ID ? '✅ Configured' : '❌ Missing CLIENT_ID'}`);
+console.log(`   Supabase: ${process.env.SUPABASE_URL ? '✅ Configured' : '❌ Missing URL'}`);
+console.log(`   Redirect URI: ${DISCORD_REDIRECT_URI}`);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
