@@ -508,15 +508,26 @@
     }
 
     // Update status
-    controllersStatus.innerHTML = `
-      <span class="status-text">
-        📡 ${data.activePositions} active • ${data.availablePositions} available • ${data.totalPositions} total
-        ${data.lastUpdated ? `• Updated: ${new Date(data.lastUpdated).toLocaleTimeString()}` : ''}
-      </span>
-      <button class="refresh-controllers-btn" onclick="loadControllers()" title="Refresh Controllers">
-        🔄
-      </button>
-    `;
+    if (data.error) {
+      controllersStatus.innerHTML = `
+        <span class="status-text" style="color: #ff6b6b;">
+          ❌ Error: ${data.error}
+        </span>
+        <button class="refresh-controllers-btn" onclick="loadControllers()" title="Refresh Controllers">
+          🔄
+        </button>
+      `;
+    } else {
+      controllersStatus.innerHTML = `
+        <span class="status-text">
+          📡 ${data.activePositions} active • ${data.availablePositions} available • ${data.totalPositions} total
+          ${data.lastUpdated ? `• Updated: ${new Date(data.lastUpdated).toLocaleTimeString()}` : ''}
+        </span>
+        <button class="refresh-controllers-btn" onclick="loadControllers()" title="Refresh Controllers">
+          🔄
+        </button>
+      `;
+    }
   }
 
   // Handle controller selection
