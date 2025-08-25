@@ -961,18 +961,6 @@ app.get("/admin", (req, res) => {
 // This must come AFTER specific route handlers to avoid bypassing tracking
 app.use(express.static('public'));
 
-// Health check endpoint for deployment monitoring
-app.get("/health", (req, res) => {
-  res.json({
-    status: "healthy",
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    supabaseConfigured: supabase !== null,
-    discordConfigured: !!(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET),
-    wsConnected: ws && ws.readyState === WebSocket.OPEN,
-    version: "1.0.0"
-  });
-});
 
 // REST: Get all online controllers
 app.get("/controllers", (req, res) => {

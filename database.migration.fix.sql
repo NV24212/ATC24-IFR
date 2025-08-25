@@ -470,6 +470,7 @@ $$;
 -- =============================================================================
 DROP FUNCTION IF EXISTS get_admin_users();
 DROP FUNCTION IF EXISTS add_admin_user_by_username(TEXT);
+DROP FUNCTION IF EXISTS add_admin_user_by_username(character varying, jsonb);
 DROP FUNCTION IF EXISTS add_admin_user_by_username(TEXT, JSONB);
 DROP FUNCTION IF EXISTS remove_admin_user(UUID);
 DROP FUNCTION IF EXISTS get_analytics_summary();
