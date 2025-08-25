@@ -1,4 +1,3 @@
-
 -- =============================================================================
 -- ATC24 Complete Database Setup with Missing Functions
 -- Run this in your Supabase SQL Editor to fix all authentication issues
