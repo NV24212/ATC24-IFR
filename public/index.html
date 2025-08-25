@@ -853,6 +853,7 @@
 
   // Environment detection and polling fallback
   let autoRefreshInterval = null;
+  let controllerRefreshInterval = null;
   let isServerless = false;
 
   async function checkEnvironmentAndStartPolling() {
