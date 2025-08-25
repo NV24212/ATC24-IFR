@@ -223,6 +223,8 @@
 <script>
   let selectedFlightPlan = null;
   let flightPlans = []; // This will hold flight plans fetched from the server
+  let controllers = []; // This will hold controllers data from the server
+  let selectedController = null;
   let adminSettings = {
     clearanceFormat: {
       includeAtis: true,
