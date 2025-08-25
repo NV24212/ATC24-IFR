@@ -651,6 +651,26 @@ INSERT INTO discord_users (
     roles = '["admin", "super_admin"]'::JSONB,
     updated_at = NOW();
 
+-- Add your specific Discord ID as admin
+INSERT INTO discord_users (
+    discord_id,
+    username,
+    is_admin,
+    roles,
+    created_at,
+    updated_at
+) VALUES (
+    '1200035083550208042',
+    'h.a.s2',
+    TRUE,
+    '["admin", "super_admin"]'::JSONB,
+    NOW(),
+    NOW()
+) ON CONFLICT (discord_id) DO UPDATE SET
+    is_admin = TRUE,
+    roles = '["admin", "super_admin"]'::JSONB,
+    updated_at = NOW();
+
 -- =============================================================================
 -- VERIFICATION QUERIES
 -- =============================================================================
