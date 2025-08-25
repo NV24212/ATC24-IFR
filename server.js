@@ -221,14 +221,15 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-// Helper function to get or create session
+// Helper function to get or create session with unified handling
 function getOrCreateSession(req) {
   try {
     // Try multiple ways to get session ID with better validation
     let sessionId = req.headers['x-session-id'] ||
                    req.headers['session-id'] ||
                    req.query.sessionId ||
-                   req.session?.id;
+                   req.session?.id ||
+                   req.trackingSession?.id;
 
     // Generate new session ID if none found
     if (!sessionId || typeof sessionId !== 'string' || sessionId.trim() === '') {
@@ -264,7 +265,10 @@ function getOrCreateSession(req) {
         createdAt: new Date(),
         lastActivity: new Date(),
         pageViews: 0,
-        clearancesGenerated: 0
+        clearancesGenerated: 0,
+        // Add user info if authenticated
+        user_id: req.session?.user?.id || null,
+        discord_username: req.session?.user?.username || null
       };
 
       sessions.set(sessionId, newSession);
@@ -272,13 +276,21 @@ function getOrCreateSession(req) {
       logWithTimestamp('info', 'New session created', {
         sessionId: sessionId.slice(0, 8),
         totalSessions: sessions.size,
+        authenticated: !!req.session?.user,
+        username: req.session?.user?.username || 'anonymous',
         ip: req.ip || 'unknown'
       });
     }
 
-    // Update session activity
+    // Update session activity and sync user info if authenticated
     const session = sessions.get(sessionId);
     session.lastActivity = new Date();
+
+    // Sync authenticated user info to tracking session
+    if (req.session?.user && !session.user_id) {
+      session.user_id = req.session.user.id;
+      session.discord_username = req.session.user.username;
+    }
 
     return session;
 
@@ -802,18 +814,27 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Simple session middleware
+// Unified session middleware
 app.use((req, res, next) => {
   // Try to get session ID from various sources
   const sessionId = req.headers['x-session-id'] ||
                    req.headers['authorization']?.replace('Bearer ', '') ||
                    req.query.sessionId;
 
-  if (sessionId && sessionStore.has(sessionId)) {
-    req.session = sessionStore.get(sessionId);
-    // Update last activity
-    req.session.lastActivity = new Date();
-    sessionStore.set(sessionId, req.session);
+  // Check both session stores for authenticated and anonymous sessions
+  if (sessionId) {
+    // First check OAuth session store (for authenticated users)
+    if (sessionStore.has(sessionId)) {
+      req.session = sessionStore.get(sessionId);
+      req.session.lastActivity = new Date();
+      sessionStore.set(sessionId, req.session);
+    }
+    // Also check anonymous session store (for tracking purposes)
+    if (sessions.has(sessionId)) {
+      req.trackingSession = sessions.get(sessionId);
+      req.trackingSession.lastActivity = new Date();
+      sessions.set(sessionId, req.trackingSession);
+    }
   }
 
   next();
@@ -953,7 +974,7 @@ app.get("/auth/discord/callback", async (req, res) => {
     // Create or update user in database
     const user = await createOrUpdateUser(discordUser, tokenData);
 
-    // Create session
+    // Create unified session for OAuth user
     const sessionId = uuidv4();
     req.session = {
       id: sessionId,
@@ -970,8 +991,20 @@ app.get("/auth/discord/callback", async (req, res) => {
       lastActivity: new Date()
     };
 
-    // Store session
+    // Create corresponding tracking session
+    const trackingSession = {
+      id: sessionId,
+      createdAt: new Date(),
+      lastActivity: new Date(),
+      pageViews: 0,
+      clearancesGenerated: 0,
+      user_id: user.id,
+      discord_username: user.username
+    };
+
+    // Store in both session stores
     sessionStore.set(sessionId, req.session);
+    sessions.set(sessionId, trackingSession);
 
     logWithTimestamp('info', 'Discord OAuth successful', {
       userId: user.id,
