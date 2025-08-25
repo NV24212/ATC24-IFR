@@ -680,42 +680,42 @@ async function getDiscordUser(accessToken) {
   return await response.json();
 }
 
-async function createOrUpdateUser(discordUser, tokenData) {
+async function createOrUpdateUser(discordUser, tokenData, vatsimData = {}) {
   if (!supabase) {
     throw new Error('Supabase not configured');
   }
 
   const avatar = discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : null;
 
-  // First try to update from Discord login (this will handle pending admin users)
-  const { data: updateData, error: updateError } = await supabase.rpc('update_user_from_discord_login', {
+  // Use the new, more comprehensive RPC function
+  const { data, error } = await supabase.rpc('upsert_discord_user', {
     p_discord_id: discordUser.id,
     p_username: discordUser.username,
+    p_discriminator: discordUser.discriminator,
     p_email: discordUser.email,
-    p_avatar: avatar
+    p_avatar: avatar,
+    p_access_token: tokenData.access_token,
+    p_refresh_token: tokenData.refresh_token,
+    p_token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+    p_vatsim_cid: vatsimData.cid || null
   });
 
-  if (updateError) {
-    // Fallback to regular upsert
-    const { data, error } = await supabase.rpc('upsert_discord_user', {
-      p_discord_id: discordUser.id,
-      p_username: discordUser.username,
-      p_discriminator: discordUser.discriminator,
-      p_email: discordUser.email,
-      p_avatar: avatar,
-      p_access_token: tokenData.access_token,
-      p_refresh_token: tokenData.refresh_token,
-      p_token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-    });
-
-    if (error) {
-      throw new Error(`Database user creation failed: ${error.message}`);
-    }
-
-    return data[0];
+  if (error) {
+    logWithTimestamp('error', 'Database user upsert failed', { error: error.message, discord_id: discordUser.id });
+    throw new Error(`Database user creation/update failed: ${error.message}`);
   }
 
-  return updateData[0];
+  // After creating/updating the user, set their controller status
+  if (supabase && data && data[0] && vatsimData.isController) {
+    await supabase.rpc('set_user_controller_status', {
+        p_user_id: data[0].id,
+        p_is_controller: vatsimData.isController
+    });
+    // Add the controller status to the returned user object
+    data[0].is_controller = vatsimData.isController;
+  }
+
+  return data[0];
 }
 
 // Discord authentication middleware
@@ -1086,10 +1086,25 @@ app.get("/auth/discord/callback", async (req, res) => {
     // Get user information from Discord
     const discordUser = await getDiscordUser(tokenData.access_token);
 
+    // Check if the user is an active controller
+    let vatsimData = {
+        cid: null,
+        isController: false
+    };
+
+    if (controllerCache.data && controllerCache.data.length > 0) {
+        const controller = controllerCache.data.find(c => c.name === discordUser.username);
+        if (controller) {
+            vatsimData.cid = controller.cid.toString();
+            vatsimData.isController = true;
+            logWithTimestamp('info', 'Logged-in user is an active controller', { username: discordUser.username, cid: vatsimData.cid });
+        }
+    }
+
     // Create or update user in database (with fallback if database unavailable)
     let user;
     try {
-      user = await createOrUpdateUser(discordUser, tokenData);
+      user = await createOrUpdateUser(discordUser, tokenData, vatsimData);
     } catch (dbError) {
       logWithTimestamp('error', 'Database operation failed during Discord auth, using fallback', { error: dbError.message });
       // Fallback user object for when database is unavailable
@@ -1100,7 +1115,9 @@ app.get("/auth/discord/callback", async (req, res) => {
         email: discordUser.email,
         avatar: discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : null,
         is_admin: false,
-        roles: []
+        roles: [],
+        vatsim_cid: vatsimData.cid,
+        is_controller: vatsimData.isController
       };
     }
 
@@ -1186,7 +1203,9 @@ app.get("/api/auth/user", (req, res) => {
         email: user.email,
         avatar: user.avatar,
         is_admin: user.is_admin,
-        roles: user.roles
+        roles: user.roles,
+        vatsim_cid: user.vatsim_cid,
+        is_controller: user.is_controller
       }
     });
   } else {
