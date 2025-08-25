@@ -412,6 +412,22 @@
 
   // Load controllers data from server
   async function loadControllers() {
+    // Prevent multiple simultaneous requests
+    if (window.loadingControllers) {
+      console.log('Controllers already loading, skipping...');
+      return;
+    }
+
+    window.loadingControllers = true;
+
+    // Show loading state
+    const controllersStatus = document.getElementById('controllersStatus');
+    const originalHTML = controllersStatus.innerHTML;
+    controllersStatus.innerHTML = `
+      <span class="status-text">🔄 Loading controllers...</span>
+      <button class="refresh-btn" disabled style="opacity: 0.6; cursor: not-allowed;">Loading...</button>
+    `;
+
     try {
       console.log('Loading controllers from /controllers endpoint...');
       const response = await fetch('/controllers');
@@ -468,6 +484,9 @@
 
       // Show notification to user
       showNotification(`Failed to load controllers: ${error.message}`, 'error');
+    } finally {
+      // Always reset loading state
+      window.loadingControllers = false;
     }
   }
 
@@ -505,23 +524,25 @@
       }
     }
 
-    // Update status
-    if (data.error) {
-      controllersStatus.innerHTML = `
-        <span class="status-text" style="color: #ff6b6b;">
-          ❌ Error: ${data.error}
-        </span>
-        <button class="refresh-btn" onclick="loadControllers()">Refresh Controllers</button>
-      `;
-    } else {
-      controllersStatus.innerHTML = `
-        <span class="status-text">
-          📡 ${data.activePositions} active • ${data.availablePositions} available • ${data.totalPositions} total
-          ${data.lastUpdated ? `• Updated: ${new Date(data.lastUpdated).toLocaleTimeString()}` : ''}
-        </span>
-        <button class="refresh-btn" onclick="loadControllers()">Refresh Controllers</button>
-      `;
-    }
+    // Update status with a slight delay to prevent rapid rebuilds
+    setTimeout(() => {
+      if (data.error) {
+        controllersStatus.innerHTML = `
+          <span class="status-text" style="color: #ff6b6b;">
+            ❌ Error: ${data.error}
+          </span>
+          <button class="refresh-btn" onclick="loadControllers()">Refresh Controllers</button>
+        `;
+      } else {
+        controllersStatus.innerHTML = `
+          <span class="status-text">
+            📡 ${data.activePositions} active • ${data.availablePositions} available • ${data.totalPositions} total
+            ${data.lastUpdated ? `• Updated: ${new Date(data.lastUpdated).toLocaleTimeString()}` : ''}
+          </span>
+          <button class="refresh-btn" onclick="loadControllers()">Refresh Controllers</button>
+        `;
+      }
+    }, 100); // Small delay to prevent rapid DOM updates
   }
 
   // Handle controller selection
