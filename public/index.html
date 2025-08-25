@@ -204,10 +204,11 @@
   </div>
 
   <!-- Advanced Configuration Moved and Made Collapsible -->
-  <div class="section" style="margin-top: 20px; padding: 20px;">
-    <div class="section-header">
+  <details class="section" style="margin-top: 20px; padding: 20px;">
+    <summary class="section-header">
       <h2 class="section-title" style="border: none; margin: 0; padding: 0;">Advanced Configuration</h2>
-    </div>
+      <span class="collapse-toggle">▶</span>
+    </summary>
     <div class="advanced-config-content" style="margin-top: 15px;">
       <div class="advanced-config-grid">
         <div class="config-section">
@@ -281,7 +282,7 @@
       </div>
       <button class="advanced-save-btn" onclick="saveUserSettings()">Save Configuration</button>
     </div>
-  </div>
+  </details>
 
   <div class="section">
     <h2 class="section-title">IFR Clearance</h2>
@@ -553,7 +554,11 @@
     }
 
     const effectiveSettings = getEffectiveSettings();
-    const groundCallsign = document.getElementById("groundCallsign").value.trim() || "GROUND";
+    const groundCallsignSelect = document.getElementById("groundCallsignSelect");
+    const groundCallsignManual = document.getElementById("groundCallsignManual");
+    const groundCallsign = groundCallsignSelect.value === 'manual'
+      ? groundCallsignManual.value.trim()
+      : groundCallsignSelect.value;
     const atisInfo = document.getElementById("atisInfo").value;
     const ifl = document.getElementById("ifl").value;
     const departureRW = document.getElementById("departureRunway").value.trim();
@@ -567,7 +572,7 @@
     const flightLevel = selectedFlightPlan.flightlevel || 'N/A';
 
     // Validate inputs
-    if (!groundCallsign || groundCallsign === "GROUND") {
+    if (!groundCallsign) {
       alert('Please enter an ATC Call Sign.');
       return;
     }
@@ -1233,6 +1238,15 @@
       updateUIFromSettings(); // Update UI with effective settings
       checkEnvironmentAndStartPolling();
     });
+
+    // Toggle for advanced config
+    const detailsElement = document.querySelector('details.section');
+    if (detailsElement) {
+        const toggle = detailsElement.querySelector('.collapse-toggle');
+        detailsElement.addEventListener('toggle', () => {
+            toggle.textContent = detailsElement.open ? '▼' : '▶';
+        });
+    }
   });
 </script>
 
