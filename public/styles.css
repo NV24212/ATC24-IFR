@@ -235,6 +235,10 @@ body {
   border-radius: 6px;
   font-size: 12px;
   animation: fadeIn 0.5s ease-out;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
 }
 
 .status-text {
