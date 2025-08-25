@@ -371,34 +371,18 @@ async function trackPageVisit(req, pagePath) {
           throw new Error(`Page visit insert failed: ${visitError.message}`);
         }
 
-        // Update or create user session with proper conflict resolution
-        const sessionData = {
-          session_id: session.id,
-          user_agent: visitData.user_agent,
-          last_activity: new Date().toISOString(),
-          page_views: session.pageViews,
-          clearances_generated: session.clearancesGenerated || 0,
-          updated_at: new Date().toISOString()
-        };
+        // Use unified session management RPC
+        const { data: sessionResult, error: sessionError } = await supabase.rpc('upsert_user_session', {
+          p_session_id: session.id,
+          p_user_id: session.user_id || visitData.user_id || null,
+          p_user_agent: visitData.user_agent,
+          p_ip_address: getRealIP(req),
+          p_page_views: session.pageViews,
+          p_clearances_generated: session.clearancesGenerated || 0
+        });
 
-        // First try to update existing session
-        const { data: updateData, error: updateError } = await supabase
-          .from('user_sessions')
-          .update(sessionData)
-          .eq('session_id', session.id)
-          .select();
-
-        // If no rows were updated, insert new session
-        if (!updateError && (!updateData || updateData.length === 0)) {
-          const { error: insertError } = await supabase
-            .from('user_sessions')
-            .insert(sessionData);
-
-          if (insertError && !insertError.message.includes('duplicate key')) {
-            throw new Error(`Session insert failed: ${insertError.message}`);
-          }
-        } else if (updateError) {
-          throw new Error(`Session update failed: ${updateError.message}`);
+        if (sessionError) {
+          throw new Error(`Session upsert failed: ${sessionError.message}`);
         }
 
       } catch (error) {
@@ -479,36 +463,17 @@ async function trackClearanceGeneration(req, clearanceData) {
           throw new Error(`Clearance insert failed: ${clearanceError.message}`);
         }
 
-        // Update session clearance count and activity with proper conflict resolution
-        const sessionUpdateData = {
-          clearances_generated: session.clearancesGenerated,
-          last_activity: new Date().toISOString(),
-          user_agent: req.headers['user-agent'] || 'Unknown',
-          updated_at: new Date().toISOString()
-        };
+        // Update session clearance count using unified RPC
+        const { data: sessionResult, error: sessionError } = await supabase.rpc('upsert_user_session', {
+          p_session_id: session.id,
+          p_user_id: session.user_id || enhancedClearanceData.user_id || null,
+          p_user_agent: req.headers['user-agent'] || 'Unknown',
+          p_ip_address: getRealIP(req),
+          p_clearances_generated: session.clearancesGenerated
+        });
 
-        // First try to update existing session
-        const { data: updateData, error: updateError } = await supabase
-          .from('user_sessions')
-          .update(sessionUpdateData)
-          .eq('session_id', session.id)
-          .select();
-
-        // If no rows were updated, create new session
-        if (!updateError && (!updateData || updateData.length === 0)) {
-          const { error: insertError } = await supabase
-            .from('user_sessions')
-            .insert({
-              session_id: session.id,
-              ...sessionUpdateData,
-              page_views: 0
-            });
-
-          if (insertError && !insertError.message.includes('duplicate key')) {
-            throw new Error(`Session insert failed: ${insertError.message}`);
-          }
-        } else if (updateError) {
-          throw new Error(`Session update failed: ${updateError.message}`);
+        if (sessionError) {
+          throw new Error(`Session upsert failed: ${sessionError.message}`);
         }
 
       } catch (error) {
