@@ -659,11 +659,25 @@ let ws = null;
 function initializeWebSocket() {
   if (process.env.VERCEL !== '1' && !ws) {
     try {
+      logWithTimestamp('info', 'Attempting WebSocket connection to 24data.ptfs.app...');
+
+      // Set a connection timeout to prevent hanging during deployment
+      const connectionTimeout = setTimeout(() => {
+        if (ws && ws.readyState === WebSocket.CONNECTING) {
+          logWithTimestamp('warn', 'WebSocket connection timeout, terminating attempt');
+          ws.terminate();
+          ws = null;
+        }
+      }, 10000); // 10 second timeout
+
       ws = new WebSocket("wss://24data.ptfs.app/wss", {
         headers: { Origin: "" } // Required as per docs
       });
 
-      ws.on("open", () => logWithTimestamp('info', 'WebSocket connected to 24data.ptfs.app'));
+      ws.on("open", () => {
+        clearTimeout(connectionTimeout);
+        logWithTimestamp('info', 'WebSocket connected to 24data.ptfs.app');
+      });
       ws.on("message", async (data) => {
         try {
           const parsed = JSON.parse(data);
@@ -754,8 +768,11 @@ function initializeWebSocket() {
   }
 }
 
-// Initialize WebSocket connection
-initializeWebSocket();
+// Initialize WebSocket connection asynchronously (don't block server startup)
+setTimeout(() => {
+  logWithTimestamp('info', 'Starting delayed WebSocket initialization...');
+  initializeWebSocket();
+}, 2000); // Wait 2 seconds after server starts
 
 app.use(cors({
   origin: true,
