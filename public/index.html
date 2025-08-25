@@ -882,8 +882,9 @@
       }
     } catch (error) {
       console.error('Failed to check environment, using polling fallback:', error);
-      await loadFlightPlans();
+      await Promise.all([loadFlightPlans(), loadControllers()]);
       startPolling(15000); // Default polling interval
+      startControllerPolling(6000);
     }
   }
 
