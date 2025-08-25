@@ -6,11 +6,19 @@ const { createClient } = require('@supabase/supabase-js');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
-// Discord OAuth configuration
+// Discord OAuth configuration with deployment safety
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
+const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || `${process.env.DEPLOY_URL || 'http://localhost:3000'}/auth/discord/callback`;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'default_session_secret_change_in_production';
+
+// Log configuration status for debugging deployment issues
+console.log('🔧 Environment Configuration:');
+console.log(`   PORT: ${process.env.PORT || 3000}`);
+console.log(`   NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+console.log(`   Discord OAuth: ${DISCORD_CLIENT_ID ? '✅ Configured' : '❌ Missing CLIENT_ID'}`);
+console.log(`   Supabase: ${process.env.SUPABASE_URL ? '✅ Configured' : '❌ Missing URL'}`);
+console.log(`   Redirect URI: ${DISCORD_REDIRECT_URI}`);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -675,11 +683,25 @@ let ws = null;
 function initializeWebSocket() {
   if (process.env.VERCEL !== '1' && !ws) {
     try {
+      logWithTimestamp('info', 'Attempting WebSocket connection to 24data.ptfs.app...');
+
+      // Set a connection timeout to prevent hanging during deployment
+      const connectionTimeout = setTimeout(() => {
+        if (ws && ws.readyState === WebSocket.CONNECTING) {
+          logWithTimestamp('warn', 'WebSocket connection timeout, terminating attempt');
+          ws.terminate();
+          ws = null;
+        }
+      }, 10000); // 10 second timeout
+
       ws = new WebSocket("wss://24data.ptfs.app/wss", {
         headers: { Origin: "" } // Required as per docs
       });
 
-      ws.on("open", () => logWithTimestamp('info', 'WebSocket connected to 24data.ptfs.app'));
+      ws.on("open", () => {
+        clearTimeout(connectionTimeout);
+        logWithTimestamp('info', 'WebSocket connected to 24data.ptfs.app');
+      });
       ws.on("message", async (data) => {
         try {
           const parsed = JSON.parse(data);
@@ -770,8 +792,11 @@ function initializeWebSocket() {
   }
 }
 
-// Initialize WebSocket connection
-initializeWebSocket();
+// Initialize WebSocket connection asynchronously (don't block server startup)
+setTimeout(() => {
+  logWithTimestamp('info', 'Starting delayed WebSocket initialization...');
+  initializeWebSocket();
+}, 2000); // Wait 2 seconds after server starts
 
 app.use(cors({
   origin: true,
@@ -824,6 +849,19 @@ app.get("/admin", (req, res) => {
 // This must come AFTER specific route handlers to avoid bypassing tracking
 app.use(express.static('public'));
 
+// Health check endpoint for deployment monitoring
+app.get("/health", (req, res) => {
+  res.json({
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    supabaseConfigured: supabase !== null,
+    discordConfigured: !!(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET),
+    wsConnected: ws && ws.readyState === WebSocket.OPEN,
+    version: "1.0.0"
+  });
+});
+
 // REST: Get all flight plans with serverless-aware fallback
 app.get("/flight-plans", async (req, res) => {
   try {
@@ -875,13 +913,15 @@ app.post("/api/clearance-generated", async (req, res) => {
   }
 });
 
-// Discord OAuth routes
+// Discord OAuth routes with enhanced error handling
 app.get("/auth/discord", (req, res) => {
   try {
-    if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_REDIRECT_URI) {
+    if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
+      logWithTimestamp('error', 'Discord OAuth attempted but credentials not configured');
       return res.status(500).json({
         error: 'Discord OAuth not configured',
-        message: 'Please set DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, and DISCORD_REDIRECT_URI environment variables'
+        message: 'Discord authentication is not available. Please contact the administrator.',
+        configured: false
       });
     }
 
@@ -936,8 +976,23 @@ app.get("/auth/discord/callback", async (req, res) => {
     // Get user information from Discord
     const discordUser = await getDiscordUser(tokenData.access_token);
 
-    // Create or update user in database
-    const user = await createOrUpdateUser(discordUser, tokenData);
+    // Create or update user in database (with fallback if database unavailable)
+    let user;
+    try {
+      user = await createOrUpdateUser(discordUser, tokenData);
+    } catch (dbError) {
+      logWithTimestamp('error', 'Database operation failed during Discord auth, using fallback', { error: dbError.message });
+      // Fallback user object for when database is unavailable
+      user = {
+        id: discordUser.id,
+        discord_id: discordUser.id,
+        username: discordUser.username,
+        email: discordUser.email,
+        avatar: discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : null,
+        is_admin: false,
+        roles: []
+      };
+    }
 
     // Create unified session for OAuth user
     const sessionId = uuidv4();

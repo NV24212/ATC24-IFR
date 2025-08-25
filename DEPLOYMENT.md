@@ -1,98 +1,138 @@
-# Deployment Guide for ATC24 IFR Clearance Generator
+# ATC24 IFR Clearance Generator - Deployment Guide
 
-## Fixed Issues
+## 🚀 Quick Deployment Checklist
 
-✅ **Invalid URL Error**: Fixed Supabase configuration validation
-✅ **Admin/License Pages**: Proper routing configuration
-✅ **WebSocket in Serverless**: Conditional WebSocket initialization
-✅ **Environment Variables**: Proper handling and validation
+### 1. Required Environment Variables
 
-## Vercel Deployment Steps
+Set these environment variables in your deployment platform:
 
-### 1. Prepare Environment Variables
-
-Set these in Vercel Dashboard > Project Settings > Environment Variables:
-
-```
-SUPABASE_URL=https://your-project-id.supabase.co
-SUPABASE_ANON_KEY=your-anon-key-here
-ADMIN_PASSWORD=your-secure-password
-NODE_ENV=production
-```
-
-### 2. Deploy Options
-
-**Option A: Vercel CLI**
 ```bash
-npm install -g vercel
-vercel login
-vercel --prod
+# Discord OAuth (Required for authentication)
+DISCORD_CLIENT_ID=1402233324092657724
+DISCORD_CLIENT_SECRET=n8YZLv10Z5OPBRbRNfpmENaQC-SpW7GN
+DISCORD_REDIRECT_URI=https://your-deployment-url.com/auth/discord/callback
+
+# Supabase Database (Required for data persistence)
+SUPABASE_URL=https://trarjzbjcbvvnqxppeua.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyYXJqemJqY2J2dm5xeHBwZXVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ1NzY3MDksImV4cCI6MjA3MDE1MjcwOX0.HgSTQ2KF-tBYXnlNB6Oh5WN6WIYeyGN7ZtfZLxo6234
+
+# Server Configuration
+PORT=3000
+NODE_ENV=production
+
+# Optional (but recommended)
+SESSION_SECRET=your_secure_random_session_secret
+ADMIN_PASSWORD=your_secure_admin_password
 ```
 
-**Option B: GitHub Integration**
-1. Push code to GitHub repository
-2. Connect repository in Vercel dashboard
-3. Deploy automatically on push
+### 2. Update Discord App Settings
 
-### 3. Database Setup
+**IMPORTANT**: Update your Discord application redirect URI to match your deployment URL:
 
-If using Supabase:
-1. [Connect to Supabase](#open-mcp-popover)
-2. Create tables using schema in README.md
-3. Configure RLS policies if needed
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
+2. Select your application (ID: 1402233324092657724)
+3. Go to OAuth2 → General
+4. Update the redirect URI to: `https://your-deployment-url.com/auth/discord/callback`
 
-### 4. Testing Deployment
+### 3. Platform-Specific Instructions
 
-After deployment, test these endpoints:
-- `/` - Main application
-- `/license` - License page
-- `/admin` - Admin panel
-- `/health` - Health check
-- `/api/admin/analytics?password=your-password` - Admin API
+#### Render
+```bash
+# Set environment variables in Render dashboard
+# The redirect URI should be: https://your-app-name.onrender.com/auth/discord/callback
+```
 
-## Troubleshooting
+#### Fly.io
+```bash
+# Set secrets using fly CLI
+fly secrets set DISCORD_CLIENT_ID=1402233324092657724
+fly secrets set DISCORD_CLIENT_SECRET=n8YZLv10Z5OPBRbRNfpmENaQC-SpW7GN
+fly secrets set DISCORD_REDIRECT_URI=https://your-app.fly.dev/auth/discord/callback
+fly secrets set SUPABASE_URL=https://trarjzbjcbvvnqxppeua.supabase.co
+fly secrets set SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyYXJqemJqY2J2dm5xeHBwZXVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ1NzY3MDksImV4cCI6MjA3MDE1MjcwOX0.HgSTQ2KF-tBYXnlNB6Oh5WN6WIYeyGN7ZtfZLxo6234
+```
 
-### WebSocket Issues
-- WebSocket connections are disabled in serverless environments
-- Flight plans will still work via polling/API calls
-- Use traditional hosting (Railway, DigitalOcean) for full WebSocket support
+#### Vercel
+```bash
+# Set environment variables in Vercel dashboard or via CLI
+vercel env add DISCORD_CLIENT_ID
+vercel env add DISCORD_CLIENT_SECRET
+vercel env add DISCORD_REDIRECT_URI
+vercel env add SUPABASE_URL
+vercel env add SUPABASE_ANON_KEY
+```
 
-### Static Files
-- Ensure `public/` directory contains all CSS and HTML files
-- Vercel automatically serves static files from public directory
+### 4. Verify Deployment
 
-### Database Connection
-- Test Supabase connection with health endpoint
-- Check environment variables are set correctly
-- Verify Supabase URL format: `https://project-id.supabase.co`
+After deployment, check these endpoints:
 
-### Admin Panel Access
-- Use correct admin password from environment variables
-- Check `/admin` route accessibility
-- Verify authentication endpoints work
+1. **Health Check**: `https://your-deployment-url.com/health`
+   - Should return JSON with `status: "healthy"`
+   - Check that `supabaseConfigured: true` and `discordConfigured: true`
 
-## Environment Differences
+2. **Main App**: `https://your-deployment-url.com/`
+   - Should load the ATC24 interface
+   - Discord login button should be visible
 
-**Development (with WebSocket):**
-- Full real-time flight plan updates
-- WebSocket connection to 24data.ptfs.app
-- Local analytics storage
+3. **Discord Auth**: `https://your-deployment-url.com/auth/discord`
+   - Should redirect to Discord OAuth flow
 
-**Production Serverless (Vercel):**
-- WebSocket disabled (serverless limitation)
-- Supabase for persistent storage
-- API-based flight plan polling
+## 🔧 Troubleshooting
 
-## Performance Optimization
+### Common Issues
 
-1. **Static Assets**: Served via Vercel CDN
-2. **Database**: Connection pooling via Supabase
-3. **Caching**: API responses cached appropriately
-4. **Monitoring**: Use health endpoint for uptime monitoring
+#### 1. SIGTERM Error (Process Killed)
+- **Cause**: Missing environment variables or startup timeout
+- **Solution**: Ensure all required environment variables are set
+- **Check**: Visit `/health` endpoint to verify configuration
 
-## Security Considerations
+#### 2. Discord OAuth Redirect Mismatch
+- **Cause**: Redirect URI in Discord app doesn't match deployment URL
+- **Solution**: Update Discord app settings with correct URL
+- **Format**: `https://your-domain.com/auth/discord/callback`
 
-1. Change default admin password
-2. Use strong Supabase RLS policies
-3. Configure CORS appropriately
-4. Monitor admin access logs
+#### 3. Database Connection Issues
+- **Cause**: Incorrect Supabase credentials or network issues
+- **Solution**: Verify SUPABASE_URL and SUPABASE_ANON_KEY
+- **Test**: App should work with limited functionality even if database is unavailable
+
+#### 4. WebSocket Connection Issues
+- **Note**: WebSocket connection to flight data is optional
+- **Impact**: App works normally, but live flight plans won't update
+- **Check**: Look for "WebSocket connected" in logs
+
+### Environment Variable Validation
+
+The app logs its configuration status on startup:
+```
+🔧 Environment Configuration:
+   PORT: 3000
+   NODE_ENV: production
+   Discord OAuth: ✅ Configured
+   Supabase: ✅ Configured
+   Redirect URI: https://your-domain.com/auth/discord/callback
+```
+
+### Logs to Monitor
+
+Look for these log messages:
+- ✅ `Supabase client initialized successfully`
+- ✅ `Server started successfully on port 3000`
+- ✅ `WebSocket connected to 24data.ptfs.app`
+- ❌ `Discord OAuth not configured`
+- ❌ `Supabase not properly configured`
+
+## 📞 Support
+
+If deployment issues persist:
+1. Check the `/health` endpoint first
+2. Review server logs for specific error messages
+3. Verify all environment variables are correctly set
+4. Ensure Discord app redirect URI matches your deployment URL
+
+## 🔒 Security Notes
+
+- Never commit real environment variables to git
+- Use your deployment platform's secure environment variable storage
+- Rotate the SESSION_SECRET regularly in production
+- Keep Discord client secret secure and never expose it in frontend code
