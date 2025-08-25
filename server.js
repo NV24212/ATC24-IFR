@@ -677,6 +677,31 @@ function optionalDiscordAuth(req, res, next) {
 // Simple session store (in production, use Redis or database)
 const sessionStore = new Map();
 
+// Session cleanup for memory management
+function cleanupExpiredSessions() {
+  try {
+    const now = new Date();
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+    let cleanedCount = 0;
+
+    for (const [sessionId, session] of sessionStore.entries()) {
+      if (session && session.lastActivity && (now - session.lastActivity > maxAge)) {
+        sessionStore.delete(sessionId);
+        cleanedCount++;
+      }
+    }
+
+    if (cleanedCount > 0) {
+      logWithTimestamp('info', `Cleaned up ${cleanedCount} expired OAuth sessions`);
+    }
+  } catch (error) {
+    logWithTimestamp('error', 'OAuth session cleanup failed', { error: error.message });
+  }
+}
+
+// Run OAuth session cleanup every hour
+setInterval(cleanupExpiredSessions, 60 * 60 * 1000);
+
 // WebSocket connection - only initialize if not in serverless environment
 let ws = null;
 
@@ -803,6 +828,20 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// Cookie parser middleware (simple implementation)
+app.use((req, res, next) => {
+  req.cookies = {};
+  if (req.headers.cookie) {
+    req.headers.cookie.split(';').forEach(cookie => {
+      const [name, value] = cookie.trim().split('=');
+      if (name && value) {
+        req.cookies[name] = decodeURIComponent(value);
+      }
+    });
+  }
+  next();
+});
 
 // Unified session middleware
 app.use((req, res, next) => {
@@ -996,7 +1035,7 @@ app.get("/auth/discord/callback", async (req, res) => {
 
     // Create unified session for OAuth user
     const sessionId = uuidv4();
-    req.session = {
+    const oauthSession = {
       id: sessionId,
       user: {
         id: user.id,
@@ -1004,8 +1043,8 @@ app.get("/auth/discord/callback", async (req, res) => {
         username: user.username,
         email: user.email,
         avatar: user.avatar,
-        is_admin: user.is_admin,
-        roles: user.roles
+        is_admin: user.is_admin || false,
+        roles: user.roles || []
       },
       createdAt: new Date(),
       lastActivity: new Date()
@@ -1023,8 +1062,15 @@ app.get("/auth/discord/callback", async (req, res) => {
     };
 
     // Store in both session stores
-    sessionStore.set(sessionId, req.session);
+    sessionStore.set(sessionId, oauthSession);
     sessions.set(sessionId, trackingSession);
+
+    logWithTimestamp('info', 'Discord OAuth session created', {
+      sessionId: sessionId.slice(0, 8),
+      userId: user.id,
+      username: user.username,
+      isAdmin: user.is_admin || false
+    });
 
     logWithTimestamp('info', 'Discord OAuth successful', {
       userId: user.id,
@@ -1033,8 +1079,19 @@ app.get("/auth/discord/callback", async (req, res) => {
       ip: req.ip
     });
 
-    // Redirect to main page with success
-    res.redirect('/?auth=success');
+    // Set session cookie and redirect with session ID
+    res.cookie('session_id', sessionId, { 
+      httpOnly: false, 
+      secure: false, 
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+    
+    // Redirect to admin panel if user is admin, otherwise main page
+    if (user.is_admin) {
+      res.redirect('/admin?auth=success&session=' + sessionId);
+    } else {
+      res.redirect('/?auth=success&session=' + sessionId);
+    }
 
   } catch (error) {
     logWithTimestamp('error', 'Discord OAuth callback failed', {
