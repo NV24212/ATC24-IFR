@@ -9,7 +9,7 @@ require('dotenv').config();
 // Discord OAuth configuration with deployment safety
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || `${process.env.DEPLOY_URL || 'http://localhost:3000'}/auth/discord/callback`;
+const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/auth/discord/callback` || 'http://localhost:3000/auth/discord/callback';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'default_session_secret_change_in_production';
 
 // Log configuration status for debugging deployment issues
@@ -585,6 +585,12 @@ async function exchangeCodeForToken(code) {
     redirect_uri: DISCORD_REDIRECT_URI
   };
 
+  logWithTimestamp('info', 'Discord token exchange attempt', {
+    redirect_uri: DISCORD_REDIRECT_URI,
+    client_id: DISCORD_CLIENT_ID ? 'configured' : 'missing',
+    code_length: code ? code.length : 0
+  });
+
   const response = await fetch('https://discord.com/api/oauth2/token', {
     method: 'POST',
     headers: {
@@ -594,7 +600,14 @@ async function exchangeCodeForToken(code) {
   });
 
   if (!response.ok) {
-    throw new Error(`Discord token exchange failed: ${response.statusText}`);
+    const errorText = await response.text();
+    logWithTimestamp('error', 'Discord token exchange failed', {
+      status: response.status,
+      statusText: response.statusText,
+      error: errorText,
+      redirect_uri: DISCORD_REDIRECT_URI
+    });
+    throw new Error(`Discord token exchange failed: ${response.statusText} - ${errorText}`);
   }
 
   return await response.json();

@@ -516,20 +516,31 @@ ALTER TABLE admin_activities ENABLE ROW LEVEL SECURITY;
 -- Create policies for anon and authenticated users
 -- Allow service_role to bypass RLS for server operations
 
+-- Drop existing policies first
+DROP POLICY IF EXISTS "Allow service role full access" ON discord_users;
+DROP POLICY IF EXISTS "Allow anon read access" ON discord_users;
+DROP POLICY IF EXISTS "Allow authenticated read access" ON discord_users;
+DROP POLICY IF EXISTS "Allow service role full access" ON page_visits;
+DROP POLICY IF EXISTS "Allow anon insert access" ON page_visits;
+DROP POLICY IF EXISTS "Allow authenticated full access" ON page_visits;
+DROP POLICY IF EXISTS "Allow service role full access" ON user_sessions;
+DROP POLICY IF EXISTS "Allow anon insert access" ON user_sessions;
+DROP POLICY IF EXISTS "Allow authenticated full access" ON user_sessions;
+
 -- Discord users policies
-CREATE POLICY "Allow service role full access" ON discord_users FOR ALL TO service_role USING (true);
-CREATE POLICY "Allow anon read access" ON discord_users FOR SELECT TO anon USING (true);
-CREATE POLICY "Allow authenticated read access" ON discord_users FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Service role full access discord_users" ON discord_users FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Anon read discord_users" ON discord_users FOR SELECT TO anon USING (true);
+CREATE POLICY "Authenticated read discord_users" ON discord_users FOR SELECT TO authenticated USING (true);
 
--- Page visits policies
-CREATE POLICY "Allow service role full access" ON page_visits FOR ALL TO service_role USING (true);
-CREATE POLICY "Allow anon insert access" ON page_visits FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Allow authenticated full access" ON page_visits FOR ALL TO authenticated USING (true);
+-- Page visits policies - Allow service_role everything, anon can insert
+CREATE POLICY "Service role full access page_visits" ON page_visits FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Anon insert page_visits" ON page_visits FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Authenticated full access page_visits" ON page_visits FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- User sessions policies
-CREATE POLICY "Allow service role full access" ON user_sessions FOR ALL TO service_role USING (true);
-CREATE POLICY "Allow anon insert access" ON user_sessions FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Allow authenticated full access" ON user_sessions FOR ALL TO authenticated USING (true);
+-- User sessions policies - CRITICAL: Allow service_role everything
+CREATE POLICY "Service role full access user_sessions" ON user_sessions FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Anon insert user_sessions" ON user_sessions FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Authenticated full access user_sessions" ON user_sessions FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Clearance generations policies
 CREATE POLICY "Allow service role full access" ON clearance_generations FOR ALL TO service_role USING (true);
