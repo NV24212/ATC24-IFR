@@ -765,47 +765,42 @@ input[type="text"]::placeholder {
 }
 
 /* Discord Authentication Styles */
-.header-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 15px;
-}
-
 .auth-section {
   display: flex;
+  justify-content: center;
   align-items: center;
-  min-height: 60px;
+  margin: 20px 0;
 }
 
 .auth-loading {
   color: var(--text-muted);
   font-size: 14px;
   font-style: italic;
+  text-align: center;
 }
 
 .discord-login-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
-  background: #5865F2;
-  color: white;
-  border: none;
-  border-radius: 12px;
+  gap: 10px;
+  background: var(--surface-hover);
+  border: 2px solid var(--border-color);
+  color: #5865F2;
   padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
   font-size: 14px;
   font-weight: 600;
-  cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  text-transform: none;
-  letter-spacing: normal;
-  box-shadow: 0 4px 12px rgba(88, 101, 242, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .discord-login-btn:hover {
-  background: #4752C4;
+  background: #5865F2;
+  color: white;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(88, 101, 242, 0.4);
+  box-shadow: 0 5px 15px rgba(88, 101, 242, 0.3);
 }
 
 .discord-login-btn:active {
@@ -814,6 +809,10 @@ input[type="text"]::placeholder {
 
 .discord-login-btn svg {
   flex-shrink: 0;
+}
+
+.discord-login-btn:hover svg path {
+  fill: white;
 }
 
 .user-info {
