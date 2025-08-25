@@ -1290,42 +1290,123 @@
       }
     });
 
-    // Authentication
-    function login() {
-      const password = document.getElementById('adminPassword').value;
-      
-      fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          currentPassword = password;
-          document.getElementById('loginScreen').style.display = 'none';
-          document.getElementById('adminPanel').classList.add('authenticated');
-          showNotification('success', 'Access Granted', 'Welcome to the ATC24 Admin Control Panel');
-          loadAdminData();
+    // Authentication Functions
+    async function checkAuthStatus() {
+      try {
+        document.getElementById('authLoading').style.display = 'block';
+        document.getElementById('authLoginRequired').style.display = 'none';
+        document.getElementById('authNoAccess').style.display = 'none';
+
+        const response = await fetch('/api/auth/user', {
+          headers: {
+            'X-Session-ID': getSessionId()
+          }
+        });
+
+        if (response.ok) {
+          const authData = await response.json();
+          if (authData.authenticated && authData.user.is_admin) {
+            currentUser = authData.user;
+            sessionId = getSessionId();
+            showAdminPanel();
+          } else if (authData.authenticated && !authData.user.is_admin) {
+            showNoAccess();
+          } else {
+            showLoginRequired();
+          }
         } else {
-          showLoginError();
+          showLoginRequired();
         }
-      })
-      .catch(() => showLoginError());
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        showAuthError('Failed to check authentication status');
+      }
     }
 
-    function logout() {
-      currentPassword = null;
+    function showAdminPanel() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('adminPanel').classList.add('authenticated');
+      showNotification('success', 'Access Granted', `Welcome ${currentUser.username}! Admin access confirmed.`);
+      loadAdminData();
+    }
+
+    function showLoginRequired() {
+      document.getElementById('authLoading').style.display = 'none';
+      document.getElementById('authLoginRequired').style.display = 'block';
+      document.getElementById('authNoAccess').style.display = 'none';
+    }
+
+    function showNoAccess() {
+      document.getElementById('authLoading').style.display = 'none';
+      document.getElementById('authLoginRequired').style.display = 'none';
+      document.getElementById('authNoAccess').style.display = 'block';
+    }
+
+    function loginWithDiscord() {
+      window.location.href = '/auth/discord';
+    }
+
+    async function logout() {
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Session-ID': sessionId
+          }
+        });
+      } catch (error) {
+        console.error('Logout failed:', error);
+      }
+
+      currentUser = null;
+      sessionId = null;
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('adminPanel').classList.remove('authenticated');
-      document.getElementById('adminPassword').value = '';
+      showLoginRequired();
     }
 
-    function showLoginError() {
-      document.getElementById('loginError').style.display = 'block';
+    function goToMainSite() {
+      window.location.href = '/';
+    }
+
+    function getSessionId() {
+      let sessionId = localStorage.getItem('atc24_session_id');
+      if (!sessionId) {
+        sessionId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c == 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+        localStorage.setItem('atc24_session_id', sessionId);
+      }
+      return sessionId;
+    }
+
+    function showAuthError(message) {
+      const errorDiv = document.getElementById('loginError');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
       setTimeout(() => {
-        document.getElementById('loginError').style.display = 'none';
-      }, 3000);
+        errorDiv.style.display = 'none';
+      }, 5000);
+    }
+
+    // Check for auth success/error in URL params
+    function checkAuthParams() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const authResult = urlParams.get('auth');
+      const authError = urlParams.get('error');
+
+      if (authResult === 'success') {
+        console.log('Discord authentication successful');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        setTimeout(checkAuthStatus, 500);
+      } else if (authError) {
+        console.error('Discord authentication error:', authError);
+        showAuthError(`Authentication failed: ${authError}`);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     }
 
     // Navigation
