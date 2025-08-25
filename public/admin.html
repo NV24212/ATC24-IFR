@@ -1455,7 +1455,12 @@
 
     async function loadAnalytics() {
       try {
-        const response = await fetch(`/api/admin/analytics?password=${currentPassword}`);
+        const response = await fetch('/api/admin/analytics', {
+          headers: {
+            'X-Session-ID': sessionId,
+            'Authorization': `Bearer ${sessionId}`
+          }
+        });
         analytics = await response.json();
 
         const today = new Date().toISOString().split('T')[0];
