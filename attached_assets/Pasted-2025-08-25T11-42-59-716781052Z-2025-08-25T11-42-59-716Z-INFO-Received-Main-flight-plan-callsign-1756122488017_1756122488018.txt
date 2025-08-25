@@ -1,0 +1,50 @@
+2025-08-25T11:42:59.716781052Z [2025-08-25T11:42:59.716Z] INFO: Received Main flight plan { callsign: 'Qantas-9545', destination: 'ITKO', route: 'Gps-Direct' }
+2025-08-25T11:43:00.225154022Z ==> Your service is live 🎉
+2025-08-25T11:43:00.294931902Z ==> 
+2025-08-25T11:43:00.336352557Z ==> ///////////////////////////////////////////////////////////
+2025-08-25T11:43:00.38813416Z ==> 
+2025-08-25T11:43:00.447247582Z ==> Available at your primary URL https://24ifr.hasmah.xyz + 1 more domain
+2025-08-25T11:43:00.478984117Z ==> 
+2025-08-25T11:43:00.509408054Z ==> ///////////////////////////////////////////////////////////
+2025-08-25T11:43:00.593925631Z npm error path /app
+2025-08-25T11:43:00.594081124Z npm error command failed
+2025-08-25T11:43:00.594248428Z npm error signal SIGTERM
+2025-08-25T11:43:00.594469343Z npm error command sh -c node server.js
+2025-08-25T11:43:00.596710154Z npm error A complete log of this run can be found in: /root/.npm/_logs/2025-08-25T11_40_42_787Z-debug-0.log
+2025-08-25T11:43:02.557849839Z   authenticated: false,
+2025-08-25T11:43:02.557854349Z   username: 'anonymous',
+2025-08-25T11:43:02.557885241Z   ip: '::1'
+2025-08-25T11:43:02.557893041Z }
+2025-08-25T11:43:02.558029649Z [2025-08-25T11:43:02.557Z] INFO: Page visit tracked {
+2025-08-25T11:43:02.55803506Z   path: '/',
+2025-08-25T11:43:02.55803821Z   sessionId: '4f02e578',
+2025-08-25T11:43:02.55804102Z   isFirstVisit: true,
+2025-08-25T11:43:02.55804376Z   totalVisits: 1,
+2025-08-25T11:43:02.55804657Z   todayVisits: 1,
+2025-08-25T11:43:02.55804944Z   ip: '35.227.183.65'
+2025-08-25T11:43:02.558052201Z }
+2025-08-25T11:43:03.398267496Z [2025-08-25T11:43:03.397Z] ERROR: Failed to track page visit in Supabase {
+2025-08-25T11:43:03.398281717Z   error: 'Session upsert failed: Could not find the function public.upsert_user_session(p_clearances_generated, p_ip_address, p_page_views, p_session_id, p_user_agent, p_user_id) in the schema cache',
+2025-08-25T11:43:03.398286237Z   sessionId: '4f02e578',
+2025-08-25T11:43:03.398289967Z   path: '/'
+2025-08-25T11:43:03.398293658Z }
+2025-08-25T11:45:45.848956152Z [2025-08-25T11:45:45.848Z] INFO: New session created {
+2025-08-25T11:45:45.848984744Z   sessionId: 'cb4fabc7',
+2025-08-25T11:45:45.848988714Z   totalSessions: 3,
+2025-08-25T11:45:45.848992315Z   authenticated: false,
+2025-08-25T11:45:45.848995855Z   username: 'anonymous',
+2025-08-25T11:45:45.848999595Z   ip: '::1'
+2025-08-25T11:45:45.849003135Z }
+2025-08-25T11:45:45.849137803Z [2025-08-25T11:45:45.848Z] INFO: Page visit tracked {
+2025-08-25T11:45:45.849144313Z   path: '/',
+2025-08-25T11:45:45.849148144Z   sessionId: 'cb4fabc7',
+2025-08-25T11:45:45.849151744Z   isFirstVisit: true,
+2025-08-25T11:45:45.849155304Z   totalVisits: 2,
+2025-08-25T11:45:45.849158894Z   todayVisits: 2,
+2025-08-25T11:45:45.849162434Z   ip: '216.144.248.22'
+2025-08-25T11:45:45.849166025Z }
+2025-08-25T11:45:46.451508146Z [2025-08-25T11:45:46.451Z] ERROR: Failed to track page visit in Supabase {
+2025-08-25T11:45:46.451539448Z   error: 'Session upsert failed: Could not find the function public.upsert_user_session(p_clearances_generated, p_ip_address, p_page_views, p_session_id, p_user_agent, p_user_id) in the schema cache',
+2025-08-25T11:45:46.451591731Z   sessionId: 'cb4fabc7',
+2025-08-25T11:45:46.451598061Z   path: '/'
+2025-08-25T11:45:46.451602671Z }
