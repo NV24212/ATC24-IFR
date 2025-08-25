@@ -1147,6 +1147,75 @@
 
       </div>
     </div>
+
+    <!-- User Management Section -->
+    <div class="admin-section" id="users">
+      <div class="section">
+        <h2 class="section-title">User Management</h2>
+
+        <!-- Current Admin Info -->
+        <div class="settings-group" style="margin-bottom: 30px;">
+          <h3>Current Admin User</h3>
+          <div id="currentAdminInfo" style="padding: 20px; background: var(--surface-hover); border: 1px solid var(--border-color); border-radius: 8px;">
+            <div style="color: var(--text-muted);">Loading current user info...</div>
+          </div>
+        </div>
+
+        <!-- Admin Users List -->
+        <div class="settings-group" style="margin-bottom: 30px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3>Admin Users</h3>
+            <button class="nav-btn" onclick="loadAdminUsers()" style="margin: 0; padding: 8px 16px;">Refresh Users</button>
+          </div>
+
+          <div id="adminUsersList" style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 8px; min-height: 200px;">
+            <div style="padding: 20px; text-align: center; color: var(--text-muted);">Loading admin users...</div>
+          </div>
+        </div>
+
+        <!-- Add New Admin -->
+        <div class="settings-group">
+          <h3>Add New Admin User</h3>
+          <div style="padding: 20px; background: var(--surface-hover); border: 1px solid var(--border-color); border-radius: 8px;">
+            <div style="margin-bottom: 20px;">
+              <label class="config-label" style="display: block; margin-bottom: 8px;">Discord Username</label>
+              <input type="text" id="newAdminUsername" placeholder="e.g., h.a.s2 or user#1234" style="width: 100%; margin-bottom: 10px;">
+              <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 15px;">
+                Enter the Discord username exactly as it appears (with or without discriminator)
+              </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <label class="config-label" style="display: block; margin-bottom: 8px;">Admin Roles</label>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="roleAdmin" checked>
+                  <span>Admin</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="roleSuperAdmin">
+                  <span>Super Admin</span>
+                </label>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+              <button class="generate-btn" onclick="addAdminUser()" style="flex: 1; margin: 0;">Add Admin User</button>
+              <button class="nav-btn" onclick="clearAddUserForm()" style="margin: 0; padding: 12px 20px;">Clear</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="danger-zone" style="margin-top: 30px;">
+          <h3>Danger Zone</h3>
+          <p style="color: var(--text-muted); margin-bottom: 15px;">Removing admin users cannot be undone. Use with caution.</p>
+          <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <button class="danger-btn" onclick="showRemoveAdminDialog()">Remove Admin User</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Notification Popup -->
