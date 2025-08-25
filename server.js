@@ -81,6 +81,8 @@ if (supabaseUrl && supabaseKey &&
 }
 
 let flightPlans = []; // Store multiple flight plans
+let controllers = []; // Store online controllers from 24data API
+let lastControllersUpdate = null;
 
 // Initialize startup log
 logWithTimestamp('info', 'ATC24 Server starting up', {
@@ -93,6 +95,54 @@ logWithTimestamp('info', 'ATC24 Server starting up', {
 logWithTimestamp('info', 'Runtime logs system initialized');
 logWithTimestamp('warn', 'This is a test warning log');
 logWithTimestamp('error', 'This is a test error log for debugging');
+
+// Controllers data fetching and caching
+async function fetchControllersData() {
+  try {
+    const response = await fetch('https://24data.ptfs.app/controllers', {
+      headers: {
+        'User-Agent': 'ATC24-IFR-Clearance-Generator/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    controllers = data || [];
+    lastControllersUpdate = new Date().toISOString();
+
+    logWithTimestamp('info', `Fetched ${controllers.length} controller positions`, {
+      totalPositions: controllers.length,
+      claimedPositions: controllers.filter(c => c.holder).length,
+      availablePositions: controllers.filter(c => c.claimable && !c.holder).length
+    });
+
+    return controllers;
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to fetch controllers data from 24data API', {
+      error: error.message,
+      url: 'https://24data.ptfs.app/controllers'
+    });
+    return null;
+  }
+}
+
+// Initialize controllers data on startup
+if (process.env.VERCEL !== '1') {
+  // Initial fetch of controllers data
+  fetchControllersData();
+
+  // Set up polling for controllers data (every 6 seconds as recommended)
+  setInterval(async () => {
+    try {
+      await fetchControllersData();
+    } catch (error) {
+      logWithTimestamp('error', 'Controllers polling failed', { error: error.message });
+    }
+  }, 6000);
+}
 
 // Analytics storage with serverless persistence
 let analytics = {
@@ -522,6 +572,19 @@ function initializeWebSocket() {
         try {
           const parsed = JSON.parse(data);
 
+          // Handle controllers data
+          if (parsed.t === "CONTROLLERS") {
+            const controllerData = parsed.d;
+            controllers = controllerData || [];
+            lastControllersUpdate = new Date().toISOString();
+
+            logWithTimestamp('info', `WebSocket: Updated controllers data`, {
+              totalPositions: controllers.length,
+              claimedPositions: controllers.filter(c => c.holder).length,
+              availablePositions: controllers.filter(c => c.claimable && !c.holder).length
+            });
+          }
+
           // Handle both regular and event flight plans
           if (parsed.t === "FLIGHT_PLAN" || parsed.t === "EVENT_FLIGHT_PLAN") {
             const flightPlan = parsed.d;
@@ -630,6 +693,70 @@ app.get("/license", trackVisit, (req, res) => {
 // Serve admin panel (don't track admin visits to avoid skewing analytics)
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
+});
+
+// REST: Get controllers data
+app.get("/controllers", async (req, res) => {
+  try {
+    // If we're in serverless environment or have no cached data, fetch fresh data
+    if (process.env.VERCEL === '1' || controllers.length === 0 || !lastControllersUpdate) {
+      const freshData = await fetchControllersData();
+      if (freshData !== null) {
+        controllers = freshData;
+      }
+    }
+
+    // Enhance controllers data with call sign suggestions
+    const enhancedControllers = controllers.map(controller => {
+      let callSign = '';
+      if (controller.holder && controller.airport && controller.position) {
+        // Generate standard ICAO call sign format
+        switch (controller.position.toUpperCase()) {
+          case 'GND':
+          case 'GROUND':
+            callSign = `${controller.airport}_GND`;
+            break;
+          case 'TWR':
+          case 'TOWER':
+            callSign = `${controller.airport}_TWR`;
+            break;
+          case 'CTR':
+          case 'CONTROL':
+          case 'CENTER':
+            callSign = `${controller.airport}_CTR`;
+            break;
+          default:
+            callSign = `${controller.airport}_${controller.position}`;
+            break;
+        }
+      }
+
+      return {
+        ...controller,
+        callSign,
+        isActive: !!controller.holder,
+        lastUpdated: lastControllersUpdate
+      };
+    });
+
+    res.json({
+      controllers: enhancedControllers,
+      totalPositions: controllers.length,
+      activePositions: controllers.filter(c => c.holder).length,
+      availablePositions: controllers.filter(c => c.claimable && !c.holder).length,
+      lastUpdated: lastControllersUpdate
+    });
+  } catch (error) {
+    logWithTimestamp('error', 'Error in controllers endpoint', { error: error.message });
+    res.status(500).json({
+      error: 'Failed to fetch controllers data',
+      controllers: [],
+      totalPositions: 0,
+      activePositions: 0,
+      availablePositions: 0,
+      lastUpdated: null
+    });
+  }
 });
 
 // REST: Get all flight plans with serverless-aware fallback
