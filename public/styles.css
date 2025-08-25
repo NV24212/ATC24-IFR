@@ -763,3 +763,148 @@ input[type="text"]::placeholder {
   background: rgba(255, 107, 107, 0.1);
   color: #ff6b6b;
 }
+
+/* Discord Authentication Styles */
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.auth-section {
+  display: flex;
+  align-items: center;
+  min-height: 60px;
+}
+
+.auth-loading {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-style: italic;
+}
+
+.discord-login-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #5865F2;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: none;
+  letter-spacing: normal;
+  box-shadow: 0 4px 12px rgba(88, 101, 242, 0.3);
+}
+
+.discord-login-btn:hover {
+  background: #4752C4;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(88, 101, 242, 0.4);
+}
+
+.discord-login-btn:active {
+  transform: translateY(0);
+}
+
+.discord-login-btn svg {
+  flex-shrink: 0;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 8px 16px;
+  transition: all 0.3s ease;
+}
+
+.user-info:hover {
+  background: var(--surface-hover);
+  border-color: var(--primary-color);
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--primary-color);
+  object-fit: cover;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.user-name {
+  color: var(--text-color);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.user-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.logout-btn, .admin-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+  background: rgba(255, 107, 107, 0.1);
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+}
+
+.admin-btn:hover {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #000;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .header-top {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .auth-section {
+    min-height: auto;
+  }
+
+  .user-info {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .user-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .discord-login-btn {
+    font-size: 13px;
+    padding: 10px 16px;
+  }
+}
