@@ -317,7 +317,9 @@ async function trackPageVisit(req, pagePath) {
       user_agent: req.headers['user-agent'] || 'Unknown',
       referrer: req.headers.referer || null,
       session_id: session.id,
-      is_first_visit: isFirstVisit
+      is_first_visit: isFirstVisit,
+      user_id: req.session?.user?.id || null,
+      discord_username: req.session?.user?.username || null
     };
 
     // Track in local analytics for fallback (always do this first)
