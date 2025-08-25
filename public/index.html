@@ -837,8 +837,172 @@
     }, 8000);
   }
 
+  // Discord Authentication Functions
+  let currentUser = null;
+
+  async function checkAuthStatus() {
+    try {
+      const response = await fetch('/api/auth/user', {
+        headers: {
+          'X-Session-ID': getSessionId()
+        }
+      });
+
+      if (response.ok) {
+        const authData = await response.json();
+        if (authData.authenticated) {
+          currentUser = authData.user;
+          showLoggedInState(authData.user);
+        } else {
+          currentUser = null;
+          showLoggedOutState();
+        }
+      } else {
+        currentUser = null;
+        showLoggedOutState();
+      }
+    } catch (error) {
+      console.error('Failed to check auth status:', error);
+      currentUser = null;
+      showLoggedOutState();
+    }
+  }
+
+  function showLoggedInState(user) {
+    document.getElementById('authLoading').style.display = 'none';
+    document.getElementById('authLoggedOut').style.display = 'none';
+    document.getElementById('authLoggedIn').style.display = 'block';
+
+    // Update user info
+    document.getElementById('userName').textContent = user.username;
+
+    const avatarImg = document.getElementById('userAvatar');
+    if (user.avatar) {
+      avatarImg.src = user.avatar;
+      avatarImg.style.display = 'block';
+    } else {
+      avatarImg.style.display = 'none';
+    }
+
+    // Show admin button if user is admin
+    const adminBtn = document.getElementById('adminBtn');
+    if (user.is_admin) {
+      adminBtn.style.display = 'inline-block';
+    } else {
+      adminBtn.style.display = 'none';
+    }
+  }
+
+  function showLoggedOutState() {
+    document.getElementById('authLoading').style.display = 'none';
+    document.getElementById('authLoggedIn').style.display = 'none';
+    document.getElementById('authLoggedOut').style.display = 'block';
+  }
+
+  function loginWithDiscord() {
+    window.location.href = '/auth/discord';
+  }
+
+  async function logout() {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-ID': getSessionId()
+        }
+      });
+
+      if (response.ok) {
+        currentUser = null;
+        showLoggedOutState();
+        console.log('Logged out successfully');
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Still show logged out state on error
+      currentUser = null;
+      showLoggedOutState();
+    }
+  }
+
+  // Check for auth success/error in URL params
+  function checkAuthParams() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const authResult = urlParams.get('auth');
+    const authError = urlParams.get('error');
+
+    if (authResult === 'success') {
+      console.log('Discord authentication successful');
+      // Remove the param from URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      // Check auth status to update UI
+      setTimeout(checkAuthStatus, 500);
+    } else if (authError) {
+      console.error('Discord authentication error:', authError);
+      showAuthError(authError);
+      // Remove the param from URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
+
+  function showAuthError(error) {
+    let errorMessage = 'Authentication failed';
+    switch (error) {
+      case 'oauth_cancelled':
+        errorMessage = 'Discord login was cancelled';
+        break;
+      case 'missing_code':
+        errorMessage = 'Authentication code missing';
+        break;
+      case 'invalid_state':
+        errorMessage = 'Invalid authentication state';
+        break;
+      case 'auth_failed':
+        errorMessage = 'Authentication failed - please try again';
+        break;
+    }
+
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 0, 0, 0.1);
+      border: 1px solid rgba(255, 0, 0, 0.3);
+      border-radius: 8px;
+      padding: 15px 20px;
+      max-width: 300px;
+      font-size: 14px;
+      color: #ff6b6b;
+      z-index: 1000;
+      backdrop-filter: blur(10px);
+    `;
+    notification.innerHTML = `
+      <strong>❌ Authentication Error</strong><br>
+      <span style="color: var(--text-muted); font-size: 12px;">
+        ${errorMessage}
+      </span>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remove after 8 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 8000);
+  }
+
   // Initial load of flight plans when the page loads
   document.addEventListener('DOMContentLoaded', () => {
+    // Check auth params first
+    checkAuthParams();
+
+    // Check authentication status
+    checkAuthStatus();
+
     // Load user settings first
     loadUserSettings();
 
