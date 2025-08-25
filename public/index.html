@@ -38,9 +38,7 @@
         </div>
         <div class="controllers-status" id="controllersStatus">
           <span class="status-text">Loading controllers...</span>
-          <button class="refresh-controllers-btn" onclick="loadControllers()" title="Refresh Controllers">
-            🔄
-          </button>
+          <button class="refresh-btn" onclick="loadControllers()">Refresh Controllers</button>
         </div>
       </div>
 
@@ -513,9 +511,7 @@
         <span class="status-text" style="color: #ff6b6b;">
           ❌ Error: ${data.error}
         </span>
-        <button class="refresh-controllers-btn" onclick="loadControllers()" title="Refresh Controllers">
-          🔄
-        </button>
+        <button class="refresh-btn" onclick="loadControllers()">Refresh Controllers</button>
       `;
     } else {
       controllersStatus.innerHTML = `
@@ -523,9 +519,7 @@
           📡 ${data.activePositions} active • ${data.availablePositions} available • ${data.totalPositions} total
           ${data.lastUpdated ? `• Updated: ${new Date(data.lastUpdated).toLocaleTimeString()}` : ''}
         </span>
-        <button class="refresh-controllers-btn" onclick="loadControllers()" title="Refresh Controllers">
-          🔄
-        </button>
+        <button class="refresh-btn" onclick="loadControllers()">Refresh Controllers</button>
       `;
     }
   }
