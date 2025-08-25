@@ -578,33 +578,37 @@ async function createOrUpdateUser(discordUser, tokenData) {
     throw new Error('Supabase not configured');
   }
 
-  const userData = {
-    discord_id: discordUser.id,
-    username: discordUser.username,
-    discriminator: discordUser.discriminator,
-    email: discordUser.email,
-    avatar: discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : null,
-    access_token: tokenData.access_token,
-    refresh_token: tokenData.refresh_token,
-    token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-  };
+  const avatar = discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : null;
 
-  const { data, error } = await supabase.rpc('upsert_discord_user', {
-    p_discord_id: userData.discord_id,
-    p_username: userData.username,
-    p_discriminator: userData.discriminator,
-    p_email: userData.email,
-    p_avatar: userData.avatar,
-    p_access_token: userData.access_token,
-    p_refresh_token: userData.refresh_token,
-    p_token_expires_at: userData.token_expires_at
+  // First try to update from Discord login (this will handle pending admin users)
+  const { data: updateData, error: updateError } = await supabase.rpc('update_user_from_discord_login', {
+    p_discord_id: discordUser.id,
+    p_username: discordUser.username,
+    p_email: discordUser.email,
+    p_avatar: avatar
   });
 
-  if (error) {
-    throw new Error(`Database user creation failed: ${error.message}`);
+  if (updateError) {
+    // Fallback to regular upsert
+    const { data, error } = await supabase.rpc('upsert_discord_user', {
+      p_discord_id: discordUser.id,
+      p_username: discordUser.username,
+      p_discriminator: discordUser.discriminator,
+      p_email: discordUser.email,
+      p_avatar: avatar,
+      p_access_token: tokenData.access_token,
+      p_refresh_token: tokenData.refresh_token,
+      p_token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+    });
+
+    if (error) {
+      throw new Error(`Database user creation failed: ${error.message}`);
+    }
+
+    return data[0];
   }
 
-  return data[0];
+  return updateData[0];
 }
 
 // Discord authentication middleware
