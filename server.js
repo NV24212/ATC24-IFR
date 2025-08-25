@@ -732,8 +732,28 @@ function initializeWebSocket() {
 // Initialize WebSocket connection
 initializeWebSocket();
 
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json());
+
+// Simple session middleware
+app.use((req, res, next) => {
+  // Try to get session ID from various sources
+  const sessionId = req.headers['x-session-id'] ||
+                   req.headers['authorization']?.replace('Bearer ', '') ||
+                   req.query.sessionId;
+
+  if (sessionId && sessionStore.has(sessionId)) {
+    req.session = sessionStore.get(sessionId);
+    // Update last activity
+    req.session.lastActivity = new Date();
+    sessionStore.set(sessionId, req.session);
+  }
+
+  next();
+});
 
 // Serve the frontend HTML with tracking BEFORE static middleware
 app.get("/", trackVisit, (req, res) => {
