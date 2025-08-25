@@ -12,17 +12,28 @@
       justify-content: center;
       min-height: 100vh;
       background: var(--background-color);
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+
+    .admin-login.fade-out {
+      opacity: 0;
+      visibility: hidden;
+      display: none;
     }
 
     .admin-container {
-      display: none;
+      display: block;
+      opacity: 0;
+      visibility: hidden;
       max-width: 1600px;
       margin: 0 auto;
       padding: 20px;
+      transition: opacity 0.5s ease 0.5s, visibility 0.5s ease 0.5s;
     }
 
     .admin-container.authenticated {
-      display: block;
+      opacity: 1;
+      visibility: visible;
     }
 
     .login-box {
@@ -916,7 +927,7 @@
     <button class="logout-btn" onclick="logout()">Logout</button>
 
     <div class="admin-header">
-      <img src="https://cdn.discordapp.com/attachments/1368223638112698474/1409661544534642719/IMG_1145.png?ex=68ae311e&is=68acdf9e&hm=3368afde2d7bfb050dbe9375189692741011c098e1556a069f778648b70c0267" alt="Logo" class="header-logo" style="width: 100px; height: auto; margin-bottom: 10px;">
+      <img src="https://cdn.discordapp.com/attachments/1368223638112698474/1409661544534642719/IMG_1145.png?ex=68ae311e&is=68acdf9e&hm=3368afde2d7bfb050dbe9375189692741011c098e1556a069f778648b70c0267" alt="Logo" class="header-logo" style="width: 150px; height: auto; margin-bottom: 10px;">
       <h1>ATC24 Control Panel</h1>
     </div>
 
@@ -1468,7 +1479,7 @@
     }
 
     function showAdminPanel() {
-      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('loginScreen').classList.add('fade-out');
       document.getElementById('adminPanel').classList.add('authenticated');
       showNotification('success', 'Access Granted', `Welcome ${currentUser.username}! Admin access confirmed.`);
       loadAdminData();
