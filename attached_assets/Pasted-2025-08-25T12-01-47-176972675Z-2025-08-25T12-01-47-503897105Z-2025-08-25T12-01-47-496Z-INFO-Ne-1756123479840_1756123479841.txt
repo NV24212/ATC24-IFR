@@ -1,0 +1,50 @@
+2025-08-25T12:01:47.176972675Z }
+2025-08-25T12:01:47.503897105Z [2025-08-25T12:01:47.496Z] INFO: New session created {
+2025-08-25T12:01:47.503917285Z   sessionId: '0cb1ffd7',
+2025-08-25T12:01:47.503920725Z   totalSessions: 11,
+2025-08-25T12:01:47.503923325Z   authenticated: false,
+2025-08-25T12:01:47.503925695Z   username: 'anonymous',
+2025-08-25T12:01:47.503928115Z   ip: '::1'
+2025-08-25T12:01:47.503930575Z }
+2025-08-25T12:01:47.503933065Z [2025-08-25T12:01:47.497Z] INFO: Page visit tracked {
+2025-08-25T12:01:47.503935926Z   path: '/',
+2025-08-25T12:01:47.503938066Z   sessionId: '0cb1ffd7',
+2025-08-25T12:01:47.503940266Z   isFirstVisit: true,
+2025-08-25T12:01:47.503942526Z   totalVisits: 7,
+2025-08-25T12:01:47.503945226Z   todayVisits: 7,
+2025-08-25T12:01:47.503947596Z   ip: '193.188.123.48'
+2025-08-25T12:01:47.503949976Z }
+2025-08-25T12:01:48.020056806Z [2025-08-25T12:01:48.019Z] ERROR: Failed to track page visit in Supabase {
+2025-08-25T12:01:48.020079356Z   error: 'Session upsert failed: new row violates row-level security policy for table "user_sessions"',
+2025-08-25T12:01:48.020096957Z   sessionId: '0cb1ffd7',
+2025-08-25T12:01:48.020099697Z   path: '/'
+2025-08-25T12:01:48.020101927Z }
+2025-08-25T12:02:56.955960661Z [2025-08-25T12:02:56.955Z] INFO: New session created {
+2025-08-25T12:02:56.955980471Z   sessionId: '63c95561',
+2025-08-25T12:02:56.955984471Z   totalSessions: 12,
+2025-08-25T12:02:56.955998321Z   authenticated: false,
+2025-08-25T12:02:56.956002081Z   username: 'anonymous',
+2025-08-25T12:02:56.956005501Z   ip: '::1'
+2025-08-25T12:02:56.956009032Z }
+2025-08-25T12:02:56.956097053Z [2025-08-25T12:02:56.955Z] INFO: Clearance generation tracked {
+2025-08-25T12:02:56.956110454Z   sessionId: '63c95561',
+2025-08-25T12:02:56.956115514Z   callsign: 'Lufthansa-5196',
+2025-08-25T12:02:56.956118984Z   totalClearances: 1,
+2025-08-25T12:02:56.956122424Z   sessionClearances: 1
+2025-08-25T12:02:56.956126094Z }
+2025-08-25T12:02:58.501308773Z [2025-08-25T12:02:58.501Z] ERROR: Failed to track clearance generation in Supabase {
+2025-08-25T12:02:58.501343094Z   error: 'Session upsert failed: new row violates row-level security policy for table "user_sessions"',
+2025-08-25T12:02:58.501349944Z   sessionId: '63c95561',
+2025-08-25T12:02:58.501356504Z   callsign: 'Lufthansa-5196'
+2025-08-25T12:02:58.501362625Z }
+2025-08-25T12:04:13.88145887Z [2025-08-25T12:04:13.880Z] INFO: Clearance generation tracked {
+2025-08-25T12:04:13.881496951Z   sessionId: '63c95561',
+2025-08-25T12:04:13.881502731Z   callsign: 'Lufthansa-5196',
+2025-08-25T12:04:13.881507181Z   totalClearances: 2,
+2025-08-25T12:04:13.881510071Z   sessionClearances: 2
+2025-08-25T12:04:13.881512971Z }
+2025-08-25T12:04:15.194246081Z [2025-08-25T12:04:15.193Z] ERROR: Failed to track clearance generation in Supabase {
+2025-08-25T12:04:15.194345353Z   error: 'Session upsert failed: new row violates row-level security policy for table "user_sessions"',
+2025-08-25T12:04:15.194355613Z   sessionId: '63c95561',
+2025-08-25T12:04:15.194360423Z   callsign: 'Lufthansa-5196'
+2025-08-25T12:04:15.194364443Z }
