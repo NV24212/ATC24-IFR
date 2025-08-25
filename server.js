@@ -197,6 +197,40 @@ let adminSettings = {
   }
 };
 
+async function initializeAdminSettings() {
+  if (!supabase) return;
+  try {
+    const { data, error } = await supabase
+      .from('admin_settings')
+      .select('settings')
+      .eq('id', 1)
+      .single();
+
+    if (error) {
+      logWithTimestamp('warn', 'Could not load admin settings from database.', { message: error.message });
+      logWithTimestamp('info', 'Using default in-memory settings. They will be saved on first edit.');
+      return;
+    }
+
+    if (data && data.settings) {
+      const dbSettings = data.settings;
+      Object.keys(dbSettings).forEach(key => {
+          if(adminSettings.hasOwnProperty(key) && typeof adminSettings[key] === 'object' && adminSettings[key] !== null && !Array.isArray(adminSettings[key])) {
+              adminSettings[key] = { ...adminSettings[key], ...dbSettings[key] };
+          } else {
+              adminSettings[key] = dbSettings[key];
+          }
+      });
+      logWithTimestamp('info', '⚙️ Admin settings loaded from Supabase.');
+    }
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to initialize admin settings', { error: error.message });
+  }
+}
+
+// Call initialization
+initializeAdminSettings();
+
 // Session tracking with serverless cleanup
 const sessions = new Map();
 
@@ -1386,17 +1420,46 @@ app.get("/api/admin/settings", (req, res) => {
   res.json(adminSettings);
 });
 
-app.post("/api/admin/settings", (req, res) => {
+app.post("/api/admin/settings", async (req, res) => {
   try {
     // Check if user is authenticated and is admin
     if (!req.session?.user || !req.session.user.is_admin) {
       return res.status(401).json({ error: 'Admin access required' });
     }
 
-    adminSettings = { ...adminSettings, ...req.body.settings };
+    const newSettings = req.body.settings;
+    if (!newSettings) {
+        return res.status(400).json({ error: 'Invalid settings format' });
+    }
+
+    // Update in-memory settings (deep merge)
+    Object.keys(newSettings).forEach(key => {
+        if(adminSettings.hasOwnProperty(key) && typeof adminSettings[key] === 'object' && adminSettings[key] !== null && !Array.isArray(adminSettings[key])) {
+            adminSettings[key] = { ...adminSettings[key], ...newSettings[key] };
+        } else {
+            adminSettings[key] = newSettings[key];
+        }
+    });
+
+    // Persist to Supabase
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .update({ settings: adminSettings, updated_at: new Date().toISOString() })
+        .eq('id', 1);
+
+      if (error) {
+        logWithTimestamp('error', 'Failed to save admin settings to Supabase', { error: error.message });
+        // Don't fail the request, but notify the user
+        return res.status(500).json({ success: false, error: 'Failed to save settings to database.' });
+      }
+    }
+
+    logWithTimestamp('info', 'Admin settings updated', { adminUser: req.session.user.username });
     res.json({ success: true, settings: adminSettings });
   } catch (error) {
-    res.status(400).json({ error: 'Invalid settings format' });
+    logWithTimestamp('error', 'Error saving settings', { error: error.message });
+    res.status(500).json({ error: 'An unexpected error occurred while saving settings.' });
   }
 });
 
