@@ -863,7 +863,7 @@
       isServerless = healthData.environment === 'serverless';
 
       // Initial load
-      await loadFlightPlans();
+      await Promise.all([loadFlightPlans(), loadControllers()]);
 
       // Set up polling for serverless or if WebSocket is unavailable
       if (isServerless || !healthData.wsConnected) {
