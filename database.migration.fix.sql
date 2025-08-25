@@ -167,7 +167,10 @@ CREATE OR REPLACE FUNCTION upsert_user_session(
     p_ip_address TEXT DEFAULT NULL,
     p_page_views INTEGER DEFAULT NULL,
     p_clearances_generated INTEGER DEFAULT NULL
-) RETURNS VOID AS $$
+) RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
 BEGIN
     INSERT INTO user_sessions (
         session_id,
