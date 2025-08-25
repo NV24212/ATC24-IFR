@@ -451,16 +451,28 @@ input[type="text"]::placeholder {
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 20px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  position: relative;
+  will-change: transform;
 }
 
-.refresh-btn:hover {
+.refresh-btn:hover:not(:disabled) {
   background: var(--primary-color);
   color: #000;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(245, 222, 64, 0.3);
+  transform: translateY(-1px);
+}
+
+.refresh-btn:active:not(:disabled) {
+  transform: translateY(0);
+  transition: transform 0.1s ease;
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 ::-webkit-scrollbar {
