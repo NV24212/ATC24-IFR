@@ -1668,10 +1668,9 @@ app.get("/api/admin/tables/:tableName", async (req, res) => {
 
 // Current users endpoint - get active sessions
 app.get("/api/admin/current-users", async (req, res) => {
-  const { password } = req.query;
-  const adminPassword = temporaryAdminPassword || process.env.ADMIN_PASSWORD || 'bruhdang';
-  if (password !== adminPassword) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  // Check if user is authenticated and is admin
+  if (!req.session?.user || !req.session.user.is_admin) {
+    return res.status(401).json({ error: 'Admin access required' });
   }
 
   try {
