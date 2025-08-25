@@ -1,5 +1,5 @@
 -- =============================================================================
--- ATC24 Complete Database Setup with Missing Functions
+-- ATC24 Complete Database Setup with Missing Functions - FIXED
 -- Run this in your Supabase SQL Editor to fix all authentication issues
 -- =============================================================================
 
@@ -200,7 +200,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =============================================================================
--- FUNCTION: upsert_discord_user
+-- FUNCTION: upsert_discord_user (FIXED to avoid ambiguous columns)
 -- Creates or updates Discord user data with admin check
 -- =============================================================================
 CREATE OR REPLACE FUNCTION upsert_discord_user(
@@ -221,65 +221,56 @@ CREATE OR REPLACE FUNCTION upsert_discord_user(
     is_admin BOOLEAN,
     roles JSONB
 ) AS $$
+DECLARE
+    v_user_id UUID;
 BEGIN
-    INSERT INTO discord_users (
-        discord_id,
-        username,
-        discriminator,
-        email,
-        avatar,
-        access_token,
-        refresh_token,
-        token_expires_at,
-        is_admin,
-        roles,
-        last_login,
-        updated_at
-    ) VALUES (
-        p_discord_id,
-        p_username,
-        p_discriminator,
-        p_email,
-        p_avatar,
-        p_access_token,
-        p_refresh_token,
-        p_token_expires_at,
-        CASE WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN TRUE ELSE FALSE END,
-        CASE WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN '["admin", "super_admin"]'::JSONB ELSE '[]'::JSONB END,
-        NOW(),
-        NOW()
-    )
-    ON CONFLICT (discord_id) DO UPDATE SET
-        username = EXCLUDED.username,
-        discriminator = EXCLUDED.discriminator,
-        email = EXCLUDED.email,
-        avatar = EXCLUDED.avatar,
-        access_token = EXCLUDED.access_token,
-        refresh_token = EXCLUDED.refresh_token,
-        token_expires_at = EXCLUDED.token_expires_at,
-        is_admin = CASE 
-            WHEN EXCLUDED.discord_id = '1200035083550208042' OR EXCLUDED.username = 'h.a.s2' THEN TRUE 
-            ELSE discord_users.is_admin 
-        END,
-        roles = CASE 
-            WHEN EXCLUDED.discord_id = '1200035083550208042' OR EXCLUDED.username = 'h.a.s2' THEN '["admin", "super_admin"]'::JSONB 
-            ELSE discord_users.roles 
-        END,
-        last_login = NOW(),
-        updated_at = NOW()
-    RETURNING 
-        discord_users.id,
-        discord_users.discord_id,
-        discord_users.username,
-        discord_users.email,
-        discord_users.avatar,
-        discord_users.is_admin,
-        discord_users.roles;
+    -- Check if user exists
+    SELECT discord_users.id INTO v_user_id FROM discord_users WHERE discord_users.discord_id = p_discord_id;
+
+    IF FOUND THEN
+        -- Update existing user
+        UPDATE discord_users
+        SET
+            username = p_username,
+            discriminator = p_discriminator,
+            email = p_email,
+            avatar = p_avatar,
+            access_token = p_access_token,
+            refresh_token = p_refresh_token,
+            token_expires_at = p_token_expires_at,
+            is_admin = CASE
+                WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN TRUE
+                ELSE discord_users.is_admin -- Preserve existing value
+            END,
+            roles = CASE
+                WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN '["admin", "super_admin"]'::JSONB
+                ELSE discord_users.roles -- Preserve existing value
+            END,
+            last_login = NOW(),
+            updated_at = NOW()
+        WHERE discord_users.discord_id = p_discord_id;
+    ELSE
+        -- Insert new user
+        INSERT INTO discord_users (
+            discord_id, username, discriminator, email, avatar, access_token, refresh_token, token_expires_at, is_admin, roles, last_login, created_at, updated_at
+        ) VALUES (
+            p_discord_id, p_username, p_discriminator, p_email, p_avatar, p_access_token, p_refresh_token, p_token_expires_at,
+            CASE WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN TRUE ELSE FALSE END,
+            CASE WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN '["admin", "super_admin"]'::JSONB ELSE '[]'::JSONB END,
+            NOW(), NOW(), NOW()
+        );
+    END IF;
+
+    -- Return the user's data
+    RETURN QUERY
+    SELECT du.id, du.discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles
+    FROM discord_users du WHERE du.discord_id = p_discord_id;
 END;
 $$ LANGUAGE plpgsql;
 
+
 -- =============================================================================
--- FUNCTION: update_user_from_discord_login
+-- FUNCTION: update_user_from_discord_login (FIXED to avoid ambiguous columns)
 -- Updates existing user from Discord login (handles pending admin users)
 -- =============================================================================
 CREATE OR REPLACE FUNCTION update_user_from_discord_login(
@@ -297,87 +288,58 @@ CREATE OR REPLACE FUNCTION update_user_from_discord_login(
     roles JSONB
 ) AS $$
 DECLARE
-    existing_admin_user RECORD;
-    user_result RECORD;
+    v_pending_user_id UUID;
+    v_existing_user_id UUID;
 BEGIN
-    -- First check if there's an existing admin user with this username (pending admin)
-    SELECT * INTO existing_admin_user 
-    FROM discord_users 
-    WHERE username = p_username AND is_admin = TRUE
+    -- Check for a pending admin user created by username
+    SELECT discord_users.id INTO v_pending_user_id
+    FROM discord_users
+    WHERE discord_users.discord_id LIKE 'pending_%' AND discord_users.username = p_username AND discord_users.is_admin = TRUE
     LIMIT 1;
 
-    IF existing_admin_user.id IS NOT NULL THEN
-        -- Update the existing admin user with real Discord ID and info
-        UPDATE discord_users SET
+    IF FOUND THEN
+        -- Pending admin found, update their record with the real discord_id and info
+        UPDATE discord_users
+        SET
             discord_id = p_discord_id,
-            username = p_username,
             email = p_email,
             avatar = p_avatar,
             last_login = NOW(),
             updated_at = NOW()
-        WHERE id = existing_admin_user.id
-        RETURNING 
-            discord_users.id,
-            discord_users.discord_id,
-            discord_users.username,
-            discord_users.email,
-            discord_users.avatar,
-            discord_users.is_admin,
-            discord_users.roles
-        INTO user_result;
-
-        RETURN QUERY SELECT 
-            user_result.id,
-            user_result.discord_id,
-            user_result.username,
-            user_result.email,
-            user_result.avatar,
-            user_result.is_admin,
-            user_result.roles;
+        WHERE id = v_pending_user_id;
     ELSE
-        -- Create new user or update existing by discord_id
-        INSERT INTO discord_users (
-            discord_id,
-            username,
-            email,
-            avatar,
-            is_admin,
-            roles,
-            last_login,
-            updated_at
-        ) VALUES (
-            p_discord_id,
-            p_username,
-            p_email,
-            p_avatar,
-            CASE WHEN p_username = 'h.a.s2' THEN TRUE ELSE FALSE END,
-            CASE WHEN p_username = 'h.a.s2' THEN '["admin", "super_admin"]'::JSONB ELSE '[]'::JSONB END,
-            NOW(),
-            NOW()
-        )
-        ON CONFLICT (discord_id) DO UPDATE SET
-            username = EXCLUDED.username,
-            email = EXCLUDED.email,
-            avatar = EXCLUDED.avatar,
-            is_admin = CASE 
-                WHEN EXCLUDED.username = 'h.a.s2' THEN TRUE 
-                ELSE discord_users.is_admin 
-            END,
-            roles = CASE 
-                WHEN EXCLUDED.username = 'h.a.s2' THEN '["admin", "super_admin"]'::JSONB 
-                ELSE discord_users.roles 
-            END,
-            last_login = NOW(),
-            updated_at = NOW()
-        RETURNING 
-            discord_users.id,
-            discord_users.discord_id,
-            discord_users.username,
-            discord_users.email,
-            discord_users.avatar,
-            discord_users.is_admin,
-            discord_users.roles;
+        -- No pending user, so check for a regular existing user by discord_id
+        SELECT discord_users.id INTO v_existing_user_id FROM discord_users WHERE discord_users.discord_id = p_discord_id;
+
+        IF FOUND THEN
+            -- User exists, update them
+            UPDATE discord_users
+            SET
+                username = p_username,
+                email = p_email,
+                avatar = p_avatar,
+                -- We preserve the is_admin and roles fields, as promotion is handled by add_admin_user_by_username
+                last_login = NOW(),
+                updated_at = NOW()
+            WHERE id = v_existing_user_id;
+        ELSE
+            -- User does not exist, create a new one
+            INSERT INTO discord_users (
+                discord_id, username, email, avatar, is_admin, roles, last_login, created_at, updated_at
+            ) VALUES (
+                p_discord_id, p_username, p_email, p_avatar,
+                -- New users are not admin unless they match the hardcoded values
+                CASE WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN TRUE ELSE FALSE END,
+                CASE WHEN p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2' THEN '["admin", "super_admin"]'::JSONB ELSE '[]'::JSONB END,
+                NOW(), NOW(), NOW()
+            );
+        END IF;
     END IF;
+
+    -- Return the final state of the user
+    RETURN QUERY
+    SELECT du.id, du.discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles
+    FROM discord_users du WHERE du.discord_id = p_discord_id;
 END;
 $$ LANGUAGE plpgsql;
 
