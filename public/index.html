@@ -679,21 +679,31 @@
         initial_altitude: parseInt(document.getElementById("ifl").value),
         atc_station: document.getElementById("groundCallsign").value,
         atis_info: document.getElementById("atisInfo").value,
-        clearance_text: document.getElementById("clearanceOutput").textContent
+        clearance_text: document.getElementById("clearanceOutput").textContent,
+        user_id: currentUser?.id || null,
+        discord_username: currentUser?.username || null
       };
 
       console.log('Tracking clearance generation:', {
         callsign: clearanceData.callsign,
         destination: clearanceData.destination,
-        sessionId: getSessionId().slice(0, 8) + '...'
+        sessionId: getSessionId().slice(0, 8) + '...',
+        user: currentUser?.username || 'anonymous'
       });
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-Session-ID': getSessionId()
+      };
+
+      // Add authorization header if user is authenticated
+      if (currentUser) {
+        headers['Authorization'] = `Bearer ${getSessionId()}`;
+      }
 
       const response = await fetch('/api/clearance-generated', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-session-id': getSessionId()
-        },
+        headers: headers,
         body: JSON.stringify(clearanceData)
       });
 
@@ -708,6 +718,11 @@
         throw new Error(result.error || 'Server reported failure');
       }
 
+      // Show success notification for authenticated users
+      if (currentUser) {
+        showNotification('Clearance generated and saved to your profile!', 'success');
+      }
+
     } catch (error) {
       console.error('Failed to track clearance generation:', error);
       console.error('Error details:', {
@@ -719,6 +734,28 @@
         }
       });
     }
+  }
+
+  // Show notification function
+  function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+
+    document.body.appendChild(notification);
+
+    // Trigger animation
+    setTimeout(() => notification.classList.add('show'), 100);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      notification.classList.remove('show');
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 400);
+    }, 5000);
   }
 
   // Load admin settings for the frontend
