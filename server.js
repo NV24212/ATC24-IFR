@@ -1291,21 +1291,24 @@ app.get("/api/admin/analytics", async (req, res) => {
 
 app.get("/api/admin/settings", (req, res) => {
   const { password } = req.query;
-  const adminPassword = process.env.ADMIN_PASSWORD || 'bruhdang';
-  if (password !== adminPassword) {
-    // Allow guest access to basic settings for the main app
-    if (password === 'guest') {
-      const guestSettings = {
-        clearanceFormat: adminSettings.clearanceFormat,
-        aviation: {
-          defaultAltitudes: adminSettings.aviation.defaultAltitudes,
-          squawkRanges: adminSettings.aviation.squawkRanges
-        }
-      };
-      return res.json(guestSettings);
-    }
-    return res.status(401).json({ error: 'Unauthorized' });
+
+  // Allow guest access to basic settings for the main app
+  if (password === 'guest') {
+    const guestSettings = {
+      clearanceFormat: adminSettings.clearanceFormat,
+      aviation: {
+        defaultAltitudes: adminSettings.aviation.defaultAltitudes,
+        squawkRanges: adminSettings.aviation.squawkRanges
+      }
+    };
+    return res.json(guestSettings);
   }
+
+  // Check if user is authenticated and is admin
+  if (!req.session?.user || !req.session.user.is_admin) {
+    return res.status(401).json({ error: 'Admin access required' });
+  }
+
   res.json(adminSettings);
 });
 
