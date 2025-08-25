@@ -614,9 +614,9 @@
     const planRoute = selectedFlightPlan.route || '';
     const flightLevel = selectedFlightPlan.flightlevel || 'N/A';
 
-    // Validate inputs
-    if (!groundCallsign || groundCallsign === "GROUND") {
-      alert('Please enter an ATC Call Sign.');
+    // Validate inputs - more flexible validation for controller selection
+    if (!groundCallsign || groundCallsign.trim() === '') {
+      alert('Please select a controller or enter an ATC Call Sign.');
       return;
     }
 
