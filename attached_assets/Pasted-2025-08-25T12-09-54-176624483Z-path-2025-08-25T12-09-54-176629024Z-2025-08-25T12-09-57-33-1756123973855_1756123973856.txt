@@ -1,0 +1,150 @@
+2025-08-25T12:09:54.176624483Z   path: '/'
+2025-08-25T12:09:54.176629024Z }
+2025-08-25T12:09:57.330406925Z [2025-08-25T12:09:57.330Z] INFO: Discord OAuth initiated {
+2025-08-25T12:09:57.330429787Z   ip: '::1',
+2025-08-25T12:09:57.330434958Z   userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0'
+2025-08-25T12:09:57.330438608Z }
+2025-08-25T12:10:01.035848383Z [2025-08-25T12:10:01.035Z] INFO: Discord token exchange attempt {
+2025-08-25T12:10:01.035875516Z   redirect_uri: 'http://24ifr.hasmah.xyz/auth/discord/callback',
+2025-08-25T12:10:01.035880056Z   client_id: 'configured',
+2025-08-25T12:10:01.035884406Z   code_length: 30
+2025-08-25T12:10:01.035887996Z }
+2025-08-25T12:10:01.864825341Z [2025-08-25T12:10:01.864Z] ERROR: Database operation failed during Discord auth, using fallback {
+2025-08-25T12:10:01.864864054Z   error: 'Database user creation failed: Could not choose the best candidate function between: public.upsert_discord_user(p_discord_id => character varying, p_username => character varying, p_discriminator => character varying, p_email => character varying, p_avatar => character varying, p_access_token => text, p_refresh_token => text, p_token_expires_at => timestamp with time zone), public.upsert_discord_user(p_discord_id => text, p_username => text, p_discriminator => text, p_email => text, p_avatar => text, p_access_token => text, p_refresh_token => text, p_token_expires_at => timestamp with time zone)'
+2025-08-25T12:10:01.864874224Z }
+2025-08-25T12:10:01.864984033Z [2025-08-25T12:10:01.864Z] INFO: Discord OAuth session created {
+2025-08-25T12:10:01.864990773Z   sessionId: 'cca6ad7f',
+2025-08-25T12:10:01.864995294Z   userId: '532129726358355978',
+2025-08-25T12:10:01.864997994Z   username: 'yourlocalfembi',
+2025-08-25T12:10:01.865000634Z   isAdmin: false
+2025-08-25T12:10:01.865004305Z }
+2025-08-25T12:10:01.865144345Z [2025-08-25T12:10:01.864Z] INFO: Discord OAuth successful {
+2025-08-25T12:10:01.865152976Z   userId: '532129726358355978',
+2025-08-25T12:10:01.865156886Z   discordId: '532129726358355978',
+2025-08-25T12:10:01.865159096Z   username: 'yourlocalfembi',
+2025-08-25T12:10:01.865161286Z   ip: '::1'
+2025-08-25T12:10:01.865163437Z }
+2025-08-25T12:10:01.962296035Z [2025-08-25T12:10:01.962Z] INFO: New session created {
+2025-08-25T12:10:01.962324517Z   sessionId: '26d0bbf1',
+2025-08-25T12:10:01.962327277Z   totalSessions: 5,
+2025-08-25T12:10:01.962329268Z   authenticated: false,
+2025-08-25T12:10:01.962331508Z   username: 'anonymous',
+2025-08-25T12:10:01.962333318Z   ip: '::1'
+2025-08-25T12:10:01.962335018Z }
+2025-08-25T12:10:01.962467108Z [2025-08-25T12:10:01.962Z] INFO: Page visit tracked {
+2025-08-25T12:10:01.962474389Z   path: '/',
+2025-08-25T12:10:01.962477609Z   sessionId: '26d0bbf1',
+2025-08-25T12:10:01.962480929Z   isFirstVisit: true,
+2025-08-25T12:10:01.962483749Z   totalVisits: 4,
+2025-08-25T12:10:01.96248652Z   todayVisits: 4,
+2025-08-25T12:10:01.96248925Z   ip: '72.223.32.212'
+2025-08-25T12:10:01.96249212Z }
+2025-08-25T12:10:02.467825509Z [2025-08-25T12:10:02.467Z] ERROR: Failed to track page visit in Supabase {
+2025-08-25T12:10:02.467848631Z   error: 'Session upsert failed: new row violates row-level security policy for table "user_sessions"',
+2025-08-25T12:10:02.467852581Z   sessionId: '26d0bbf1',
+2025-08-25T12:10:02.467854882Z   path: '/'
+2025-08-25T12:10:02.467857022Z }
+2025-08-25T12:10:12.106323203Z [2025-08-25T12:10:12.105Z] INFO: Discord OAuth initiated {
+2025-08-25T12:10:12.106367026Z   ip: '::1',
+2025-08-25T12:10:12.106372186Z   userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'
+2025-08-25T12:10:12.106375216Z }
+2025-08-25T12:10:16.415268395Z [2025-08-25T12:10:16.415Z] INFO: Discord token exchange attempt {
+2025-08-25T12:10:16.415289097Z   redirect_uri: 'http://24ifr.hasmah.xyz/auth/discord/callback',
+2025-08-25T12:10:16.415293307Z   client_id: 'configured',
+2025-08-25T12:10:16.415296997Z   code_length: 30
+2025-08-25T12:10:16.415299768Z }
+2025-08-25T12:10:17.283895043Z [2025-08-25T12:10:17.283Z] ERROR: Database operation failed during Discord auth, using fallback {
+2025-08-25T12:10:17.283933555Z   error: 'Database user creation failed: Could not choose the best candidate function between: public.upsert_discord_user(p_discord_id => character varying, p_username => character varying, p_discriminator => character varying, p_email => character varying, p_avatar => character varying, p_access_token => text, p_refresh_token => text, p_token_expires_at => timestamp with time zone), public.upsert_discord_user(p_discord_id => text, p_username => text, p_discriminator => text, p_email => text, p_avatar => text, p_access_token => text, p_refresh_token => text, p_token_expires_at => timestamp with time zone)'
+2025-08-25T12:10:17.283938066Z }
+2025-08-25T12:10:17.284044794Z [2025-08-25T12:10:17.283Z] INFO: Discord OAuth session created {
+2025-08-25T12:10:17.284051774Z   sessionId: 'cff3626a',
+2025-08-25T12:10:17.284085887Z   userId: '1200035083550208042',
+2025-08-25T12:10:17.284089837Z   username: 'h.a.s2',
+2025-08-25T12:10:17.284093387Z   isAdmin: false
+2025-08-25T12:10:17.284111179Z }
+2025-08-25T12:10:17.284196745Z [2025-08-25T12:10:17.284Z] INFO: Discord OAuth successful {
+2025-08-25T12:10:17.284203186Z   userId: '1200035083550208042',
+2025-08-25T12:10:17.284206916Z   discordId: '1200035083550208042',
+2025-08-25T12:10:17.284209786Z   username: 'h.a.s2',
+2025-08-25T12:10:17.284212107Z   ip: '::1'
+2025-08-25T12:10:17.284214267Z }
+2025-08-25T12:10:17.594720987Z [2025-08-25T12:10:17.594Z] INFO: New session created {
+2025-08-25T12:10:17.594745759Z   sessionId: '2d63ae19',
+2025-08-25T12:10:17.59474953Z   totalSessions: 7,
+2025-08-25T12:10:17.5947524Z   authenticated: false,
+2025-08-25T12:10:17.5947552Z   username: 'anonymous',
+2025-08-25T12:10:17.59475814Z   ip: '::1'
+2025-08-25T12:10:17.59476084Z }
+2025-08-25T12:10:17.594857488Z [2025-08-25T12:10:17.594Z] INFO: Page visit tracked {
+2025-08-25T12:10:17.594863468Z   path: '/',
+2025-08-25T12:10:17.594866938Z   sessionId: '2d63ae19',
+2025-08-25T12:10:17.594869399Z   isFirstVisit: true,
+2025-08-25T12:10:17.594872319Z   totalVisits: 5,
+2025-08-25T12:10:17.594875259Z   todayVisits: 5,
+2025-08-25T12:10:17.594878109Z   ip: '193.188.123.48'
+2025-08-25T12:10:17.594881049Z }
+2025-08-25T12:10:18.063634298Z [2025-08-25T12:10:18.063Z] ERROR: Failed to track page visit in Supabase {
+2025-08-25T12:10:18.06365818Z   error: 'Session upsert failed: new row violates row-level security policy for table "user_sessions"',
+2025-08-25T12:10:18.06366214Z   sessionId: '2d63ae19',
+2025-08-25T12:10:18.06366481Z   path: '/'
+2025-08-25T12:10:18.06366769Z }
+2025-08-25T12:10:56.465955634Z [2025-08-25T12:10:56.464Z] INFO: New session created {
+2025-08-25T12:10:56.465976446Z   sessionId: '1cb51956',
+2025-08-25T12:10:56.465980826Z   totalSessions: 8,
+2025-08-25T12:10:56.465984566Z   authenticated: false,
+2025-08-25T12:10:56.465988707Z   username: 'anonymous',
+2025-08-25T12:10:56.465992847Z   ip: '::1'
+2025-08-25T12:10:56.465996757Z }
+2025-08-25T12:10:56.466014589Z [2025-08-25T12:10:56.465Z] INFO: Page visit tracked {
+2025-08-25T12:10:56.466019209Z   path: '/',
+2025-08-25T12:10:56.466023589Z   sessionId: '1cb51956',
+2025-08-25T12:10:56.466027479Z   isFirstVisit: true,
+2025-08-25T12:10:56.46603121Z   totalVisits: 6,
+2025-08-25T12:10:56.46603538Z   todayVisits: 6,
+2025-08-25T12:10:56.46603963Z   ip: '193.188.123.48'
+2025-08-25T12:10:56.466043491Z }
+2025-08-25T12:10:57.037529441Z [2025-08-25T12:10:57.036Z] ERROR: Failed to track page visit in Supabase {
+2025-08-25T12:10:57.037548102Z   error: 'Session upsert failed: new row violates row-level security policy for table "user_sessions"',
+2025-08-25T12:10:57.037552813Z   sessionId: '1cb51956',
+2025-08-25T12:10:57.037556623Z   path: '/'
+2025-08-25T12:10:57.037560293Z }
+2025-08-25T12:11:09.034415712Z [2025-08-25T12:11:09.034Z] INFO: New session created {
+2025-08-25T12:11:09.034442194Z   sessionId: '90a5bc79',
+2025-08-25T12:11:09.034447105Z   totalSessions: 9,
+2025-08-25T12:11:09.034449935Z   authenticated: false,
+2025-08-25T12:11:09.034453695Z   username: 'anonymous',
+2025-08-25T12:11:09.034458285Z   ip: '::1'
+2025-08-25T12:11:09.034462336Z }
+2025-08-25T12:11:09.034481237Z [2025-08-25T12:11:09.034Z] INFO: Page visit tracked {
+2025-08-25T12:11:09.034486248Z   path: '/',
+2025-08-25T12:11:09.034490688Z   sessionId: '90a5bc79',
+2025-08-25T12:11:09.034494648Z   isFirstVisit: true,
+2025-08-25T12:11:09.034498749Z   totalVisits: 7,
+2025-08-25T12:11:09.034502579Z   todayVisits: 7,
+2025-08-25T12:11:09.034506519Z   ip: '216.144.248.23'
+2025-08-25T12:11:09.034510469Z }
+2025-08-25T12:11:09.534664864Z [2025-08-25T12:11:09.533Z] ERROR: Failed to track page visit in Supabase {
+2025-08-25T12:11:09.534684755Z   error: 'Session upsert failed: new row violates row-level security policy for table "user_sessions"',
+2025-08-25T12:11:09.534689026Z   sessionId: '90a5bc79',
+2025-08-25T12:11:09.534691396Z   path: '/'
+2025-08-25T12:11:09.534693646Z }
+2025-08-25T12:11:57.004536198Z [2025-08-25T12:11:57.004Z] INFO: New session created {
+2025-08-25T12:11:57.00456414Z   sessionId: '9bf74563',
+2025-08-25T12:11:57.004568441Z   totalSessions: 10,
+2025-08-25T12:11:57.004572341Z   authenticated: false,
+2025-08-25T12:11:57.004586302Z   username: 'anonymous',
+2025-08-25T12:11:57.004590332Z   ip: '::1'
+2025-08-25T12:11:57.004594073Z }
+2025-08-25T12:11:57.006743006Z [2025-08-25T12:11:57.004Z] INFO: Page visit tracked {
+2025-08-25T12:11:57.006756597Z   path: '/',
+2025-08-25T12:11:57.006761218Z   sessionId: '9bf74563',
+2025-08-25T12:11:57.006765118Z   isFirstVisit: true,
+2025-08-25T12:11:57.006769088Z   totalVisits: 8,
+2025-08-25T12:11:57.006772769Z   todayVisits: 8,
+2025-08-25T12:11:57.006776549Z   ip: '193.188.123.48'
+2025-08-25T12:11:57.006780389Z }
+2025-08-25T12:11:57.627450709Z [2025-08-25T12:11:57.627Z] ERROR: Failed to track page visit in Supabase {
+2025-08-25T12:11:57.627486432Z   error: 'Session upsert failed: new row violates row-level security policy for table "user_sessions"',
+2025-08-25T12:11:57.627493002Z   sessionId: '9bf74563',
+2025-08-25T12:11:57.627496772Z   path: '/'
+2025-08-25T12:11:57.627500503Z }
