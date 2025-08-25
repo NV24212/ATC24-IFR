@@ -473,6 +473,7 @@ DROP FUNCTION IF EXISTS add_admin_user_by_username(TEXT);
 DROP FUNCTION IF EXISTS add_admin_user_by_username(TEXT, JSONB);
 DROP FUNCTION IF EXISTS remove_admin_user(UUID);
 DROP FUNCTION IF EXISTS get_analytics_summary();
+DROP FUNCTION IF EXISTS get_charts_data();
 
 -- =============================================================================
 -- FUNCTION: get_admin_users
@@ -628,6 +629,53 @@ BEGIN
         (SELECT COUNT(*) FROM user_sessions WHERE user_id IS NOT NULL) as authenticated_sessions,
         (SELECT COUNT(*) FROM page_visits WHERE created_at >= NOW() - INTERVAL '7 days') as last_7_days_visits,
         (SELECT COUNT(*) FROM page_visits WHERE created_at >= NOW() - INTERVAL '30 days') as last_30_days_visits;
+END;
+$$;
+
+-- =============================================================================
+-- FUNCTION: get_charts_data
+-- Gets aggregated data for analytics charts
+-- =============================================================================
+CREATE OR REPLACE FUNCTION get_charts_data()
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    visits_data JSON;
+    clearances_data JSON;
+BEGIN
+    -- Aggregate page visits for the last 30 days
+    SELECT json_agg(t)
+    INTO visits_data
+    FROM (
+        SELECT
+            DATE(created_at) as date,
+            COUNT(*) as count
+        FROM page_visits
+        WHERE created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC
+    ) t;
+
+    -- Aggregate clearance generations for the last 30 days
+    SELECT json_agg(t)
+    INTO clearances_data
+    FROM (
+        SELECT
+            DATE(created_at) as date,
+            COUNT(*) as count
+        FROM clearance_generations
+        WHERE created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC
+    ) t;
+
+    -- Return as a single JSON object
+    RETURN json_build_object(
+        'daily_visits', COALESCE(visits_data, '[]'::json),
+        'daily_clearances', COALESCE(clearances_data, '[]'::json)
+    );
 END;
 $$;
 

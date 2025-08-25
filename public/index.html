@@ -1003,23 +1003,26 @@
     }
 
     // If user is a controller, try to auto-select them in the dropdown
-    if (user.is_controller && user.vatsim_cid) {
+    if (user.is_controller) {
         const controllerSelect = document.getElementById('groundCallsignSelect');
-        // We need to wait for the options to be loaded
-        const observer = new MutationObserver((mutationsList, observer) => {
-            for(const mutation of mutationsList) {
-                if (mutation.type === 'childList') {
-                    const option = controllerSelect.querySelector(`option[value^="${user.vatsim_cid}"]`);
-                    if (option) {
-                        option.selected = true;
-                        onControllerSelect(); // Hide manual input if shown
-                        observer.disconnect(); // Stop observing once found
-                        break;
-                    }
-                }
+
+        // This function will attempt to select the user's callsign
+        const selectUserCallsign = () => {
+            // Match by username, as CID is not in the controller data from the API
+            const userOption = Array.from(controllerSelect.options).find(opt => opt.dataset.holder === user.username);
+
+            if (userOption) {
+                userOption.selected = true;
+                onControllerSelect(); // Update UI
+                console.log(`Auto-selected controller: ${userOption.value}`);
             }
-        });
-        observer.observe(controllerSelect, { childList: true });
+        };
+
+        // Listen for the custom event that signals controllers are loaded
+        controllerSelect.addEventListener('controllersLoaded', selectUserCallsign, { once: true });
+
+        // Also run it once in case the controllers were already loaded
+        selectUserCallsign();
     }
   }
 
@@ -1149,19 +1152,21 @@
 
       select.innerHTML = ''; // Clear loading option
 
-      if (controllers.length === 0) {
+      const onlineControllers = controllers.filter(c => c.holder && !c.claimable);
+
+      if (onlineControllers.length === 0) {
         select.innerHTML = '<option value="manual">No controllers online - Enter manually</option>';
       } else {
         // Add a "select" option and a "manual" option
         select.innerHTML = '<option value="">-- Select ATC --</option>';
-        controllers.forEach(controller => {
-          // Filter for Ground, Tower, or Approach controllers
-          if (controller.callsign.includes('_GND') || controller.callsign.includes('_TWR') || controller.callsign.includes('_APP')) {
-            const option = document.createElement('option');
-            option.value = controller.callsign;
-            option.textContent = `${controller.callsign} (${controller.name})`;
-            select.appendChild(option);
-          }
+        onlineControllers.forEach(controller => {
+          const callsign = `${controller.airport}_${controller.position}`;
+          const option = document.createElement('option');
+          option.value = callsign;
+          // Store holder's name in a data attribute for robust matching
+          option.dataset.holder = controller.holder;
+          option.textContent = `${callsign} (${controller.holder})`;
+          select.appendChild(option);
         });
         select.innerHTML += '<option value="manual">-- Enter Manually --</option>';
       }
@@ -1186,6 +1191,8 @@
       select.disabled = false;
       refreshBtn.disabled = false;
       onControllerSelect(); // Ensure manual input is shown if needed
+      // Trigger a custom event to signal that controllers are loaded
+      select.dispatchEvent(new Event('controllersLoaded'));
     }
   }
 
