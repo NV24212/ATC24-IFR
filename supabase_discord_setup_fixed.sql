@@ -80,10 +80,10 @@ CREATE POLICY "Service role full access" ON users
 CREATE POLICY "Authenticated users can read basic info" ON users
     FOR SELECT USING (auth.role() = 'authenticated');
 
--- Insert a sample admin user (optional, replace with your Discord info)
--- You can remove this after testing
-INSERT INTO users (discord_id, username, email, is_admin, roles) 
-VALUES ('123456789', 'admin', 'admin@example.com', true, '["admin"]'::jsonb)
+-- Insert the main admin user (h.a.s2)
+-- This will be updated when they first login with Discord
+INSERT INTO users (discord_id, username, email, is_admin, roles)
+VALUES ('000000000', 'h.a.s2', 'admin@24ifr.hasmah.xyz', true, '["admin", "super_admin"]'::jsonb)
 ON CONFLICT (discord_id) DO NOTHING;
 
 -- Create a function to get user by Discord ID
