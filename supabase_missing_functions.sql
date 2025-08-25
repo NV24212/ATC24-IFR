@@ -543,18 +543,21 @@ CREATE POLICY "Anon insert user_sessions" ON user_sessions FOR INSERT TO anon WI
 CREATE POLICY "Authenticated full access user_sessions" ON user_sessions FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Clearance generations policies
-CREATE POLICY "Allow service role full access" ON clearance_generations FOR ALL TO service_role USING (true);
-CREATE POLICY "Allow anon insert access" ON clearance_generations FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Allow authenticated full access" ON clearance_generations FOR ALL TO authenticated USING (true);
+CREATE POLICY "Service role full access clearance_generations" ON clearance_generations FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Anon insert clearance_generations" ON clearance_generations FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Authenticated full access clearance_generations" ON clearance_generations FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Flight plans policies
-CREATE POLICY "Allow service role full access" ON flight_plans_received FOR ALL TO service_role USING (true);
-CREATE POLICY "Allow anon read access" ON flight_plans_received FOR SELECT TO anon USING (true);
-CREATE POLICY "Allow authenticated read access" ON flight_plans_received FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Service role full access flight_plans_received" ON flight_plans_received FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Anon read flight_plans_received" ON flight_plans_received FOR SELECT TO anon USING (true);
+CREATE POLICY "Authenticated read flight_plans_received" ON flight_plans_received FOR SELECT TO authenticated USING (true);
 
 -- Admin activities policies
-CREATE POLICY "Allow service role full access" ON admin_activities FOR ALL TO service_role USING (true);
-CREATE POLICY "Allow authenticated read access" ON admin_activities FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Service role full access admin_activities" ON admin_activities FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated read admin_activities" ON admin_activities FOR SELECT TO authenticated USING (true);
+
+-- CRITICAL: Disable RLS temporarily for service_role operations
+ALTER TABLE user_sessions FORCE ROW LEVEL SECURITY;
 
 -- =============================================================================
 -- GRANT PERMISSIONS

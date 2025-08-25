@@ -67,7 +67,7 @@ function logWithTimestamp(level, message, data = null) {
 
 // Initialize Supabase client with proper validation
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 let supabase = null;
 
 // Validate Supabase configuration
@@ -78,8 +78,16 @@ if (supabaseUrl && supabaseKey &&
     supabaseUrl.startsWith('https://') &&
     supabaseUrl.includes('.supabase.co')) {
   try {
-    supabase = createClient(supabaseUrl, supabaseKey);
-    logWithTimestamp('info', 'Supabase client initialized successfully');
+    supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+    logWithTimestamp('info', 'Supabase client initialized successfully', {
+      usingServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      keyType: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'service_role' : 'anon'
+    });
   } catch (error) {
     logWithTimestamp('error', 'Failed to initialize Supabase', { error: error.message });
     logWithTimestamp('warn', 'Continuing without Supabase - using local storage');
@@ -90,7 +98,7 @@ if (supabaseUrl && supabaseKey &&
     console.log("   Please set SUPABASE_URL environment variable");
   }
   if (!supabaseKey || supabaseKey.includes('your_supabase_anon_key_here')) {
-    console.log("   Please set SUPABASE_ANON_KEY environment variable");
+    console.log("   Please set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY environment variable");
   }
 }
 
