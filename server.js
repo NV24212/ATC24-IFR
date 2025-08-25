@@ -981,6 +981,150 @@ app.post("/api/auth/logout", (req, res) => {
   }
 });
 
+// Admin user management routes
+app.get("/api/admin/users", async (req, res) => {
+  try {
+    // Check if user is authenticated and is admin
+    if (!req.session?.user || !req.session.user.is_admin) {
+      return res.status(401).json({ error: 'Admin access required' });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    const { data, error } = await supabase.rpc('get_admin_users');
+
+    if (error) {
+      throw new Error(`Failed to fetch admin users: ${error.message}`);
+    }
+
+    res.json({
+      success: true,
+      users: data || []
+    });
+
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to fetch admin users', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch admin users' });
+  }
+});
+
+app.post("/api/admin/users", async (req, res) => {
+  try {
+    // Check if user is authenticated and is admin
+    if (!req.session?.user || !req.session.user.is_admin) {
+      return res.status(401).json({ error: 'Admin access required' });
+    }
+
+    const { username, roles } = req.body;
+
+    if (!username || !username.trim()) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    const { data, error } = await supabase.rpc('add_admin_user_by_username', {
+      p_username: username.trim(),
+      p_roles: JSON.stringify(roles || ['admin'])
+    });
+
+    if (error) {
+      throw new Error(`Failed to add admin user: ${error.message}`);
+    }
+
+    const result = data[0];
+
+    // Log admin activity
+    await supabase.from('admin_activities').insert({
+      action: 'add_admin_user',
+      details: {
+        admin_user: req.session.user.username,
+        target_username: username,
+        roles: roles,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+    logWithTimestamp('info', 'Admin user added', {
+      adminUser: req.session.user.username,
+      targetUsername: username,
+      roles: roles
+    });
+
+    res.json({
+      success: result.success,
+      message: result.message,
+      user_id: result.user_id
+    });
+
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to add admin user', { error: error.message });
+    res.status(500).json({ error: 'Failed to add admin user' });
+  }
+});
+
+app.delete("/api/admin/users/:userId", async (req, res) => {
+  try {
+    // Check if user is authenticated and is admin
+    if (!req.session?.user || !req.session.user.is_admin) {
+      return res.status(401).json({ error: 'Admin access required' });
+    }
+
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Prevent self-removal
+    if (userId === req.session.user.id) {
+      return res.status(400).json({ error: 'Cannot remove yourself as admin' });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    const { data, error } = await supabase.rpc('remove_admin_user', {
+      p_user_id: userId
+    });
+
+    if (error) {
+      throw new Error(`Failed to remove admin user: ${error.message}`);
+    }
+
+    const result = data[0];
+
+    // Log admin activity
+    await supabase.from('admin_activities').insert({
+      action: 'remove_admin_user',
+      details: {
+        admin_user: req.session.user.username,
+        target_user_id: userId,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+    logWithTimestamp('info', 'Admin user removed', {
+      adminUser: req.session.user.username,
+      targetUserId: userId
+    });
+
+    res.json({
+      success: result.success,
+      message: result.message
+    });
+
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to remove admin user', { error: error.message });
+    res.status(500).json({ error: 'Failed to remove admin user' });
+  }
+});
+
 // Admin API endpoints
 app.post("/api/admin/login", requireAdminAuth, (req, res) => {
   logWithTimestamp('info', 'Admin login successful', { ip: req.ip, userAgent: req.headers['user-agent'] });
