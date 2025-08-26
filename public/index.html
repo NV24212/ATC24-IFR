@@ -907,25 +907,47 @@
       const healthData = await healthResponse.json();
       isServerless = healthData.environment === 'serverless';
 
-      // Initial load
+      if (isServerless) {
+        // Serverless environment: WebSockets are not available for real-time flight plans.
+        console.log('Serverless environment detected. Disabling real-time flight plan feature.');
+        const flightPlansContainer = document.getElementById("flightPlans");
+        const refreshButton = document.querySelector('button.refresh-btn');
+
+        // Update the UI to inform the user and hide the refresh button.
+        if (flightPlansContainer) {
+            flightPlansContainer.innerHTML = `
+                <div class="no-plans" style="text-align: center; padding: 20px; background-color: #2c2c2c; border-radius: 8px;">
+                    Live flight plan data is unavailable in the current deployment.
+                    <br>
+                    <span style="font-size: 12px; color: var(--text-muted);">
+                        Real-time updates require a persistent server connection.
+                    </span>
+                </div>`;
+        }
+        if (refreshButton) {
+            refreshButton.style.display = 'none';
+        }
+
+        // Do not attempt to load flight plans or start polling.
+        return;
+      }
+
+      // For traditional environments, proceed as normal.
+      console.log('Traditional server environment detected. Enabling real-time flight plans.');
       await loadFlightPlans();
 
-      // Set up polling for serverless or if WebSocket is unavailable
-      if (isServerless || !healthData.wsConnected) {
-        console.log('Starting polling fallback - Environment:', healthData.environment);
-        startPolling(isServerless ? 10000 : 30000); // Poll every 10s for serverless, 30s for WebSocket issues
-
-        // Show notification to user
-        if (isServerless) {
-          showEnvironmentNotification();
-        }
-      } else {
-        console.log('WebSocket available - using real-time updates');
+      // Set up polling only if WebSocket is explicitly unavailable on a traditional server
+      if (!healthData.wsConnected) {
+        console.log('Starting polling fallback for traditional server with no WebSocket connection.');
+        startPolling(30000);
       }
     } catch (error) {
-      console.error('Failed to check environment, using polling fallback:', error);
-      await loadFlightPlans();
-      startPolling(15000); // Default polling interval
+      console.error('Failed to check environment:', error);
+      // Display a clear error in the UI if the health check fails.
+      const flightPlansContainer = document.getElementById("flightPlans");
+      if (flightPlansContainer) {
+        flightPlansContainer.innerHTML = '<div class="no-plans">Could not determine server environment. Real-time features may be limited.</div>';
+      }
     }
   }
 
