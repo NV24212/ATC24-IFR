@@ -391,7 +391,29 @@
       // Update UI elements that depend on settings
       updateUIFromSettings();
 
-      showNotification('Configuration saved successfully!', 'success');
+      showNotification('Configuration saved locally!', 'success');
+
+      // If user is logged in, also save to database
+      if (currentUser) {
+        try {
+          const response = await fetch('/api/user/settings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Session-ID': getSessionId()
+            },
+            body: JSON.stringify({ settings: userSettings })
+          });
+          if (response.ok) {
+            showNotification('Configuration saved to your profile!', 'success');
+          } else {
+            showNotification('Failed to save settings to profile.', 'error');
+          }
+        } catch (dbError) {
+          console.error('Failed to save user settings to DB:', dbError);
+          showNotification('Failed to save settings to profile.', 'error');
+        }
+      }
     } catch (error) {
       console.error('Failed to save user settings:', error);
       showNotification('Failed to save configuration', 'error');
@@ -987,6 +1009,15 @@
   }
 
   function showLoggedInState(user) {
+    // If server provides settings, merge them with local settings
+    if (user.settings && Object.keys(user.settings).length > 0) {
+      console.log('Applying user settings from server');
+      // A simple merge, server settings take precedence
+      userSettings.clearanceFormat = { ...userSettings.clearanceFormat, ...user.settings.clearanceFormat };
+      userSettings.aviation = { ...userSettings.aviation, ...user.settings.aviation };
+      updateUserSettingsUI();
+    }
+
     document.getElementById('authLoading').style.display = 'none';
     document.getElementById('authLoggedOut').style.opacity = '0';
     document.getElementById('authLoggedOut').style.visibility = 'hidden';
