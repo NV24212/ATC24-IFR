@@ -1125,26 +1125,23 @@
 
       const onlineControllers = controllers.filter(c => c.holder && !c.claimable);
 
-      if (onlineControllers.length === 0) {
-        select.innerHTML = '<option value="manual">No controllers online - Enter manually</option>';
-      } else {
-        // Add a "select" option and a "manual" option
-        select.innerHTML = '<option value="">-- Select ATC --</option>';
-        onlineControllers.forEach(controller => {
-          const callsign = `${controller.airport}_${controller.position}`;
-          const option = document.createElement('option');
-          option.value = callsign;
-          // Store holder's name in a data attribute for robust matching
-          option.dataset.holder = controller.holder;
-          option.textContent = `${callsign} (${controller.holder})`;
-          select.appendChild(option);
-        });
-        select.innerHTML += '<option value="manual">-- Enter Manually --</option>';
-      }
+      // Always clear and add the default/manual options
+      select.innerHTML = '<option value="">-- Select ATC --</option>';
+      
+      onlineControllers.forEach(controller => {
+        const callsign = `${controller.airport}_${controller.position}`;
+        const option = document.createElement('option');
+        option.value = callsign;
+        option.dataset.holder = controller.holder;
+        option.textContent = `${callsign} (${controller.holder})`;
+        select.appendChild(option);
+      });
 
-      // Update status
+      select.innerHTML += '<option value="manual">-- Enter Manually --</option>';
+
+      // Update status based on results and freshness
       if (cache.source === 'live') {
-        statusText.textContent = `Live | Updated just now`;
+        statusText.textContent = `${onlineControllers.length} online | Live`;
         statusLight.className = 'status-light online';
       } else {
         const lastUpdated = new Date(cache.lastUpdated);
