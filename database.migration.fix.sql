@@ -171,6 +171,28 @@ CREATE TABLE IF NOT EXISTS admin_settings (
     CONSTRAINT single_row_constraint CHECK (id = 1)
 );
 
+-- =============================================================================
+-- FUNCTION: is_admin (NEW)
+-- Checks if the currently authenticated user has admin privileges.
+-- =============================================================================
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF auth.role() = 'authenticated' THEN
+    RETURN (
+      SELECT is_admin
+      FROM public.discord_users
+      WHERE id = auth.uid()
+    );
+  ELSE
+    RETURN FALSE;
+  END IF;
+END;
+$$;
+
 -- Enable RLS for admin_settings
 ALTER TABLE admin_settings ENABLE ROW LEVEL SECURITY;
 
@@ -220,26 +242,6 @@ BEGIN
 END $$;
 
 -- =============================================================================
--- FUNCTION: is_admin (NEW)
--- Checks if the currently authenticated user has admin privileges.
--- =============================================================================
-CREATE OR REPLACE FUNCTION is_admin()
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-  IF auth.role() = 'authenticated' THEN
-    RETURN (
-      SELECT is_admin
-      FROM public.discord_users
-      WHERE id = auth.uid()
-    );
-  ELSE
-    RETURN FALSE;
-  END IF;
-END;
-$$;
 
 -- =============================================================================
 -- FUNCTION: upsert_user_session
