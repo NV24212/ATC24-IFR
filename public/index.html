@@ -741,6 +741,12 @@
   // Track clearance generation
   async function trackClearanceGeneration() {
     try {
+      const groundCallsignSelect = document.getElementById("groundCallsignSelect");
+      const groundCallsignManual = document.getElementById("groundCallsignManual");
+      const atc_station = groundCallsignSelect.value === 'manual'
+        ? groundCallsignManual.value.trim()
+        : groundCallsignSelect.value;
+
       const clearanceData = {
         callsign: selectedFlightPlan?.callsign,
         destination: selectedFlightPlan?.arriving,
@@ -748,7 +754,7 @@
         routing_type: document.getElementById("routingType").value,
         runway: document.getElementById("departureRunway").value,
         initial_altitude: parseInt(document.getElementById("ifl").value),
-        atc_station: document.getElementById("groundCallsign").value,
+        atc_station: atc_station,
         atis_info: document.getElementById("atisInfo").value,
         clearance_text: document.getElementById("clearanceOutput").textContent,
         user_id: currentUser?.id || null,
