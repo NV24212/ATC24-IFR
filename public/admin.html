@@ -633,7 +633,7 @@
       border-bottom: 1px solid var(--border-color);
       color: var(--text-color);
       word-break: break-word;
-      max-width: 200px;
+      max-width: 300px;
     }
 
     .data-table tr:nth-child(even) {
@@ -645,7 +645,7 @@
     }
 
     .table-cell-truncated {
-      max-width: 150px;
+      max-width: 250px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -888,6 +888,28 @@
     .info-close-x:hover {
       background: var(--surface-hover);
       color: var(--text-color);
+    }
+
+    .info-icon {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid var(--text-muted);
+      border-radius: 50%;
+      color: var(--text-muted);
+      font-size: 10px;
+      line-height: 12px;
+      text-align: center;
+      font-style: normal;
+      font-weight: bold;
+      margin-left: 5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .info-icon:hover {
+      background: var(--primary-color);
+      color: #000;
+      border-color: var(--primary-color);
     }
   </style>
 </head>
@@ -1173,6 +1195,11 @@
             <div class="setting-item">
               <label class="config-label">Auto Refresh Interval (ms)</label>
               <input type="number" id="autoRefreshInterval" placeholder="30000" min="5000" max="300000" step="1000">
+            </div>
+
+            <div class="setting-item">
+              <label class="config-label">Controller Data Poll Interval (ms)</label>
+              <input type="number" id="controllerPollInterval" placeholder="300000" min="60000" max="900000" step="10000">
             </div>
 
             <div class="checkbox-item">
@@ -1778,6 +1805,7 @@
         // System settings
         document.getElementById('maxFlightPlansStored').value = settings.system?.maxFlightPlansStored || 20;
         document.getElementById('autoRefreshInterval').value = settings.system?.autoRefreshInterval || 30000;
+        document.getElementById('controllerPollInterval').value = settings.system?.controllerPollInterval || 300000;
         document.getElementById('enableDetailedLogging').checked = settings.system?.enableDetailedLogging || false;
         document.getElementById('enableFlightPlanFiltering').checked = settings.system?.enableFlightPlanFiltering || false;
       } catch (error) {
@@ -1901,6 +1929,7 @@
           system: {
             maxFlightPlansStored: parseInt(document.getElementById('maxFlightPlansStored').value) || 20,
             autoRefreshInterval: parseInt(document.getElementById('autoRefreshInterval').value) || 30000,
+            controllerPollInterval: parseInt(document.getElementById('controllerPollInterval').value) || 300000,
             enableDetailedLogging: document.getElementById('enableDetailedLogging').checked,
             enableFlightPlanFiltering: document.getElementById('enableFlightPlanFiltering').checked
           }
@@ -2286,7 +2315,7 @@
             value = JSON.stringify(value);
           } else if (typeof value === 'string' && value.length > 50) {
             const escapedValue = escapeHtml(value);
-            value = `<span class="table-cell-truncated" onclick='showInfoPopup(${JSON.stringify(value)})'>${escapedValue}</span>`;
+            value = `<span class="table-cell-truncated" onclick='showInfoPopup(${JSON.stringify(value)})'>${escapedValue}<i class="info-icon">i</i></span>`;
           } else if (col.includes('_at') || col.includes('timestamp')) {
             // Format dates
             try {
