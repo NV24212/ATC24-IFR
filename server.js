@@ -112,8 +112,13 @@ let controllerCache = {
 };
 
 async function pollControllers() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 15000); // 15 second timeout
+
   try {
-    const response = await fetch('https://24data.ptfs.app/controllers');
+    const response = await fetch('https://24data.ptfs.app/controllers', { signal: controller.signal });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status} - ${response.statusText}`);
     }
@@ -127,6 +132,8 @@ async function pollControllers() {
   } catch (error) {
     logWithTimestamp('error', 'Failed to fetch controller data', { error: error.message });
     controllerCache.source = 'stale'; // Mark data as potentially stale
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -267,10 +274,12 @@ async function initializeAdminSettings() {
     logWithTimestamp('error', 'Failed to initialize admin settings', { error: error.message });
   }
   // Start polling after settings are loaded
+  logWithTimestamp('info', 'Admin settings initialized. Starting controller polling...');
   startControllerPolling();
 }
 
 // Call initialization
+logWithTimestamp('info', 'Initializing admin settings...');
 initializeAdminSettings();
 
 // Session tracking with serverless cleanup
