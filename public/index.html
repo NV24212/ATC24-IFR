@@ -364,7 +364,7 @@
   }
 
   // Save user settings to localStorage
-  function saveUserSettings() {
+  async function saveUserSettings() {
     try {
       // Get values from UI
       userSettings.clearanceFormat.phraseologyStyle = document.getElementById('userPhraseologyStyle').value;
