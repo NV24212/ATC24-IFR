@@ -1218,7 +1218,8 @@ app.get("/api/auth/user", (req, res) => {
         is_admin: user.is_admin,
         roles: user.roles,
         vatsim_cid: user.vatsim_cid,
-        is_controller: user.is_controller
+        is_controller: user.is_controller,
+        settings: user.user_settings || {}
       }
     });
   } else {
@@ -1251,6 +1252,34 @@ app.post("/api/auth/logout", (req, res) => {
   } catch (error) {
     logWithTimestamp('error', 'Logout failed', { error: error.message });
     res.json({ success: true }); // Still return success
+  }
+});
+
+app.post("/api/user/settings", requireDiscordAuth, async (req, res) => {
+  try {
+    const { settings } = req.body;
+    if (!settings) {
+      return res.status(400).json({ error: 'Settings object is required' });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    const { data, error } = await supabase
+      .from('discord_users')
+      .update({ user_settings: settings })
+      .eq('id', req.user.id);
+
+    if (error) {
+      throw new Error(`Failed to save user settings: ${error.message}`);
+    }
+
+    logWithTimestamp('info', 'User settings updated', { userId: req.user.id, username: req.user.username });
+    res.json({ success: true });
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to save user settings', { error: error.message, userId: req.user.id });
+    res.status(500).json({ error: 'Failed to save user settings' });
   }
 });
 

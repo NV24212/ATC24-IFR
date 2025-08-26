@@ -911,6 +911,39 @@
       color: #000;
       border-color: var(--primary-color);
     }
+
+    /* Card Layout for Tables */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 15px;
+    }
+    .data-card {
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      font-size: 13px;
+    }
+    .data-card-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .data-card-row:last-child {
+      border-bottom: none;
+    }
+    .data-card-key {
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .data-card-value {
+      color: var(--text-color);
+      text-align: right;
+      max-width: 60%;
+    }
   </style>
 </head>
 <body>
@@ -2258,7 +2291,12 @@
         document.getElementById('tableRecordCount').textContent = `Showing ${startRecord}-${endRecord} of ${totalRecords} records`;
 
         // Generate table HTML
-        const tableHtml = generateTableHtml(data.data);
+        let tableHtml;
+        if (currentTable === 'clearance_generations' || currentTable === 'discord_users') {
+          tableHtml = generateCardLayoutHtml(data.data);
+        } else {
+          tableHtml = generateTableHtml(data.data);
+        }
         tableDisplay.innerHTML = tableHtml;
 
         // Update pagination
@@ -2335,6 +2373,40 @@
       });
 
       html += '</tbody></table>';
+      return html;
+    }
+
+    function generateCardLayoutHtml(data) {
+      if (!data || data.length === 0) {
+        return '<div class="table-loading">No data available</div>';
+      }
+
+      let html = '<div class="card-grid">';
+      data.forEach(row => {
+        html += '<div class="data-card">';
+        for (const key in row) {
+          let value = row[key];
+          if (value === null || value === undefined) {
+            value = '-';
+          } else if (typeof value === 'object') {
+            value = JSON.stringify(value);
+          }
+
+          let valueHtml = escapeHtml(String(value));
+          if (typeof value === 'string' && value.length > 30) {
+            valueHtml = `<span class="table-cell-truncated" onclick='showInfoPopup(${JSON.stringify(value)})'>${escapeHtml(value.substring(0, 30))}...<i class="info-icon">i</i></span>`;
+          }
+
+          html += `
+            <div class="data-card-row">
+              <span class="data-card-key">${key.replace(/_/g, ' ')}</span>
+              <span class="data-card-value">${valueHtml}</span>
+            </div>
+          `;
+        }
+        html += '</div>';
+      });
+      html += '</div>';
       return html;
     }
 

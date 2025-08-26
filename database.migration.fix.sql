@@ -34,6 +34,7 @@ CREATE TABLE discord_users (
     roles JSONB DEFAULT '[]'::JSONB,
     vatsim_cid TEXT,
     is_controller BOOLEAN DEFAULT FALSE,
+    user_settings JSONB,
     last_login TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
