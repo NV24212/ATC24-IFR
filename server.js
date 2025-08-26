@@ -808,9 +808,26 @@ function initializeWebSocket() {
         }
       }, 10000); // 10 second timeout
 
-      ws = new WebSocket("wss://24data.ptfs.app/wss", {
-        headers: { Origin: "" } // Required as per docs
-      });
+      // Configure WebSocket connection options with configurable Origin
+      const wsOptions = {};
+      const customOrigin = process.env.WEBSOCKET_ORIGIN;
+
+      if (customOrigin) {
+        if (customOrigin.toLowerCase() === 'none') {
+          // If WEBSOCKET_ORIGIN is "none", send no origin header.
+          logWithTimestamp('info', 'WebSocket connecting with default (no) Origin header as per WEBSOCKET_ORIGIN=none.');
+        } else {
+          // If WEBSOCKET_ORIGIN is set to any other value, use it.
+          wsOptions.headers = { Origin: customOrigin };
+          logWithTimestamp('info', `WebSocket connecting with custom Origin header: ${customOrigin}`);
+        }
+      } else {
+        // Default to original behavior if the env var is not set.
+        wsOptions.headers = { Origin: "" };
+        logWithTimestamp('warn', 'WebSocket WEBSOCKET_ORIGIN environment variable not set. Defaulting to original behavior (Origin: ""). This may cause connection issues. Set WEBSOCKET_ORIGIN to a specific URL or "none" to override.');
+      }
+
+      ws = new WebSocket("wss://24data.ptfs.app/wss", wsOptions);
 
       ws.on("open", () => {
         clearTimeout(connectionTimeout);
@@ -934,71 +951,26 @@ app.use((req, res, next) => {
   next();
 });
 
-// Unified session middleware (Supabase-backed)
-app.use(async (req, res, next) => {
-  // Try to get session ID from various sources, including the cookie
+// Unified session middleware
+app.use((req, res, next) => {
+  // Try to get session ID from various sources
   const sessionId = req.headers['x-session-id'] ||
-                   req.cookies.session_id ||
                    req.headers['authorization']?.replace('Bearer ', '') ||
                    req.query.sessionId;
 
-  if (sessionId && supabase) {
-    try {
-      // 1. Find the session in user_sessions table. We need the user_id.
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('user_sessions')
-        .select('user_id')
-        .eq('session_id', sessionId)
-        .single();
-
-      // If session not found, or it's an anonymous session (no user_id), continue
-      if (sessionError || !sessionData || !sessionData.user_id) {
-        if (sessionError && sessionError.code !== 'PGRST116') { // Ignore 'exact one row' error for anonymous sessions
-            logWithTimestamp('warn', 'Session lookup failed', { sessionId: sessionId.slice(0,8), error: sessionError.message });
-        }
-        return next();
-      }
-
-      // 2. With user_id, fetch the full user profile from discord_users
-      const { data: userData, error: userError } = await supabase
-        .from('discord_users')
-        .select(`*, user_settings`) // Fetch user and their settings
-        .eq('id', sessionData.user_id)
-        .single();
-
-      if (userError || !userData) {
-        logWithTimestamp('warn', 'User not found for session', { userId: sessionData.user_id, error: userError ? userError.message : 'No user data' });
-        return next();
-      }
-
-      // 3. Reconstruct the session object for the request
-      req.session = {
-        id: sessionId,
-        user: {
-          id: userData.id,
-          discord_id: userData.discord_id,
-          username: userData.username,
-          email: userData.email,
-          avatar: userData.avatar,
-          is_admin: userData.is_admin,
-          roles: userData.roles,
-          vatsim_cid: userData.vatsim_cid,
-          is_controller: userData.is_controller,
-          settings: userData.user_settings || {}
-        },
-        lastActivity: new Date()
-      };
-
-      // Also update the last_activity timestamp for the session in the background
-      supabase.rpc('upsert_user_session', {
-        p_session_id: sessionId,
-        p_user_id: userData.id
-      }).then(({ error }) => {
-        if (error) logWithTimestamp('warn', 'Failed to update session activity', { error: error.message });
-      });
-
-    } catch (error) {
-      logWithTimestamp('error', 'Error in Supabase session middleware', { error: error.message, stack: error.stack });
+  // Check both session stores for authenticated and anonymous sessions
+  if (sessionId) {
+    // First check OAuth session store (for authenticated users)
+    if (sessionStore.has(sessionId)) {
+      req.session = sessionStore.get(sessionId);
+      req.session.lastActivity = new Date();
+      sessionStore.set(sessionId, req.session);
+    }
+    // Also check anonymous session store (for tracking purposes)
+    if (sessions.has(sessionId)) {
+      req.trackingSession = sessions.get(sessionId);
+      req.trackingSession.lastActivity = new Date();
+      sessions.set(sessionId, req.trackingSession);
     }
   }
 
@@ -1189,46 +1161,37 @@ app.get("/auth/discord/callback", async (req, res) => {
       };
     }
 
-    // Create a new session ID
+    // Create unified session for OAuth user
     const sessionId = uuidv4();
+    const oauthSession = {
+      id: sessionId,
+      user: {
+        id: user.id,
+        discord_id: user.discord_id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+        is_admin: user.is_admin || false,
+        roles: user.roles || []
+      },
+      createdAt: new Date(),
+      lastActivity: new Date()
+    };
 
-    // Persist the session to the database instead of in-memory stores
-    if (supabase) {
-      const getRealIP = (req) => {
-        try {
-          return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-                 req.headers['x-real-ip'] ||
-                 req.connection?.remoteAddress ||
-                 req.socket?.remoteAddress ||
-                 req.ip ||
-                 'unknown';
-        } catch (error) {
-          return 'unknown';
-        }
-      };
+    // Create corresponding tracking session
+    const trackingSession = {
+      id: sessionId,
+      createdAt: new Date(),
+      lastActivity: new Date(),
+      pageViews: 0,
+      clearancesGenerated: 0,
+      user_id: user.id,
+      discord_username: user.username
+    };
 
-      const { error: sessionError } = await supabase.rpc('upsert_user_session', {
-        p_session_id: sessionId,
-        p_user_id: user.id,
-        p_user_agent: req.headers['user-agent'] || 'Unknown',
-        p_ip_address: getRealIP(req),
-        p_page_views: 1, // Start with 1 page view
-        p_clearances_generated: 0
-      });
-
-      if (sessionError) {
-        logWithTimestamp('error', 'Failed to create user session in DB during auth', {
-          error: sessionError.message,
-          userId: user.id
-        });
-        // Redirect with error, as session persistence is critical for auth
-        return res.redirect('/?error=session_creation_failed');
-      }
-    } else {
-      // If Supabase is not available, we cannot authenticate
-      logWithTimestamp('error', 'Supabase not available during auth callback, cannot create session.');
-      return res.redirect('/?error=db_unavailable');
-    }
+    // Store in both session stores
+    sessionStore.set(sessionId, oauthSession);
+    sessions.set(sessionId, trackingSession);
 
     logWithTimestamp('info', 'Discord OAuth session created', {
       sessionId: sessionId.slice(0, 8),
