@@ -214,14 +214,6 @@
         <div class="config-section">
           <h3 class="config-section-title">Clearance Format & Phraseology</h3>
           <div class="config-group">
-            <label class="config-label">Phraseology Standard</label>
-            <select id="userPhraseologyStyle" onchange="updateUserPhraseologyTemplate()">
-              <option value="ICAO">ICAO Standard</option>
-              <option value="FAA">FAA Standard</option>
-              <option value="Local">Local Adaptation</option>
-            </select>
-          </div>
-          <div class="config-group">
             <label class="config-label">Custom Phraseology Format</label>
             <textarea id="userPhraseologyTemplate" placeholder="Enter custom clearance format template...">{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.</textarea>
             <div class="template-help">
@@ -300,7 +292,7 @@
       includeAtis: true,
       includeSquawk: true,
       includeFlightLevel: true,
-      phraseologyStyle: "ICAO",
+      customTemplate: "{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.",
       includeStartupApproval: true,
       includeInitialClimb: true
     },
@@ -313,7 +305,6 @@
   // User settings (overrides admin settings)
   let userSettings = {
     clearanceFormat: {
-      phraseologyStyle: "ICAO",
       customTemplate: "",
       includeAtis: true,
       includeSquawk: true,
@@ -367,7 +358,6 @@
   async function saveUserSettings() {
     try {
       // Get values from UI
-      userSettings.clearanceFormat.phraseologyStyle = document.getElementById('userPhraseologyStyle').value;
       userSettings.clearanceFormat.customTemplate = document.getElementById('userPhraseologyTemplate').value;
       userSettings.clearanceFormat.includeAtis = document.getElementById('userIncludeAtis').checked;
       userSettings.clearanceFormat.includeSquawk = document.getElementById('userIncludeSquawk').checked;
@@ -422,10 +412,8 @@
 
   // Update UI elements with user settings
   function updateUserSettingsUI() {
-    document.getElementById('userPhraseologyStyle').value = userSettings.clearanceFormat.phraseologyStyle;
-
     // Set custom template or default template if empty
-    const templateValue = userSettings.clearanceFormat.customTemplate || getDefaultTemplate(userSettings.clearanceFormat.phraseologyStyle);
+    const templateValue = userSettings.clearanceFormat.customTemplate || (adminSettings.clearanceFormat && adminSettings.clearanceFormat.customTemplate) || '';
     document.getElementById('userPhraseologyTemplate').value = templateValue;
 
     document.getElementById('userIncludeAtis').checked = userSettings.clearanceFormat.includeAtis;
@@ -443,27 +431,6 @@
     document.getElementById('userEnableSIDValidation').checked = userSettings.aviation.enableSIDValidation;
   }
 
-  // Get default template based on phraseology style
-  function getDefaultTemplate(style) {
-    switch(style) {
-      case 'ICAO':
-        return '{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.';
-      case 'FAA':
-        return '{CALLSIGN}, {ATC_STATION}. Cleared to {DESTINATION} airport via {ROUTE}, runway {RUNWAY}. Climb and maintain {INITIAL_ALT}, expect {FLIGHT_LEVEL} 10 minutes after departure. Departure frequency will be as published. Squawk {SQUAWK}.';
-      case 'Local':
-        return '{CALLSIGN}, {ATC_STATION}. You are cleared to {DESTINATION} via {ROUTE}, departing runway {RUNWAY}. Climb initially to {INITIAL_ALT} feet, expect flight level {FLIGHT_LEVEL}. Squawk {SQUAWK}. Contact ground for pushback.';
-      default:
-        return '{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.';
-    }
-  }
-
-  // Update user phraseology template when style changes
-  function updateUserPhraseologyTemplate() {
-    const style = document.getElementById('userPhraseologyStyle').value;
-    const templateField = document.getElementById('userPhraseologyTemplate');
-    templateField.value = getDefaultTemplate(style);
-  }
-
   // Get effective settings (user settings override admin settings)
   function getEffectiveSettings() {
     const effective = JSON.parse(JSON.stringify(adminSettings)); // Deep clone
@@ -471,9 +438,6 @@
     // Override with user settings
     if (userSettings.clearanceFormat.customTemplate) {
       effective.clearanceFormat.customTemplate = userSettings.clearanceFormat.customTemplate;
-    }
-    if (userSettings.clearanceFormat.phraseologyStyle) {
-      effective.clearanceFormat.phraseologyStyle = userSettings.clearanceFormat.phraseologyStyle;
     }
     effective.clearanceFormat.includeAtis = userSettings.clearanceFormat.includeAtis;
     effective.clearanceFormat.includeSquawk = userSettings.clearanceFormat.includeSquawk;
@@ -652,12 +616,12 @@
         routePhrase = planRoute || 'as filed';
     }
 
-    // Generate clearance based on user's custom template if available, otherwise use legacy format
+    // Generate clearance based on the effective custom template
     let clearance = '';
+    const template = effectiveSettings.clearanceFormat.customTemplate;
 
-    if (effectiveSettings.clearanceFormat.customTemplate && userSettings.clearanceFormat.customTemplate) {
-      // Use user's custom template
-      clearance = userSettings.clearanceFormat.customTemplate
+    if (template) {
+      clearance = template
         .replace('{CALLSIGN}', callsign)
         .replace('{ATC_STATION}', groundCallsign)
         .replace('{ATIS}', atisInfo)
@@ -667,50 +631,6 @@
         .replace('{INITIAL_ALT}', ifl)
         .replace('{FLIGHT_LEVEL}', flightLevel.replace('FL', '').padStart(3, '0'))
         .replace('{SQUAWK}', squawk);
-    } else {
-      // Fallback to structured clearance generation using effective settings
-      let clearanceParts = [];
-
-      // Basic greeting and callsign
-      if (effectiveSettings.clearanceFormat.phraseologyStyle === "ICAO") {
-        clearanceParts.push(`${callsign}, ${groundCallsign}, good day.`);
-      } else if (effectiveSettings.clearanceFormat.phraseologyStyle === "FAA") {
-        clearanceParts.push(`${callsign}, ${groundCallsign}.`);
-      } else {
-        clearanceParts.push(`${callsign}, ${groundCallsign}, good day.`);
-      }
-
-      // Startup approval
-      if (effectiveSettings.clearanceFormat.includeStartupApproval) {
-        clearanceParts.push("Startup approved.");
-      }
-
-      // ATIS information
-      if (effectiveSettings.clearanceFormat.includeAtis) {
-        clearanceParts.push(`Information ${atisInfo} is correct.`);
-      }
-
-      // Clearance itself
-      clearanceParts.push(`Cleared to ${destination} via ${routePhrase}, runway ${departureRW}.`);
-
-      // Initial climb
-      if (effectiveSettings.clearanceFormat.includeInitialClimb) {
-        clearanceParts.push(`Initial climb ${ifl}FT`);
-
-        // Expected flight level
-        if (effectiveSettings.clearanceFormat.includeFlightLevel && flightLevel !== 'N/A') {
-          clearanceParts[clearanceParts.length - 1] += `, expect further climb to Flight Level ${flightLevel.replace('FL', '').padStart(3, '0')}.`;
-        } else {
-          clearanceParts[clearanceParts.length - 1] += ".";
-        }
-      }
-
-      // Squawk code
-      if (effectiveSettings.clearanceFormat.includeSquawk) {
-        clearanceParts.push(`Squawk ${squawk}.`);
-      }
-
-      clearance = clearanceParts.join(' ');
     }
     document.getElementById("clearanceOutput").textContent = clearance;
 

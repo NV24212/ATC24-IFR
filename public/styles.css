@@ -134,8 +134,8 @@ body {
 .flight-plans {
   max-height: 500px;
   overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 10px;
+  overflow-x: visible; /* Allow hover effect to extend outside */
+  padding: 5px; /* Add some padding to not cut off shadows */
 }
 
 .flight-plan {
@@ -147,7 +147,7 @@ body {
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: hidden;
+  /* overflow: hidden; */ /* Removed to prevent hover transform from being cut off */
 }
 
 .flight-plan::before {
@@ -159,6 +159,7 @@ body {
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(245, 222, 64, 0.1), transparent);
   transition: left 0.5s ease;
+  z-index: 1; /* Ensure it's above the background but below content */
 }
 
 .flight-plan:hover::before {
@@ -170,6 +171,7 @@ body {
   background: rgba(245, 222, 64, 0.05);
   transform: translateY(-3px) scale(1.02);
   box-shadow: 0 10px 25px rgba(245, 222, 64, 0.2);
+  z-index: 10; /* Bring to front on hover */
 }
 
 .flight-plan.selected {
