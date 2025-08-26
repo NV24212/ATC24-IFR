@@ -124,12 +124,13 @@ async function pollControllers() {
       throw new Error(`HTTP ${response.status} - ${response.statusText}`);
     }
     const data = await response.json();
+    const filteredData = data.filter(c => c.position && (c.position.endsWith('_TWR') || c.position.endsWith('_GND')));
     controllerCache = {
-      data: data,
+      data: filteredData,
       lastUpdated: new Date().toISOString(),
       source: 'live'
     };
-    logWithTimestamp('info', 'Fetched controller data successfully', { count: data.length });
+    logWithTimestamp('info', 'Fetched controller data successfully', { originalCount: data.length, filteredCount: filteredData.length });
   } catch (error) {
     logWithTimestamp('error', 'Failed to fetch controller data', { error: error.message });
     controllerCache.source = 'stale'; // Mark data as potentially stale
@@ -221,7 +222,6 @@ let adminSettings = {
     includeAtis: true,
     includeSquawk: true,
     includeFlightLevel: true,
-    phraseologyStyle: "ICAO", // ICAO, FAA, Local
     customTemplate: "{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.",
     includeStartupApproval: true,
     includeInitialClimb: true

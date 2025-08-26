@@ -214,7 +214,6 @@ DECLARE
       "includeAtis": true,
       "includeSquawk": true,
       "includeFlightLevel": true,
-      "phraseologyStyle": "ICAO",
       "customTemplate": "{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.",
       "includeStartupApproval": true,
       "includeInitialClimb": true
