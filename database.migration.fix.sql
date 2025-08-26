@@ -179,6 +179,7 @@ CREATE OR REPLACE FUNCTION is_admin()
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = 'public'
 AS $$
 BEGIN
   IF auth.role() = 'authenticated' THEN
@@ -258,6 +259,7 @@ CREATE OR REPLACE FUNCTION upsert_user_session(
 ) RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = 'public'
 AS $$
 BEGIN
     INSERT INTO user_sessions (
@@ -316,6 +318,7 @@ CREATE OR REPLACE FUNCTION upsert_discord_user(
     is_controller BOOLEAN
 )
 LANGUAGE plpgsql
+SET search_path = 'public'
 AS $$
 DECLARE
     v_user_id UUID;
@@ -388,6 +391,7 @@ CREATE OR REPLACE FUNCTION update_user_from_discord_login(
     is_controller BOOLEAN
 )
 LANGUAGE plpgsql
+SET search_path = 'public'
 AS $$
 DECLARE
     v_pending_user_id UUID;
@@ -457,6 +461,7 @@ CREATE OR REPLACE FUNCTION set_user_controller_status(
 ) RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = 'public'
 AS $$
 BEGIN
     UPDATE discord_users
@@ -496,6 +501,7 @@ RETURNS TABLE(
     created_at TIMESTAMPTZ
 )
 LANGUAGE plpgsql
+SET search_path = 'public'
 AS $$
 BEGIN
     RETURN QUERY
@@ -528,6 +534,7 @@ CREATE OR REPLACE FUNCTION add_admin_user_by_username(
     user_id UUID
 )
 LANGUAGE plpgsql
+SET search_path = 'public'
 AS $$
 DECLARE
     v_user_id UUID;
@@ -589,6 +596,7 @@ CREATE OR REPLACE FUNCTION remove_admin_user(
     message TEXT
 )
 LANGUAGE plpgsql
+SET search_path = 'public'
 AS $$
 BEGIN
     UPDATE discord_users
@@ -622,6 +630,7 @@ RETURNS TABLE(
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = 'public'
 AS $$
 BEGIN
     RETURN QUERY
@@ -644,6 +653,7 @@ CREATE OR REPLACE FUNCTION get_charts_data()
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = 'public'
 AS $$
 DECLARE
     visits_data JSON;
@@ -690,6 +700,7 @@ $$;
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = 'public'
 AS $$
 BEGIN
     NEW.updated_at = NOW();
