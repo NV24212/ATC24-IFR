@@ -808,26 +808,9 @@ function initializeWebSocket() {
         }
       }, 10000); // 10 second timeout
 
-      // Configure WebSocket connection options with configurable Origin
-      const wsOptions = {};
-      const customOrigin = process.env.WEBSOCKET_ORIGIN;
-
-      if (customOrigin) {
-        if (customOrigin.toLowerCase() === 'none') {
-          // If WEBSOCKET_ORIGIN is "none", send no origin header.
-          logWithTimestamp('info', 'WebSocket connecting with default (no) Origin header as per WEBSOCKET_ORIGIN=none.');
-        } else {
-          // If WEBSOCKET_ORIGIN is set to any other value, use it.
-          wsOptions.headers = { Origin: customOrigin };
-          logWithTimestamp('info', `WebSocket connecting with custom Origin header: ${customOrigin}`);
-        }
-      } else {
-        // Default to original behavior if the env var is not set.
-        wsOptions.headers = { Origin: "" };
-        logWithTimestamp('warn', 'WebSocket WEBSOCKET_ORIGIN environment variable not set. Defaulting to original behavior (Origin: ""). This may cause connection issues. Set WEBSOCKET_ORIGIN to a specific URL or "none" to override.');
-      }
-
-      ws = new WebSocket("wss://24data.ptfs.app/wss", wsOptions);
+      ws = new WebSocket("wss://24data.ptfs.app/wss", {
+        headers: { Origin: "" } // Required as per docs
+      });
 
       ws.on("open", () => {
         clearTimeout(connectionTimeout);

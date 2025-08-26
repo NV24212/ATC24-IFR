@@ -910,17 +910,17 @@
       // Initial load
       await loadFlightPlans();
 
-      // Set up polling for serverless or if WebSocket is unavailable
-      if (isServerless || !healthData.wsConnected) {
-        console.log('Starting polling fallback - Environment:', healthData.environment);
-        startPolling(isServerless ? 10000 : 30000); // Poll every 10s for serverless, 30s for WebSocket issues
-
-        // Show notification to user
-        if (isServerless) {
-          showEnvironmentNotification();
-        }
+      // The frontend needs to poll for flight plans since it cannot connect to the backend's WebSocket directly.
+      if (isServerless) {
+        // In a serverless environment, polling is the only way to get data.
+        console.log('Starting polling for serverless environment.');
+        startPolling(10000); // Poll every 10 seconds
+        showEnvironmentNotification();
       } else {
-        console.log('WebSocket available - using real-time updates');
+        // In a traditional (VPS) environment, we still need to poll.
+        // The backend receives real-time updates, but the frontend needs to ask for them periodically.
+        console.log('Starting polling for traditional environment.');
+        startPolling(5000); // Poll every 5 seconds for a more "real-time" feel
       }
     } catch (error) {
       console.error('Failed to check environment, using polling fallback:', error);
