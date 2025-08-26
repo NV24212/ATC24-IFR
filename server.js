@@ -131,8 +131,18 @@ async function pollControllers() {
 }
 
 // Poll immediately on startup, then set interval
-pollControllers();
-setInterval(pollControllers, 6000); // Poll every 6 seconds as per docs
+let controllerPollInterval = null;
+
+function startControllerPolling() {
+  if (controllerPollInterval) {
+    clearInterval(controllerPollInterval);
+  }
+
+  const interval = adminSettings.system.controllerPollInterval || 300000; // Default to 5 minutes
+  pollControllers(); // Poll immediately
+  controllerPollInterval = setInterval(pollControllers, interval);
+  logWithTimestamp('info', `Controller polling started with interval: ${interval}ms`);
+}
 
 // Initialize startup log
 logWithTimestamp('info', 'ATC24 Server starting up', {
@@ -256,6 +266,8 @@ async function initializeAdminSettings() {
   } catch (error) {
     logWithTimestamp('error', 'Failed to initialize admin settings', { error: error.message });
   }
+  // Start polling after settings are loaded
+  startControllerPolling();
 }
 
 // Call initialization
@@ -557,9 +569,10 @@ async function trackClearanceGeneration(req, clearanceData) {
         logWithTimestamp('error', 'Failed to track clearance generation in Supabase', {
           error: error.message,
           sessionId: session.id.slice(0, 8),
-          callsign: clearanceData?.callsign || 'Unknown'
+          clearanceData: enhancedClearanceData
         });
-        // Continue execution - don't let Supabase errors break the app
+        // Return failure so the client can be notified
+        return { success: false, error: 'Failed to log clearance to database.' };
       }
     }
 
@@ -1010,11 +1023,16 @@ app.get("/flight-plans", async (req, res) => {
 app.post("/api/clearance-generated", async (req, res) => {
   try {
     const clearanceData = req.body || {};
-    await trackClearanceGeneration(req, clearanceData);
+    const result = await trackClearanceGeneration(req, clearanceData);
+    if (!result.success) {
+      // The function now returns a failure object, so we can inform the client
+      return res.status(200).json({ success: false, error: result.error });
+    }
     res.json({ success: true });
   } catch (error) {
     console.error('Error tracking clearance generation:', error);
-    res.json({ success: true }); // Still return success to avoid breaking frontend
+    // This will catch critical errors in the tracking function itself
+    res.status(500).json({ success: false, error: 'Internal server error while tracking clearance.' });
   }
 });
 
@@ -1505,6 +1523,10 @@ app.post("/api/admin/settings", async (req, res) => {
     }
 
     logWithTimestamp('info', 'Admin settings updated', { adminUser: req.session.user.username });
+
+    // Restart controller polling with new interval
+    startControllerPolling();
+
     res.json({ success: true, settings: adminSettings });
   } catch (error) {
     logWithTimestamp('error', 'Error saving settings', { error: error.message });

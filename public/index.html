@@ -787,7 +787,10 @@
       console.log('Clearance tracking response:', result);
 
       if (!result.success) {
-        throw new Error(result.error || 'Server reported failure');
+        // Show a non-blocking warning to the user
+        showNotification('Could not save clearance to your profile. It is still available here.', 'warning');
+        console.warn('Failed to log clearance:', result.error);
+        return; // Don't throw an error, just notify
       }
 
       // Show success notification for authenticated users

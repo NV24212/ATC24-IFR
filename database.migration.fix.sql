@@ -232,6 +232,7 @@ DECLARE
       "maxFlightPlansStored": 20,
       "enableDetailedLogging": false,
       "autoRefreshInterval": 30000,
+      "controllerPollInterval": 300000,
       "enableFlightPlanFiltering": false
     }
   }';
