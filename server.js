@@ -1524,6 +1524,18 @@ app.post("/api/admin/settings", async (req, res) => {
 
     logWithTimestamp('info', 'Admin settings updated', { adminUser: req.session.user.username });
 
+    // Log admin activity
+    if (supabase) {
+      await supabase.from('admin_activities').insert({
+        action: 'update_settings',
+        details: {
+          admin_user: req.session.user.username,
+          new_settings: newSettings,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
     // Restart controller polling with new interval
     startControllerPolling();
 
