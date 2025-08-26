@@ -723,6 +723,77 @@ CREATE TRIGGER update_user_sessions_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- =============================================================================
+-- Part 2: Enable Row Level Security (RLS)
+-- This resolves the "rls_disabled_in_public" errors.
+-- =============================================================================
+-- WARNING: This enables RLS on tables that were previously public.
+-- This is a critical security fix. You may need to adjust the policies
+-- below if you need non-admin users to access this data.
+
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
+
+-- =============================================================================
+-- Part 3: Create Default RLS Policies
+-- This creates restrictive default policies for the newly secured tables.
+-- =============================================================================
+
+-- Default policy: Deny all access unless a more specific policy allows it.
+-- We will allow admins full access.
+
+-- For 'categories' table
+DROP POLICY IF EXISTS "Admins can manage categories" ON public.categories;
+CREATE POLICY "Admins can manage categories" ON public.categories FOR ALL
+  TO authenticated
+  USING (is_admin())
+  WITH CHECK (is_admin());
+
+-- For 'customers' table
+DROP POLICY IF EXISTS "Admins can manage customers" ON public.customers;
+CREATE POLICY "Admins can manage customers" ON public.customers FOR ALL
+  TO authenticated
+  USING (is_admin())
+  WITH CHECK (is_admin());
+
+-- For 'products' table
+DROP POLICY IF EXISTS "Admins can manage products" ON public.products;
+CREATE POLICY "Admins can manage products" ON public.products FOR ALL
+  TO authenticated
+  USING (is_admin())
+  WITH CHECK (is_admin());
+
+-- For 'orders' table
+DROP POLICY IF EXISTS "Admins can manage orders" ON public.orders;
+CREATE POLICY "Admins can manage orders" ON public.orders FOR ALL
+  TO authenticated
+  USING (is_admin())
+  WITH CHECK (is_admin());
+
+-- For 'admin_users' table
+DROP POLICY IF EXISTS "Admins can manage admin_users" ON public.admin_users;
+CREATE POLICY "Admins can manage admin_users" ON public.admin_users FOR ALL
+  TO authenticated
+  USING (is_admin());
+
+-- =============================================================================
+-- Part 4: Security Definer View Warning
+-- =============================================================================
+-- The linter reported an error for a view `public.order_details` being
+-- defined with SECURITY DEFINER. This is a security risk.
+--
+-- To fix this, you should either remove `SECURITY DEFINER` from the view
+-- if it's not needed, or change the owner of the view to a role with
+-- minimal privileges.
+--
+-- Example of how to change owner:
+-- ALTER VIEW public.order_details OWNER TO postgres;
+--
+-- Please review this manually in your Supabase dashboard.
+
+-- =============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES (REVISED FOR ADMIN ACCESS)
 -- =============================================================================
 
