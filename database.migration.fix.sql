@@ -723,6 +723,8 @@ CREATE TRIGGER update_user_sessions_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- =============================================================================
+
+-- =============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES (REVISED FOR ADMIN ACCESS)
 -- =============================================================================
 

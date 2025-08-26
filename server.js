@@ -65,41 +65,42 @@ function logWithTimestamp(level, message, data = null) {
   }
 }
 
-// Initialize Supabase client with proper validation
+// Initialize Supabase client with proper validation and security
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE; // SECURE: Loaded from server environment, not .env file
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY; // PUBLIC: Safe to be in .env file
 let supabase = null;
 
-// Validate Supabase configuration
-if (supabaseUrl && supabaseKey &&
-    supabaseUrl !== 'your_supabase_url_here' &&
-    supabaseUrl !== 'your_supabase_url_here/' &&
-    supabaseKey !== 'your_supabase_anon_key_here' &&
-    supabaseUrl.startsWith('https://') &&
-    supabaseUrl.includes('.supabase.co')) {
+// The server should ALWAYS use the service role key for admin operations.
+// This key MUST be kept secret and set as an environment variable in your hosting platform.
+if (supabaseUrl && supabaseServiceKey && supabaseUrl.startsWith('https://')) {
   try {
-    supabase = createClient(supabaseUrl, supabaseKey, {
+    supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
       }
     });
-    logWithTimestamp('info', 'Supabase client initialized successfully', {
-      usingServiceRole: !!process.env.SUPABASE_SERVICE_ROLE,
-      keyType: process.env.SUPABASE_SERVICE_ROLE ? 'service_role' : 'anon'
-    });
+    logWithTimestamp('info', 'Supabase admin client initialized successfully using SERVICE_ROLE key.');
   } catch (error) {
-    logWithTimestamp('error', 'Failed to initialize Supabase', { error: error.message });
-    logWithTimestamp('warn', 'Continuing without Supabase - using local storage');
+    logWithTimestamp('error', 'Failed to initialize Supabase admin client', { error: error.message });
+    supabase = null;
   }
 } else {
-  console.log("⚠️ Supabase not properly configured - using local storage");
-  if (!supabaseUrl || supabaseUrl.includes('your_supabase_url_here')) {
-    console.log("   Please set SUPABASE_URL environment variable");
-  }
-  if (!supabaseKey || supabaseKey.includes('your_supabase_anon_key_here')) {
-    console.log("   Please set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY environment variable");
-  }
+    logWithTimestamp('warn', 'Supabase SERVICE_ROLE key not configured or URL is invalid.');
+    logWithTimestamp('error', 'SERVER IS NOT PROPERLY CONFIGURED. Admin operations will fail.');
+    if (!supabaseUrl || !supabaseUrl.startsWith('https://')) {
+        console.log("   ❌ Missing or invalid SUPABASE_URL.");
+    }
+    if (!supabaseServiceKey) {
+        console.log("   ❌ CRITICAL: SUPABASE_SERVICE_ROLE key is not set in the environment.");
+        console.log("   For security, this key should NOT be in a .env file. Set it in your hosting provider's secrets/environment variables.");
+    }
+}
+
+// Validation for the public (anon) key which is sent to the client
+if (!supabaseAnonKey) {
+    logWithTimestamp('warn', 'SUPABASE_ANON_KEY is not set. Frontend functionality may be limited.');
 }
 
 let flightPlans = []; // Store multiple flight plans
