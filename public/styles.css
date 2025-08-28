@@ -1093,9 +1093,6 @@ input[type="text"]::placeholder {
 }
 
 .clearances-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
   overflow-y: auto;
   flex-grow: 1;
   padding-right: 10px;
@@ -1104,26 +1101,14 @@ input[type="text"]::placeholder {
 .clearance-item {
   background: var(--surface-hover);
   border-radius: 8px;
-  padding: 10px 15px;
-  border: 1px solid var(--border-color);
-  flex-basis: calc(50% - 5px);
-}
-
-.clearance-item[open] {
-  flex-basis: 100%;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-left: 3px solid var(--primary-color);
 }
 
 .clearance-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
   font-size: 14px;
-}
-
-.clearance-item-date {
-  font-size: 12px;
-  color: var(--text-muted);
+  margin-bottom: 8px;
 }
 
 .clearance-item-body {
@@ -1131,9 +1116,13 @@ input[type="text"]::placeholder {
   font-size: 13px;
   color: var(--text-muted);
   white-space: pre-wrap;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-color);
+  margin-bottom: 8px;
+}
+
+.clearance-item-footer {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
 }
 
 /* Leaderboard Styles */
@@ -1143,11 +1132,8 @@ input[type="text"]::placeholder {
 
 .leaderboard-grid {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(280px, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 15px;
-  overflow-x: auto;
-  padding-bottom: 15px;
 }
 
 .leaderboard-user {
