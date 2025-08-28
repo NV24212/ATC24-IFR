@@ -1291,15 +1291,17 @@
       }
 
       list.innerHTML = clearances.map(c => `
-        <details class="clearance-item">
-          <summary class="clearance-item-header">
-            <strong>${c.callsign || 'N/A'}</strong>
-            <span class="clearance-item-date">${new Date(c.created_at).toLocaleDateString()}</span>
-          </summary>
+        <div class="clearance-item">
+          <div class="clearance-item-header">
+            <strong>${c.callsign || 'N/A'}</strong> to <strong>${c.destination || 'N/A'}</strong>
+          </div>
           <div class="clearance-item-body">
             ${c.clearance_text || 'No text available.'}
           </div>
-        </details>
+          <div class="clearance-item-footer">
+            ${new Date(c.created_at).toLocaleString()}
+          </div>
+        </div>
       `).join('');
 
     } catch (error) {
