@@ -1032,6 +1032,34 @@ app.get("/api/atis", (req, res) => {
   res.json(atisCache);
 });
 
+// API endpoint for leaderboard
+app.get("/api/leaderboard", async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: "Database not configured" });
+  }
+  try {
+    const { data, error } = await supabase.rpc('get_clearance_leaderboard');
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API endpoint for user's clearances
+app.get("/api/user/clearances", requireDiscordAuth, async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: "Database not configured" });
+  }
+  try {
+    const { data, error } = await supabase.rpc('get_user_clearances', { p_user_id: req.user.id });
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // REST: Get all flight plans with serverless-aware fallback
 app.get("/flight-plans", async (req, res) => {
   try {

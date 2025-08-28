@@ -904,6 +904,73 @@ WHERE session_id = 'test-session-123';
 DELETE FROM user_sessions WHERE session_id = 'test-session-123';
 
 -- =============================================================================
+-- FUNCTION: get_clearance_leaderboard
+-- Gets the top users by clearance count
+-- =============================================================================
+CREATE OR REPLACE FUNCTION get_clearance_leaderboard(
+    p_limit INT DEFAULT 25
+)
+RETURNS TABLE(
+    rank BIGINT,
+    user_id UUID,
+    username TEXT,
+    avatar TEXT,
+    clearance_count BIGINT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = 'public'
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        ROW_NUMBER() OVER (ORDER BY COUNT(cg.id) DESC) as rank,
+        du.id as user_id,
+        du.username,
+        du.avatar,
+        COUNT(cg.id) as clearance_count
+    FROM clearance_generations cg
+    JOIN discord_users du ON cg.user_id = du.id
+    WHERE cg.user_id IS NOT NULL
+    GROUP BY du.id, du.username, du.avatar
+    ORDER BY clearance_count DESC
+    LIMIT p_limit;
+END;
+$$;
+
+-- =============================================================================
+-- FUNCTION: get_user_clearances
+-- Gets all clearances for a specific user
+-- =============================================================================
+CREATE OR REPLACE FUNCTION get_user_clearances(
+    p_user_id UUID
+)
+RETURNS TABLE(
+    id UUID,
+    callsign TEXT,
+    destination TEXT,
+    clearance_text TEXT,
+    created_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = 'public'
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        cg.id,
+        cg.callsign,
+        cg.destination,
+        cg.clearance_text,
+        cg.created_at
+    FROM clearance_generations cg
+    WHERE cg.user_id = p_user_id
+    ORDER BY cg.created_at DESC;
+END;
+$$;
+
+-- =============================================================================
 -- SUCCESS MESSAGE
 -- =============================================================================
 DO $$
