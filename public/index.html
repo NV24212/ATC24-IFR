@@ -61,7 +61,7 @@
 <body>
 <div class="container">
   <div class="header">
-    <img src="https://www.dropbox.com/scl/fi/x54t7x713bny0zk4weh5f/IMG_1151.png?rlkey=vocil773235sh2p25xqvewdw4&st=4wwdh6e4&raw=1" alt="Logo" class="header-logo" style="width: 150px; height: auto; margin-bottom: 0px;">
+    <img src="logo.png" alt="Logo" class="header-logo" style="width: 150px; height: auto; margin-bottom: 0px;">
     <h1>ATC24 IFR Clearance Generator</h1>
 
     <div class="auth-section" id="authSection">
@@ -130,7 +130,14 @@
       </div>
 
       <div class="config-group">
-        <label class="config-label">ATIS Information Letter</label>
+        <label class="config-label">Departure Airport</label>
+        <select id="departureAirportSelect">
+          <option value="">Loading airports...</option>
+        </select>
+      </div>
+
+      <div class="config-group">
+        <label class="config-label">ATIS Information Letter <span id="atis-auto" style="display:none;">✓</span></label>
         <select id="atisInfo">
           <option value="A">Information A</option>
           <option value="B">Information B</option>
@@ -183,7 +190,7 @@
       </div>
 
       <div class="config-group">
-        <label class="config-label">Departure Runway</label>
+        <label class="config-label">Departure Runway <span id="runway-auto" style="display:none;">✓</span></label>
         <input type="text" id="departureRunway" placeholder="e.g., 25R">
       </div>
 
@@ -435,21 +442,37 @@
   function getEffectiveSettings() {
     const effective = JSON.parse(JSON.stringify(adminSettings)); // Deep clone
 
-    // Override with user settings
+    // Override with user settings if they exist
     if (userSettings.clearanceFormat.customTemplate) {
       effective.clearanceFormat.customTemplate = userSettings.clearanceFormat.customTemplate;
     }
-    effective.clearanceFormat.includeAtis = userSettings.clearanceFormat.includeAtis;
-    effective.clearanceFormat.includeSquawk = userSettings.clearanceFormat.includeSquawk;
-    effective.clearanceFormat.includeFlightLevel = userSettings.clearanceFormat.includeFlightLevel;
-    effective.clearanceFormat.includeStartupApproval = userSettings.clearanceFormat.includeStartupApproval;
-    effective.clearanceFormat.includeInitialClimb = userSettings.clearanceFormat.includeInitialClimb;
+
+    // For boolean flags, check if the property exists in userSettings before overriding
+    if (userSettings.clearanceFormat.hasOwnProperty('includeAtis')) {
+      effective.clearanceFormat.includeAtis = userSettings.clearanceFormat.includeAtis;
+    }
+    if (userSettings.clearanceFormat.hasOwnProperty('includeSquawk')) {
+      effective.clearanceFormat.includeSquawk = userSettings.clearanceFormat.includeSquawk;
+    }
+    if (userSettings.clearanceFormat.hasOwnProperty('includeFlightLevel')) {
+      effective.clearanceFormat.includeFlightLevel = userSettings.clearanceFormat.includeFlightLevel;
+    }
+    if (userSettings.clearanceFormat.hasOwnProperty('includeStartupApproval')) {
+      effective.clearanceFormat.includeStartupApproval = userSettings.clearanceFormat.includeStartupApproval;
+    }
+    if (userSettings.clearanceFormat.hasOwnProperty('includeInitialClimb')) {
+      effective.clearanceFormat.includeInitialClimb = userSettings.clearanceFormat.includeInitialClimb;
+    }
 
     if (userSettings.aviation.defaultAltitudes && userSettings.aviation.defaultAltitudes.length > 0) {
       effective.aviation.defaultAltitudes = userSettings.aviation.defaultAltitudes;
     }
-    effective.aviation.squawkRanges.min = userSettings.aviation.squawkRanges.min;
-    effective.aviation.squawkRanges.max = userSettings.aviation.squawkRanges.max;
+    if (userSettings.aviation.squawkRanges && userSettings.aviation.squawkRanges.min) {
+      effective.aviation.squawkRanges.min = userSettings.aviation.squawkRanges.min;
+    }
+    if (userSettings.aviation.squawkRanges && userSettings.aviation.squawkRanges.max) {
+      effective.aviation.squawkRanges.max = userSettings.aviation.squawkRanges.max;
+    }
 
     return effective;
   }
@@ -1099,6 +1122,62 @@
     }, 8000);
   }
 
+  // ATIS Management Functions
+  let atisData = [];
+
+  async function loadAtis() {
+    try {
+      const response = await fetch('/api/atis');
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+      const cache = await response.json();
+      atisData = cache.data || [];
+      populateAirportSelect();
+    } catch (error) {
+      console.error('Failed to load ATIS data:', error);
+      document.getElementById('departureAirportSelect').innerHTML = '<option value="">Error loading airports</option>';
+    }
+  }
+
+  function populateAirportSelect() {
+    const select = document.getElementById('departureAirportSelect');
+    select.innerHTML = '<option value="">-- Select Airport --</option>';
+
+    const airports = [...new Set(atisData.map(a => a.airport))].sort();
+    airports.forEach(airport => {
+      const option = document.createElement('option');
+      option.value = airport;
+      option.textContent = airport;
+      select.appendChild(option);
+    });
+
+    select.addEventListener('change', onAirportSelect);
+  }
+
+  function onAirportSelect() {
+    const airport = document.getElementById('departureAirportSelect').value;
+    if (!airport) return;
+
+    const atis = atisData.find(a => a.airport === airport);
+    if (!atis) return;
+
+    // Set ATIS letter
+    const atisLetterSelect = document.getElementById('atisInfo');
+    if (atis.letter && [...atisLetterSelect.options].some(opt => opt.value === atis.letter)) {
+      atisLetterSelect.value = atis.letter;
+      document.getElementById('atis-auto').style.display = 'inline';
+    }
+
+    // Set departure runway
+    const runwayRegex = /DEP RWY (\w+)/;
+    const match = atis.content.match(runwayRegex);
+    if (match && match[1]) {
+      document.getElementById('departureRunway').value = match[1];
+      document.getElementById('runway-auto').style.display = 'inline';
+    }
+  }
+
   // Controller Management Functions
   async function loadControllers() {
     const select = document.getElementById('groundCallsignSelect');
@@ -1123,7 +1202,7 @@
 
       select.innerHTML = ''; // Clear loading option
 
-      const onlineControllers = controllers.filter(c => c.holder && !c.claimable);
+      const onlineControllers = controllers.filter(c => c.position && (c.position.endsWith('_GND') || c.position.endsWith('_TWR')));
 
       // Always clear and add the default/manual options
       select.innerHTML = '<option value="">-- Select ATC --</option>';
@@ -1167,11 +1246,20 @@
   function onControllerSelect() {
     const select = document.getElementById('groundCallsignSelect');
     const manualInput = document.getElementById('groundCallsignManual');
+    const airportSelect = document.getElementById('departureAirportSelect');
+
     if (select.value === 'manual') {
       manualInput.style.display = 'block';
       manualInput.focus();
     } else {
       manualInput.style.display = 'none';
+      if (select.value) {
+        const airport = select.value.split('_')[0];
+        if ([...airportSelect.options].some(opt => opt.value === airport)) {
+          airportSelect.value = airport;
+          onAirportSelect(); // Trigger ATIS update
+        }
+      }
     }
   }
 
@@ -1186,6 +1274,9 @@
 
     // Load controllers
     loadControllers();
+
+    // Load ATIS data
+    loadAtis();
 
     // Load user settings first
     loadUserSettings();
