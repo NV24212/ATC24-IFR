@@ -985,9 +985,51 @@ app.get("/admin", (req, res) => {
 app.use(express.static('public'));
 
 
+// ATIS data cache and polling
+let atisCache = {
+  data: [],
+  lastUpdated: null,
+  source: 'cache'
+};
+
+async function pollAtis() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 15000); // 15 second timeout
+
+  try {
+    const response = await fetch('https://24data.ptfs.app/atis', { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+    }
+    const data = await response.json();
+    atisCache = {
+      data: data,
+      lastUpdated: new Date().toISOString(),
+      source: 'live'
+    };
+    logWithTimestamp('info', 'Fetched ATIS data successfully', { count: data.length });
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to fetch ATIS data', { error: error.message });
+    atisCache.source = 'stale'; // Mark data as potentially stale
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// Poll ATIS data on startup and then every 6 seconds
+pollAtis();
+setInterval(pollAtis, 6000);
+
 // REST: Get all online controllers
 app.get("/controllers", (req, res) => {
   res.json(controllerCache);
+});
+
+// REST: Get all ATIS data
+app.get("/api/atis", (req, res) => {
+  res.json(atisCache);
 });
 
 // REST: Get all flight plans with serverless-aware fallback
