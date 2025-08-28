@@ -1230,6 +1230,11 @@
 
   // Leaderboard Functions
   async function loadLeaderboard() {
+    const refreshBtn = document.querySelector('#leaderboardModal .refresh-btn');
+    const originalText = refreshBtn.innerHTML;
+    refreshBtn.innerHTML = '<span class="loading"></span> Refreshing...';
+    refreshBtn.disabled = true;
+
     try {
       const response = await fetch('/api/leaderboard');
       if (!response.ok) {
@@ -1240,6 +1245,9 @@
     } catch (error) {
       console.error('Failed to load leaderboard:', error);
       document.getElementById('leaderboard').innerHTML = '<div class="leaderboard-loading">Error loading leaderboard</div>';
+    } finally {
+      refreshBtn.innerHTML = originalText;
+      refreshBtn.disabled = false;
     }
   }
 
@@ -1373,10 +1381,12 @@
     <button class="modal-close" onclick="hideLeaderboard()">×</button>
     <div class="modal-header">
       <h2>Clearance Leaderboard</h2>
-      <button class="refresh-btn small-btn" onclick="loadLeaderboard()">Refresh</button>
     </div>
     <div class="leaderboard" id="leaderboard">
       <div class="leaderboard-loading">Loading leaderboard...</div>
+    </div>
+    <div class="modal-footer">
+      <button class="refresh-btn" onclick="loadLeaderboard()">Refresh</button>
     </div>
     <p class="leaderboard-login-prompt">Login to be on the leaderboard!</p>
   </div>
