@@ -443,34 +443,34 @@
     const effective = JSON.parse(JSON.stringify(adminSettings)); // Deep clone
 
     // Override with user settings if they exist
-    if (userSettings.clearanceFormat.customTemplate) {
+    if (userSettings.clearanceFormat && userSettings.clearanceFormat.customTemplate) {
       effective.clearanceFormat.customTemplate = userSettings.clearanceFormat.customTemplate;
     }
 
     // For boolean flags, check if the property exists in userSettings before overriding
-    if (userSettings.clearanceFormat.hasOwnProperty('includeAtis')) {
+    if (userSettings.clearanceFormat && userSettings.clearanceFormat.hasOwnProperty('includeAtis')) {
       effective.clearanceFormat.includeAtis = userSettings.clearanceFormat.includeAtis;
     }
-    if (userSettings.clearanceFormat.hasOwnProperty('includeSquawk')) {
+    if (userSettings.clearanceFormat && userSettings.clearanceFormat.hasOwnProperty('includeSquawk')) {
       effective.clearanceFormat.includeSquawk = userSettings.clearanceFormat.includeSquawk;
     }
-    if (userSettings.clearanceFormat.hasOwnProperty('includeFlightLevel')) {
+    if (userSettings.clearanceFormat && userSettings.clearanceFormat.hasOwnProperty('includeFlightLevel')) {
       effective.clearanceFormat.includeFlightLevel = userSettings.clearanceFormat.includeFlightLevel;
     }
-    if (userSettings.clearanceFormat.hasOwnProperty('includeStartupApproval')) {
+    if (userSettings.clearanceFormat && userSettings.clearanceFormat.hasOwnProperty('includeStartupApproval')) {
       effective.clearanceFormat.includeStartupApproval = userSettings.clearanceFormat.includeStartupApproval;
     }
-    if (userSettings.clearanceFormat.hasOwnProperty('includeInitialClimb')) {
+    if (userSettings.clearanceFormat && userSettings.clearanceFormat.hasOwnProperty('includeInitialClimb')) {
       effective.clearanceFormat.includeInitialClimb = userSettings.clearanceFormat.includeInitialClimb;
     }
 
-    if (userSettings.aviation.defaultAltitudes && userSettings.aviation.defaultAltitudes.length > 0) {
+    if (userSettings.aviation && userSettings.aviation.defaultAltitudes && userSettings.aviation.defaultAltitudes.length > 0) {
       effective.aviation.defaultAltitudes = userSettings.aviation.defaultAltitudes;
     }
-    if (userSettings.aviation.squawkRanges && userSettings.aviation.squawkRanges.min) {
+    if (userSettings.aviation && userSettings.aviation.squawkRanges && userSettings.aviation.squawkRanges.min) {
       effective.aviation.squawkRanges.min = userSettings.aviation.squawkRanges.min;
     }
-    if (userSettings.aviation.squawkRanges && userSettings.aviation.squawkRanges.max) {
+    if (userSettings.aviation && userSettings.aviation.squawkRanges && userSettings.aviation.squawkRanges.max) {
       effective.aviation.squawkRanges.max = userSettings.aviation.squawkRanges.max;
     }
 
