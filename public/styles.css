@@ -1093,6 +1093,7 @@ input[type="text"]::placeholder {
 }
 
 .clearances-list {
+  max-height: 400px;
   overflow-y: auto;
   flex-grow: 1;
   padding-right: 10px;
