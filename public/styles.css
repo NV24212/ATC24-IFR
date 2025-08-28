@@ -932,6 +932,10 @@ input[type="text"]::placeholder {
   transition: all 0.2s ease;
 }
 
+.auth-logged-out .leaderboard-btn {
+  margin-bottom: 10px;
+}
+
 .logout-btn:hover {
   background: rgba(255, 107, 107, 0.1);
   border-color: #ff6b6b;
@@ -972,7 +976,7 @@ input[type="text"]::placeholder {
   transition: opacity 0.3s ease;
 }
 
-#profileModal {
+.modal-overlay.show {
     opacity: 1;
 }
 
