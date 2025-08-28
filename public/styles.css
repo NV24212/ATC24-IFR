@@ -1093,6 +1093,9 @@ input[type="text"]::placeholder {
 }
 
 .clearances-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   overflow-y: auto;
   flex-grow: 1;
   padding-right: 10px;
@@ -1101,14 +1104,26 @@ input[type="text"]::placeholder {
 .clearance-item {
   background: var(--surface-hover);
   border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 10px;
-  border-left: 3px solid var(--primary-color);
+  padding: 10px 15px;
+  border: 1px solid var(--border-color);
+  flex-basis: calc(50% - 5px);
+}
+
+.clearance-item[open] {
+  flex-basis: 100%;
 }
 
 .clearance-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
   font-size: 14px;
-  margin-bottom: 8px;
+}
+
+.clearance-item-date {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .clearance-item-body {
@@ -1116,13 +1131,9 @@ input[type="text"]::placeholder {
   font-size: 13px;
   color: var(--text-muted);
   white-space: pre-wrap;
-  margin-bottom: 8px;
-}
-
-.clearance-item-footer {
-  font-size: 12px;
-  color: var(--text-muted);
-  text-align: right;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
 }
 
 /* Leaderboard Styles */
@@ -1132,8 +1143,11 @@ input[type="text"]::placeholder {
 
 .leaderboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(280px, 1fr);
   gap: 15px;
+  overflow-x: auto;
+  padding-bottom: 15px;
 }
 
 .leaderboard-user {
@@ -1183,6 +1197,17 @@ input[type="text"]::placeholder {
   color: var(--text-muted);
   padding: 40px 20px;
   font-style: italic;
+}
+
+.leaderboard-login-prompt {
+  display: none;
+  text-align: center;
+  margin-top: 20px;
+  color: var(--text-muted);
+}
+
+body.logged-out .leaderboard-login-prompt {
+  display: block;
 }
 
 /* Mobile responsive adjustments */

@@ -78,7 +78,6 @@
           </svg>
           Login with Discord
         </button>
-        <p style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">Login to be on the leaderboard!</p>
       </div>
       <div class="auth-logged-in" id="authLoggedIn" style="display: none;">
         <div class="user-info">
@@ -96,9 +95,6 @@
       </div>
     </div>
 
-    <p style="color: var(--text-muted); margin-top: 15px; font-size: 12px;">
-      All rights reserved, Hasan Mahmood ©
-    </p>
   </div>
 
   <div class="main-grid">
@@ -918,6 +914,7 @@
   }
 
   function showLoggedInState(user) {
+    document.body.classList.remove('logged-out');
     // If server provides settings, merge them with local settings
     if (user.settings && Object.keys(user.settings).length > 0) {
       console.log('Applying user settings from server');
@@ -981,6 +978,7 @@
   }
 
   function showLoggedOutState() {
+    document.body.classList.add('logged-out');
     document.getElementById('authLoading').style.display = 'none';
     document.getElementById('authLoggedIn').style.opacity = '0';
     document.getElementById('authLoggedIn').style.visibility = 'hidden';
@@ -1293,17 +1291,15 @@
       }
 
       list.innerHTML = clearances.map(c => `
-        <div class="clearance-item">
-          <div class="clearance-item-header">
-            <strong>${c.callsign || 'N/A'}</strong> to <strong>${c.destination || 'N/A'}</strong>
-          </div>
+        <details class="clearance-item">
+          <summary class="clearance-item-header">
+            <strong>${c.callsign || 'N/A'}</strong>
+            <span class="clearance-item-date">${new Date(c.created_at).toLocaleDateString()}</span>
+          </summary>
           <div class="clearance-item-body">
             ${c.clearance_text || 'No text available.'}
           </div>
-          <div class="clearance-item-footer">
-            ${new Date(c.created_at).toLocaleString()}
-          </div>
-        </div>
+        </details>
       `).join('');
 
     } catch (error) {
@@ -1380,12 +1376,9 @@
     <div class="leaderboard" id="leaderboard">
       <div class="leaderboard-loading">Loading leaderboard...</div>
     </div>
+    <p class="leaderboard-login-prompt">Login to be on the leaderboard!</p>
   </div>
 </div>
-
-<footer class="footer">
-  <a href="/license" class="footer-link">License</a>
-</footer>
 
 <div class="modal-overlay" id="profileModal" style="display: none;">
   <div class="modal-content">
@@ -1408,6 +1401,11 @@
     </div>
   </div>
 </div>
+
+<footer class="footer">
+  <p>All rights reserved, Hasan Mahmood ©</p>
+  <a href="/license" class="footer-link">License</a>
+</footer>
 
 </body>
 </html>
