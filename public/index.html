@@ -84,6 +84,7 @@
           <div class="user-details">
             <span class="user-name" id="userName"></span>
             <div class="user-actions">
+              <button class="profile-btn" onclick="showProfile()">Profile</button>
               <button class="logout-btn" onclick="logout()">Logout</button>
               <button class="admin-btn" id="adminBtn" onclick="window.location.href='/admin'" style="display: none;">Admin</button>
             </div>
@@ -287,6 +288,13 @@
     <h2 class="section-title">IFR Clearance</h2>
     <div class="clearance-output" id="clearanceOutput">
       Select a flight plan and configure ATC settings to generate clearance...
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">Clearance Leaderboard</h2>
+    <div class="leaderboard" id="leaderboard">
+      <div class="leaderboard-loading">Loading leaderboard...</div>
     </div>
   </div>
 </div>
@@ -1226,6 +1234,92 @@
   }
 
 
+  // Leaderboard Functions
+  async function loadLeaderboard() {
+    try {
+      const response = await fetch('/api/leaderboard');
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+      const leaderboardData = await response.json();
+      displayLeaderboard(leaderboardData);
+    } catch (error) {
+      console.error('Failed to load leaderboard:', error);
+      document.getElementById('leaderboard').innerHTML = '<div class="leaderboard-loading">Error loading leaderboard</div>';
+    }
+  }
+
+  function displayLeaderboard(data) {
+    const container = document.getElementById('leaderboard');
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div class="leaderboard-loading">No data to display</div>';
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="leaderboard-grid">
+        ${data.map(user => `
+          <div class="leaderboard-user">
+            <span class="leaderboard-rank">${user.rank}</span>
+            <img src="${user.avatar || 'https://via.placeholder.com/40'}" alt="Avatar" class="leaderboard-avatar">
+            <span class="leaderboard-username">${user.username}</span>
+            <span class="leaderboard-count">${user.clearance_count}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // Profile Modal Functions
+  async function showProfile() {
+    if (!currentUser) return;
+
+    const modal = document.getElementById('profileModal');
+    modal.style.display = 'flex';
+
+    document.getElementById('profile-avatar').src = currentUser.avatar || 'https://via.placeholder.com/80';
+    document.getElementById('profile-username').textContent = currentUser.username;
+
+    try {
+      const response = await fetch('/api/user/clearances', {
+        headers: { 'X-Session-ID': getSessionId() }
+      });
+      if (!response.ok) throw new Error('Failed to fetch clearances');
+      const clearances = await response.json();
+
+      document.getElementById('profile-clearance-count').textContent = clearances.length;
+
+      const list = document.getElementById('profile-clearances-list');
+      if (clearances.length === 0) {
+        list.innerHTML = '<p>You have not generated any clearances yet.</p>';
+        return;
+      }
+
+      list.innerHTML = clearances.map(c => `
+        <div class="clearance-item">
+          <div class="clearance-item-header">
+            <strong>${c.callsign || 'N/A'}</strong> to <strong>${c.destination || 'N/A'}</strong>
+          </div>
+          <div class="clearance-item-body">
+            ${c.clearance_text || 'No text available.'}
+          </div>
+          <div class="clearance-item-footer">
+            ${new Date(c.created_at).toLocaleString()}
+          </div>
+        </div>
+      `).join('');
+
+    } catch (error) {
+      console.error('Error loading profile clearances:', error);
+      document.getElementById('profile-clearances-list').innerHTML = '<p>Could not load clearances.</p>';
+    }
+  }
+
+  function hideProfile() {
+    const modal = document.getElementById('profileModal');
+    modal.style.display = 'none';
+  }
+
   // Initial load of flight plans when the page loads
   document.addEventListener('DOMContentLoaded', () => {
     // Check auth params first
@@ -1237,8 +1331,14 @@
     // Load controllers
     loadControllers();
 
+    // Load initial flight plans
+    loadFlightPlans();
+
     // Load ATIS data
     loadAtis();
+
+    // Load leaderboard
+    loadLeaderboard();
 
     // Load user settings first
     loadUserSettings();
@@ -1258,6 +1358,28 @@
     }
   });
 </script>
+
+<div class="modal-overlay" id="profileModal" style="display: none;">
+  <div class="modal-content">
+    <button class="modal-close" onclick="hideProfile()">×</button>
+    <div class="profile-header">
+      <img id="profile-avatar" src="" alt="Avatar" class="profile-avatar">
+      <h2 id="profile-username"></h2>
+    </div>
+    <div class="profile-stats">
+      <div class="stat-item">
+        <span class="stat-value" id="profile-clearance-count">0</span>
+        <span class="stat-label">Clearances Generated</span>
+      </div>
+    </div>
+    <div class="profile-clearances">
+      <h3>Your Clearances</h3>
+      <div id="profile-clearances-list" class="clearances-list">
+        <p>Loading clearances...</p>
+      </div>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
