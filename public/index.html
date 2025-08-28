@@ -1202,7 +1202,7 @@
 
       select.innerHTML = ''; // Clear loading option
 
-      const onlineControllers = controllers.filter(c => c.position && (c.position.endsWith('_GND') || c.position.endsWith('_TWR')));
+      const onlineControllers = controllers.filter(c => c.holder && !c.claimable && c.position && (c.position === 'GND' || c.position === 'TWR'));
 
       // Always clear and add the default/manual options
       select.innerHTML = '<option value="">-- Select ATC --</option>';

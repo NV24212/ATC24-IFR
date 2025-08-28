@@ -124,7 +124,7 @@ async function pollControllers() {
       throw new Error(`HTTP ${response.status} - ${response.statusText}`);
     }
     const data = await response.json();
-    const filteredData = data.filter(c => c.position && (c.position.endsWith('_TWR') || c.position.endsWith('_GND')));
+    const filteredData = data.filter(c => c.position && (c.position === 'TWR' || c.position === 'GND'));
     controllerCache = {
       data: filteredData,
       lastUpdated: new Date().toISOString(),
