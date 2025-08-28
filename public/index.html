@@ -1273,6 +1273,7 @@
 
     const modal = document.getElementById('profileModal');
     modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('show'), 10);
 
     document.getElementById('profile-avatar').src = currentUser.avatar || 'https://via.placeholder.com/80';
     document.getElementById('profile-username').textContent = currentUser.username;
@@ -1314,17 +1315,21 @@
 
   function hideProfile() {
     const modal = document.getElementById('profileModal');
-    modal.style.display = 'none';
+    modal.classList.remove('show');
+    setTimeout(() => modal.style.display = 'none', 300);
   }
 
   function showLeaderboard() {
+    console.log('showLeaderboard called');
     const modal = document.getElementById('leaderboardModal');
     modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('show'), 10);
   }
 
   function hideLeaderboard() {
     const modal = document.getElementById('leaderboardModal');
-    modal.style.display = 'none';
+    modal.classList.remove('show');
+    setTimeout(() => modal.style.display = 'none', 300);
   }
 
   // Initial load of flight plans when the page loads
