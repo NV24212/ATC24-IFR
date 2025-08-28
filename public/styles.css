@@ -132,10 +132,11 @@ body {
 }
 
 .flight-plans {
-  max-height: 500px;
+  max-height: 800px;
   overflow-y: auto;
   overflow-x: visible; /* Allow hover effect to extend outside */
   padding: 5px; /* Add some padding to not cut off shadows */
+  transition: max-height 0.5s ease-in-out;
 }
 
 .flight-plan {
@@ -181,18 +182,56 @@ body {
   transform: scale(1.02);
 }
 
+.flight-plan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
 .flight-plan-callsign {
   font-size: 18px;
   font-weight: 700;
   color: var(--primary-color);
-  margin-bottom: 10px;
   letter-spacing: 0.5px;
 }
 
-.flight-plan-details {
+.flight-plan-aircraft {
   font-size: 14px;
+  font-weight: 600;
   color: var(--text-muted);
-  line-height: 1.5;
+  background: var(--background-color);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.flight-plan-route {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  background: var(--background-color);
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.flight-plan-airport {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.flight-plan-arrow {
+  font-size: 20px;
+  color: var(--primary-color);
+}
+
+.flight-plan-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
 }
 
 .config-group {

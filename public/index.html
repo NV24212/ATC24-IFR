@@ -537,12 +537,19 @@
 
     container.innerHTML = flightPlans.map((plan, index) => `
       <div class="flight-plan ${selectedFlightPlan === plan ? 'selected' : ''}" onclick="selectFlightPlan(${index})">
-        <div class="flight-plan-callsign">${plan.callsign || 'Unknown'}</div>
-        <div class="flight-plan-details">
-          Destination: ${plan.arriving || 'N/A'}<br>
-          Route: ${plan.route || 'Direct'}<br>
-          FL: ${plan.flightlevel || 'N/A'}<br>
-          Source: ${plan.source || 'Main'}
+        <div class="flight-plan-header">
+          <span class="flight-plan-callsign">${plan.callsign || 'Unknown'}</span>
+          <span class="flight-plan-aircraft">${plan.aircraft || 'N/A'}</span>
+        </div>
+        <div class="flight-plan-route">
+          <span class="flight-plan-airport">${plan.departing || 'N/A'}</span>
+          <span class="flight-plan-arrow">→</span>
+          <span class="flight-plan-airport">${plan.arriving || 'N/A'}</span>
+        </div>
+        <div class="flight-plan-info">
+          <span>Route: ${plan.route || 'Direct'}</span>
+          <span>FL: ${plan.flightlevel || 'N/A'}</span>
+          <span>Rule: ${plan.flightrules || 'N/A'}</span>
         </div>
       </div>
     `).join('');
@@ -815,6 +822,7 @@
 
           // Update UI based on settings
           updateUIFromSettings();
+          updateUserSettingsUI(); // This will update the advanced config text area
         }
       }
     } catch (error) {
@@ -840,52 +848,6 @@
     }
   }
 
-  // Environment detection and polling fallback
-  let autoRefreshInterval = null;
-  let isServerless = false;
-
-  async function checkEnvironmentAndStartPolling() {
-    try {
-      const healthResponse = await fetch('/health');
-      const healthData = await healthResponse.json();
-      isServerless = healthData.environment === 'serverless';
-
-      // Initial load
-      await loadFlightPlans();
-
-      // The frontend needs to poll for flight plans since it cannot connect to the backend's WebSocket directly.
-      if (isServerless) {
-        // In a serverless environment, polling is the only way to get data.
-        console.log('Starting polling for serverless environment.');
-        startPolling(10000); // Poll every 10 seconds
-        showEnvironmentNotification();
-      } else {
-        // In a traditional (VPS) environment, we still need to poll.
-        // The backend receives real-time updates, but the frontend needs to ask for them periodically.
-        console.log('Starting polling for traditional environment.');
-        startPolling(5000); // Poll every 5 seconds for a more "real-time" feel
-      }
-    } catch (error) {
-      console.error('Failed to check environment, using polling fallback:', error);
-      await loadFlightPlans();
-      startPolling(15000); // Default polling interval
-    }
-  }
-
-  function startPolling(interval) {
-    if (autoRefreshInterval) {
-      clearInterval(autoRefreshInterval);
-    }
-
-    autoRefreshInterval = setInterval(async () => {
-      try {
-        await loadFlightPlans();
-        console.log('Flight plans refreshed via polling');
-      } catch (error) {
-        console.error('Polling refresh failed:', error);
-      }
-    }, interval);
-  }
 
   function showEnvironmentNotification() {
     const notification = document.createElement('div');
@@ -1281,10 +1243,9 @@
     // Load user settings first
     loadUserSettings();
 
-    // Then load admin settings and start polling
+    // Then load admin settings
     loadAdminSettings().then(() => {
       updateUIFromSettings(); // Update UI with effective settings
-      checkEnvironmentAndStartPolling();
     });
 
     // Toggle for advanced config
