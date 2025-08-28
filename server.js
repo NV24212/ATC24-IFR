@@ -241,7 +241,8 @@ let adminSettings = {
     maxFlightPlansStored: 20,
     enableDetailedLogging: false,
     autoRefreshInterval: 30000,
-    enableFlightPlanFiltering: false
+    enableFlightPlanFiltering: false,
+    atisPollInterval: 300000
   }
 };
 
@@ -275,8 +276,9 @@ async function initializeAdminSettings() {
     logWithTimestamp('error', 'Failed to initialize admin settings', { error: error.message });
   }
   // Start polling after settings are loaded
-  logWithTimestamp('info', 'Admin settings initialized. Starting controller polling...');
+  logWithTimestamp('info', 'Admin settings initialized. Starting controller and ATIS polling...');
   startControllerPolling();
+  startAtisPolling();
 }
 
 // Call initialization
@@ -1018,9 +1020,19 @@ async function pollAtis() {
   }
 }
 
-// Poll ATIS data on startup and then every 6 seconds
-pollAtis();
-setInterval(pollAtis, 6000);
+// Poll ATIS data on startup and then at a configurable interval
+let atisPollInterval = null;
+
+function startAtisPolling() {
+  if (atisPollInterval) {
+    clearInterval(atisPollInterval);
+  }
+
+  const interval = adminSettings.system.atisPollInterval || 300000; // Default to 5 minutes
+  pollAtis(); // Poll immediately
+  atisPollInterval = setInterval(pollAtis, interval);
+  logWithTimestamp('info', `ATIS polling started with interval: ${interval}ms`);
+}
 
 // REST: Get all online controllers
 app.get("/controllers", (req, res) => {
@@ -1645,8 +1657,9 @@ app.post("/api/admin/settings", async (req, res) => {
       });
     }
 
-    // Restart controller polling with new interval
+    // Restart polling with new intervals
     startControllerPolling();
+    startAtisPolling();
 
     res.json({ success: true, settings: adminSettings });
   } catch (error) {
