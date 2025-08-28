@@ -948,6 +948,24 @@ input[type="text"]::placeholder {
   color: #000;
 }
 
+/* Footer Styles */
+.footer {
+  text-align: center;
+  padding: 20px 0;
+  margin-top: 40px;
+  border-top: 1px solid var(--border-color);
+}
+
+.footer-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.footer-link:hover {
+  color: var(--primary-color);
+}
+
 .profile-btn, .leaderboard-btn {
   background: transparent;
   border: 1px solid var(--border-color);
@@ -1010,6 +1028,7 @@ input[type="text"]::placeholder {
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
+  z-index: 10;
 }
 
 .modal-close:hover {
