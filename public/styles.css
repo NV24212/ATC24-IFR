@@ -122,8 +122,6 @@ body {
   overflow-x: visible; /* Allow hover effect to extend outside */
   padding: 5px; /* Add some padding to not cut off shadows */
   transition: max-height 0.5s ease-in-out;
-  position: relative;
-  z-index: 20;
 }
 
 .flight-plan {
@@ -142,16 +140,16 @@ body {
 .flight-plan:hover {
   border-color: var(--primary-color);
   background: rgba(245, 222, 64, 0.05);
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 10px 25px rgba(245, 222, 64, 0.2);
-  z-index: 100; /* Bring to front on hover */
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(245, 222, 64, 0.4);
+  z-index: 10; /* Bring to front on hover */
 }
 
 .flight-plan.selected {
   border-color: var(--primary-color);
   background: rgba(245, 222, 64, 0.1);
-  box-shadow: 0 0 20px rgba(245, 222, 64, 0.3);
-  transform: scale(1.02);
+  box-shadow: 0 0 25px rgba(245, 222, 64, 0.5);
+  transform: translateY(-2px);
 }
 
 .flight-plan-header {
@@ -1108,8 +1106,9 @@ input[type="text"]::placeholder {
 /* Leaderboard Styles */
 .leaderboard {
   padding-top: 10px;
-  overflow-y: auto;
   flex-grow: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .leaderboard-grid {
