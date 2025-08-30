@@ -1599,6 +1599,24 @@ app.get("/api/admin/analytics", async (req, res) => {
   }
 });
 
+// PUBLIC: Get public-facing admin settings
+app.get("/api/settings", (req, res) => {
+  try {
+    // Expose only non-sensitive settings
+    const publicSettings = {
+      clearanceFormat: adminSettings.clearanceFormat,
+      aviation: {
+        defaultAltitudes: adminSettings.aviation.defaultAltitudes,
+        squawkRanges: adminSettings.aviation.squawkRanges
+      }
+    };
+    res.json(publicSettings);
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to retrieve public settings', { error: error.message });
+    res.status(500).json({ error: 'Could not retrieve settings' });
+  }
+});
+
 app.get("/api/admin/settings", (req, res) => {
   // Check if user is authenticated and is admin
   if (!req.session?.user || !req.session.user.is_admin) {

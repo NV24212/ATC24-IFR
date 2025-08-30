@@ -814,7 +814,7 @@
   // Load admin settings for the frontend
   async function loadAdminSettings() {
     try {
-      const response = await fetch('/api/admin/settings?password=guest');
+      const response = await fetch('/api/settings');
       if (response.ok) {
         const settings = await response.json();
         if (settings && !settings.error) {
