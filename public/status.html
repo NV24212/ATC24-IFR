@@ -146,7 +146,7 @@
 
             async function checkStatus() {
                 try {
-                    const response = await fetch('/health');
+                    const response = await fetch('/api/health');
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }

@@ -221,8 +221,19 @@
       <span class="collapse-toggle">▶</span>
     </summary>
     <div class="advanced-config-content" style="margin-top: 15px;">
-      <div class="config-section">
-        <h3 class="config-section-title">Aviation Standards</h3>
+      <div class="advanced-config-grid">
+        <div class="config-section">
+          <h3 class="config-section-title">Clearance Format & Phraseology</h3>
+          <div class="config-group">
+            <label class="config-label">Custom Phraseology Format</label>
+            <textarea id="userPhraseologyTemplate" placeholder="Enter custom clearance format template..."></textarea>
+            <div class="template-help">
+              Available variables: {CALLSIGN}, {ATC_STATION}, {ATIS}, {DESTINATION}, {ROUTE}, {RUNWAY}, {INITIAL_ALT}, {FLIGHT_LEVEL}, {SQUAWK}
+            </div>
+          </div>
+        </div>
+        <div class="config-section">
+          <h3 class="config-section-title">Aviation Standards</h3>
         <div class="config-group">
           <label class="config-label">Custom Altitudes (comma-separated)</label>
           <input type="text" id="userDefaultAltitudes" placeholder="1000,2000,3000,4000,5000">
@@ -323,6 +334,8 @@
   async function saveUserSettings() {
     try {
       // Get values from UI
+      userSettings.clearanceFormat.customTemplate = document.getElementById('userPhraseologyTemplate').value;
+
       // Aviation settings
       const altitudesText = document.getElementById('userDefaultAltitudes').value.trim();
       if (altitudesText) {
@@ -366,6 +379,12 @@
 
   // Update UI elements with user settings
   function updateUserSettingsUI() {
+    // Set custom template or default template if empty
+    const templateValue = userSettings.clearanceFormat.customTemplate || (adminSettings.clearanceFormat && adminSettings.clearanceFormat.customTemplate) || '';
+    if(document.getElementById('userPhraseologyTemplate')) {
+        document.getElementById('userPhraseologyTemplate').value = templateValue;
+    }
+
     if (userSettings.aviation.defaultAltitudes && userSettings.aviation.defaultAltitudes.length > 0) {
       document.getElementById('userDefaultAltitudes').value = userSettings.aviation.defaultAltitudes.join(',');
     }
@@ -579,9 +598,9 @@
         routePhrase = planRoute || 'as filed';
     }
 
-    // Generate clearance based on the default template, with a fallback
-    const defaultTemplate = "{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.";
-    const template = adminSettings?.clearanceFormat?.customTemplate || defaultTemplate;
+    // Generate clearance based on the effective template, with a hardcoded fallback
+    const hardcodedDefaultTemplate = "{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.";
+    const template = effectiveSettings.clearanceFormat.customTemplate || hardcodedDefaultTemplate;
 
     const clearance = template
       .replace('{CALLSIGN}', callsign)

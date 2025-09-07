@@ -988,6 +988,9 @@ app.get("/api", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "status.html"));
 });
 
+// Also serve static files on the /api path to support the status page when behind the api-prefix middleware
+app.use("/api", express.static('public'));
+
 // Serve static files (like styles.css) from a 'public' directory
 // This must come AFTER specific route handlers to avoid bypassing tracking
 app.use(express.static('public'));
@@ -1812,8 +1815,8 @@ app.get("/api/admin/logs", (req, res) => {
   }
 });
 
-// Health check endpoint
-app.get("/health", (req, res) => {
+// Reusable health check logic
+const getHealthStatus = (req, res) => {
   const isServerless = process.env.VERCEL === '1';
   let wsStatus = 'disabled';
 
@@ -1868,7 +1871,12 @@ app.get("/health", (req, res) => {
       lastUpdated: new Date().toISOString()
     }
   });
-});
+};
+
+// Health check endpoint
+app.get("/health", getHealthStatus);
+// Mirrored health check endpoint for /api status page
+app.get("/api/health", getHealthStatus);
 
 // Test visits endpoint removed for security and cleanup
 
