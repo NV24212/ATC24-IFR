@@ -1176,14 +1176,17 @@ app.get("/auth/discord/callback", async (req, res) => {
       return res.redirect('/?error=missing_code');
     }
 
-    // CSRF protection - validate state (optional but recommended)
-    if (req.session?.oauthState && req.session.oauthState !== state) {
-      logWithTimestamp('warn', 'Discord OAuth state mismatch', {
-        expected: req.session.oauthState,
-        received: state
+    // CSRF protection - validate state and clear it to prevent reuse
+    if (!req.session?.oauthState || req.session.oauthState !== state) {
+      logWithTimestamp('warn', 'Discord OAuth state mismatch or already used', {
+        expected: req.session?.oauthState,
+        received: state,
+        ip: req.ip
       });
       return res.redirect('/?error=invalid_state');
     }
+    // Clear the state so it cannot be used again
+    delete req.session.oauthState;
 
     // Exchange code for access token
     const tokenData = await exchangeCodeForToken(code);

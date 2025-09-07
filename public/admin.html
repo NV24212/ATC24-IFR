@@ -1426,7 +1426,11 @@
     let analytics = {};
     let settings = {};
     let dailyVisitChart = null;
-    // let currentPassword = localStorage.getItem('admin_password'); // DEPRECATED for security
+
+    // Default polling intervals in milliseconds
+    const DEFAULT_REFRESH_INTERVAL_MS = 30000;
+    const DEFAULT_CONTROLLER_POLL_INTERVAL_MS = 300000;
+    const DEFAULT_ATIS_POLL_INTERVAL_MS = 300000;
 
     // Notification System
     function showNotification(type, title, message) {
@@ -1832,11 +1836,11 @@
 
         // System settings
         document.getElementById('maxFlightPlansStored').value = settings.system?.maxFlightPlansStored || 20;
-        document.getElementById('autoRefreshInterval').value = (settings.system?.autoRefreshInterval || 30000) / 1000;
-        document.getElementById('controllerPollInterval').value = (settings.system?.controllerPollInterval || 300000) / 60000;
+        document.getElementById('autoRefreshInterval').value = (settings.system?.autoRefreshInterval || DEFAULT_REFRESH_INTERVAL_MS) / 1000;
+        document.getElementById('controllerPollInterval').value = (settings.system?.controllerPollInterval || DEFAULT_CONTROLLER_POLL_INTERVAL_MS) / 60000;
         document.getElementById('enableDetailedLogging').checked = settings.system?.enableDetailedLogging || false;
         document.getElementById('enableFlightPlanFiltering').checked = settings.system?.enableFlightPlanFiltering || false;
-        document.getElementById('atisPollInterval').value = (settings.system?.atisPollInterval || 300000) / 60000;
+        document.getElementById('atisPollInterval').value = (settings.system?.atisPollInterval || DEFAULT_ATIS_POLL_INTERVAL_MS) / 60000;
       } catch (error) {
         console.error('Failed to load settings:', error);
       }
@@ -1935,11 +1939,11 @@
           },
           system: {
             maxFlightPlansStored: parseInt(document.getElementById('maxFlightPlansStored').value) || 20,
-            autoRefreshInterval: (parseInt(document.getElementById('autoRefreshInterval').value) || 30) * 1000,
-            controllerPollInterval: (parseInt(document.getElementById('controllerPollInterval').value) || 5) * 60000,
+            autoRefreshInterval: (parseInt(document.getElementById('autoRefreshInterval').value) || (DEFAULT_REFRESH_INTERVAL_MS / 1000)) * 1000,
+            controllerPollInterval: (parseInt(document.getElementById('controllerPollInterval').value) || (DEFAULT_CONTROLLER_POLL_INTERVAL_MS / 60000)) * 60000,
             enableDetailedLogging: document.getElementById('enableDetailedLogging').checked,
             enableFlightPlanFiltering: document.getElementById('enableFlightPlanFiltering').checked,
-            atisPollInterval: (parseInt(document.getElementById('atisPollInterval').value) || 5) * 60000
+            atisPollInterval: (parseInt(document.getElementById('atisPollInterval').value) || (DEFAULT_ATIS_POLL_INTERVAL_MS / 60000)) * 60000
           }
         };
 

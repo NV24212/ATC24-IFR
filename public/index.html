@@ -56,6 +56,11 @@
     .auth-logged-out, .auth-logged-in {
         transition: opacity 0.5s ease, visibility 0.5s ease;
     }
+    .footer-contact {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -258,24 +263,6 @@
               Enter custom altitude options for initial climb
             </div>
           </div>
-          <div class="config-group">
-            <label class="config-label">Squawk Code Range (Min)</label>
-            <input type="number" id="userSquawkMin" placeholder="1000" min="1000" max="7777" value="1000">
-          </div>
-          <div class="config-group">
-            <label class="config-label">Squawk Code Range (Max)</label>
-            <input type="number" id="userSquawkMax" placeholder="7777" min="1000" max="7777" value="7777">
-          </div>
-          <div class="checkbox-group">
-            <div class="checkbox-item">
-              <input type="checkbox" id="userEnableRunwayValidation">
-              <label for="userEnableRunwayValidation">Enable Runway Format Validation</label>
-            </div>
-            <div class="checkbox-item">
-              <input type="checkbox" id="userEnableSIDValidation">
-              <label for="userEnableSIDValidation">Enable SID/STAR Validation</label>
-            </div>
-          </div>
         </div>
       </div>
       <button class="advanced-save-btn" onclick="saveUserSettings()">Save Configuration</button>
@@ -382,10 +369,6 @@
       if (altitudesText) {
         userSettings.aviation.defaultAltitudes = altitudesText.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
       }
-      userSettings.aviation.squawkRanges.min = parseInt(document.getElementById('userSquawkMin').value) || 1000;
-      userSettings.aviation.squawkRanges.max = parseInt(document.getElementById('userSquawkMax').value) || 7777;
-      userSettings.aviation.enableRunwayValidation = document.getElementById('userEnableRunwayValidation').checked;
-      userSettings.aviation.enableSIDValidation = document.getElementById('userEnableSIDValidation').checked;
 
       // Save to localStorage
       localStorage.setItem('atc24_user_settings', JSON.stringify(userSettings));
@@ -437,10 +420,6 @@
     if (userSettings.aviation.defaultAltitudes && userSettings.aviation.defaultAltitudes.length > 0) {
       document.getElementById('userDefaultAltitudes').value = userSettings.aviation.defaultAltitudes.join(',');
     }
-    document.getElementById('userSquawkMin').value = userSettings.aviation.squawkRanges.min;
-    document.getElementById('userSquawkMax').value = userSettings.aviation.squawkRanges.max;
-    document.getElementById('userEnableRunwayValidation').checked = userSettings.aviation.enableRunwayValidation;
-    document.getElementById('userEnableSIDValidation').checked = userSettings.aviation.enableSIDValidation;
   }
 
   // Get effective settings (user settings override admin settings)
@@ -652,21 +631,45 @@
     }
 
     // Generate clearance based on the effective custom template
-    let clearance = '';
-    const template = effectiveSettings.clearanceFormat.customTemplate;
-
-    if (template) {
-      clearance = template
-        .replace('{CALLSIGN}', callsign)
-        .replace('{ATC_STATION}', groundCallsign)
-        .replace('{ATIS}', atisInfo)
-        .replace('{DESTINATION}', destination)
-        .replace('{ROUTE}', routePhrase)
-        .replace('{RUNWAY}', departureRW)
-        .replace('{INITIAL_ALT}', ifl)
-        .replace('{FLIGHT_LEVEL}', flightLevel.replace('FL', '').padStart(3, '0'))
-        .replace('{SQUAWK}', squawk);
+    let template = effectiveSettings.clearanceFormat.customTemplate;
+    if (!template) {
+        alert('Clearance template is missing!');
+        return;
     }
+
+    const format = effectiveSettings.clearanceFormat;
+
+    // Conditionally remove parts of the template based on settings
+    if (!format.includeStartupApproval) {
+        template = template.replace('Startup approved.', '');
+    }
+    if (!format.includeAtis) {
+        template = template.replace('Information {ATIS} is correct.', '');
+    }
+    if (!format.includeInitialClimb) {
+        template = template.replace('Initial climb {INITIAL_ALT}FT,', '');
+    }
+    if (!format.includeFlightLevel) {
+        template = template.replace('expect further climb to Flight Level {FLIGHT_LEVEL}.', '');
+    }
+    if (!format.includeSquawk) {
+        template = template.replace('Squawk {SQUAWK}.', '');
+    }
+
+    // Now, replace the placeholders with actual values
+    let clearance = template
+      .replace('{CALLSIGN}', callsign)
+      .replace('{ATC_STATION}', groundCallsign)
+      .replace('{ATIS}', atisInfo)
+      .replace('{DESTINATION}', destination)
+      .replace('{ROUTE}', routePhrase)
+      .replace('{RUNWAY}', departureRW)
+      .replace('{INITIAL_ALT}', ifl)
+      .replace('{FLIGHT_LEVEL}', flightLevel.replace('FL', '').padStart(3, '0'))
+      .replace('{SQUAWK}', squawk);
+
+    // Clean up extra spaces, commas, and periods from removed sections
+    clearance = clearance.replace(/\s\s+/g, ' ').replace(' ,', ',').replace(' .', '.').replace(',.', '.').trim();
     document.getElementById("clearanceOutput").textContent = clearance;
 
     // Track analytics
@@ -1428,6 +1431,7 @@
 <footer class="footer">
   <p>All rights reserved, Hasan Mahmood ©</p>
   <a href="/license" class="footer-link">License</a>
+  <p class="footer-contact">For bugs or suggestions, contact me on Discord: h.a.s2</p>
 </footer>
 
 </body>
