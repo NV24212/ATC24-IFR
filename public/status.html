@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>24IFR - System Status</title>
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .status-container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+        .status-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .status-header h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        .status-header .overall-status {
+            font-size: 24px;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+        .status-list {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 15px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 18px;
+        }
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        .status-name {
+            font-weight: 500;
+            color: var(--text-color);
+        }
+        .status-indicator {
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .status-operational {
+            color: #2ecc71;
+            background-color: rgba(46, 204, 113, 0.1);
+        }
+        .status-degraded {
+            color: #f39c12;
+            background-color: rgba(243, 156, 18, 0.1);
+        }
+        .status-outage {
+            color: #e74c3c;
+            background-color: rgba(231, 76, 60, 0.1);
+        }
+        .status-info {
+            color: #3498db;
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: var(--primary-color);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container status-container">
+        <div class="header">
+            <a href="/"><img src="/logo.png" alt="Logo" class="header-logo" style="width: 150px; height: auto;"></a>
+        </div>
+
+        <div class="status-header">
+            <h1>System Status</h1>
+            <div id="overall-status" class="overall-status">
+                <div class="loading-spinner" style="width: 30px; height: 30px;"></div>
+            </div>
+        </div>
+
+        <div class="status-list">
+            <div class="status-item">
+                <span class="status-name">Main Website</span>
+                <div id="status-website" class="status-indicator">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+            <div class="status-item">
+                <span class="status-name">API Services</span>
+                <div id="status-api" class="status-indicator">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+            <div class="status-item">
+                <span class="status-name">Real-time Flight Plan Updates</span>
+                <div id="status-realtime" class="status-indicator">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+            <div class="status-item">
+                <span class="status-name">Database Connectivity</span>
+                <div id="status-database" class="status-indicator">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer" style="margin-top: 40px; text-align: center;">
+            <p>Last updated: <span id="last-updated">...</span></p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const statusWebsite = document.getElementById('status-website');
+            const statusApi = document.getElementById('status-api');
+            const statusRealtime = document.getElementById('status-realtime');
+            const statusDatabase = document.getElementById('status-database');
+            const overallStatus = document.getElementById('overall-status');
+            const lastUpdated = document.getElementById('last-updated');
+
+            function setStatus(element, text, className) {
+                element.innerHTML = text;
+                element.className = 'status-indicator'; // Reset classes
+                element.classList.add(className);
+            }
+
+            async function checkStatus() {
+                try {
+                    const response = await fetch('/health');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+
+                    let isOverallOperational = true;
+
+                    // Website and API are implicitly operational if this page loads and the health check succeeds.
+                    setStatus(statusWebsite, 'Operational', 'status-operational');
+                    setStatus(statusApi, 'Operational', 'status-operational');
+
+                    // Database Status
+                    if (data.supabaseConfigured) {
+                        setStatus(statusDatabase, 'Operational', 'status-operational');
+                    } else {
+                        setStatus(statusDatabase, 'Outage', 'status-outage');
+                        isOverallOperational = false;
+                    }
+
+                    // Real-time Status
+                    if (data.wsStatus === 'connected') {
+                        setStatus(statusRealtime, 'Operational', 'status-operational');
+                    } else if (data.environment === 'serverless') {
+                        setStatus(statusRealtime, 'Polling Fallback', 'status-info');
+                    } else {
+                        setStatus(statusRealtime, 'Degraded', 'status-degraded');
+                        isOverallOperational = false;
+                    }
+
+                    // Overall Status
+                    if (isOverallOperational) {
+                        overallStatus.innerHTML = 'All Systems Operational';
+                        overallStatus.className = 'overall-status status-operational';
+                    } else {
+                        overallStatus.innerHTML = 'Degraded Performance';
+                        overallStatus.className = 'overall-status status-degraded';
+                    }
+
+                    lastUpdated.textContent = new Date().toLocaleString();
+
+                } catch (error) {
+                    console.error('Failed to fetch system status:', error);
+                    setStatus(statusWebsite, 'Outage', 'status-outage');
+                    setStatus(statusApi, 'Outage', 'status-outage');
+                    setStatus(statusRealtime, 'Outage', 'status-outage');
+                    setStatus(statusDatabase, 'Outage', 'status-outage');
+                    overallStatus.innerHTML = 'Major System Outage';
+                    overallStatus.className = 'overall-status status-outage';
+                    lastUpdated.textContent = new Date().toLocaleString();
+                }
+            }
+
+            checkStatus();
+            setInterval(checkStatus, 60000); // Refresh every 60 seconds
+        });
+    </script>
+</body>
+</html>

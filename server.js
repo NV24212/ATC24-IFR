@@ -938,9 +938,10 @@ app.use((req, res, next) => {
 
 // Unified session middleware
 app.use((req, res, next) => {
-  // Try to get session ID from various sources
+  // Try to get session ID from various sources (headers, cookie, query param)
   const sessionId = req.headers['x-session-id'] ||
                    req.headers['authorization']?.replace('Bearer ', '') ||
+                   req.cookies?.session_id ||
                    req.query.sessionId;
 
   // Check both session stores for authenticated and anonymous sessions
@@ -980,6 +981,11 @@ app.get("/maintenance", (req, res) => {
 // Serve admin panel (don't track admin visits to avoid skewing analytics)
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
+});
+
+// Serve the status page
+app.get("/api", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "status.html"));
 });
 
 // Serve static files (like styles.css) from a 'public' directory
@@ -1142,15 +1148,30 @@ app.get("/auth/discord", (req, res) => {
 
     const { url, state } = generateDiscordAuthURL();
 
-    // Store state in session for CSRF protection
-    if (!req.session) {
-      req.session = {};
-    }
-    req.session.oauthState = state;
+    // Create a temporary session for the OAuth flow
+    const sessionId = uuidv4();
+    const tempSession = {
+      id: sessionId,
+      oauthState: state,
+      createdAt: new Date(),
+      lastActivity: new Date()
+    };
+
+    // Store it in the session store
+    sessionStore.set(sessionId, tempSession);
+
+    // Set a cookie so the browser sends it back on the callback
+    // This cookie is essential for retrieving the session during the callback.
+    res.cookie('session_id', sessionId, {
+      httpOnly: true, // Prevents client-side JS from accessing the cookie
+      secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
+      maxAge: 5 * 60 * 1000 // 5 minute expiry, just for the auth flow
+    });
 
     logWithTimestamp('info', 'Discord OAuth initiated', {
       ip: req.ip,
-      userAgent: req.headers['user-agent']
+      userAgent: req.headers['user-agent'],
+      sessionId: sessionId.slice(0, 8)
     });
 
     res.redirect(url);

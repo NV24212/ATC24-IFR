@@ -221,47 +221,13 @@
       <span class="collapse-toggle">▶</span>
     </summary>
     <div class="advanced-config-content" style="margin-top: 15px;">
-      <div class="advanced-config-grid">
-        <div class="config-section">
-          <h3 class="config-section-title">Clearance Format & Phraseology</h3>
-          <div class="config-group">
-            <label class="config-label">Custom Phraseology Format</label>
-            <textarea id="userPhraseologyTemplate" placeholder="Enter custom clearance format template...">{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.</textarea>
-            <div class="template-help">
-              Available variables: {CALLSIGN}, {ATC_STATION}, {ATIS}, {DESTINATION}, {ROUTE}, {RUNWAY}, {INITIAL_ALT}, {FLIGHT_LEVEL}, {SQUAWK}
-            </div>
-          </div>
-          <div class="checkbox-group">
-            <div class="checkbox-item">
-              <input type="checkbox" id="userIncludeAtis" checked>
-              <label for="userIncludeAtis">Include ATIS Information</label>
-            </div>
-            <div class="checkbox-item">
-              <input type="checkbox" id="userIncludeSquawk" checked>
-              <label for="userIncludeSquawk">Include Squawk Code</label>
-            </div>
-            <div class="checkbox-item">
-              <input type="checkbox" id="userIncludeFlightLevel" checked>
-              <label for="userIncludeFlightLevel">Include Expected Flight Level</label>
-            </div>
-            <div class="checkbox-item">
-              <input type="checkbox" id="userIncludeStartupApproval" checked>
-              <label for="userIncludeStartupApproval">Include Startup Approval</label>
-            </div>
-            <div class="checkbox-item">
-              <input type="checkbox" id="userIncludeInitialClimb" checked>
-              <label for="userIncludeInitialClimb">Include Initial Climb Instruction</label>
-            </div>
-          </div>
-        </div>
-        <div class="config-section">
-          <h3 class="config-section-title">Aviation Standards</h3>
-          <div class="config-group">
-            <label class="config-label">Custom Altitudes (comma-separated)</label>
-            <input type="text" id="userDefaultAltitudes" placeholder="1000,2000,3000,4000,5000">
-            <div class="template-help">
-              Enter custom altitude options for initial climb
-            </div>
+      <div class="config-section">
+        <h3 class="config-section-title">Aviation Standards</h3>
+        <div class="config-group">
+          <label class="config-label">Custom Altitudes (comma-separated)</label>
+          <input type="text" id="userDefaultAltitudes" placeholder="1000,2000,3000,4000,5000">
+          <div class="template-help">
+            Enter custom altitude options for initial climb
           </div>
         </div>
       </div>
@@ -357,13 +323,6 @@
   async function saveUserSettings() {
     try {
       // Get values from UI
-      userSettings.clearanceFormat.customTemplate = document.getElementById('userPhraseologyTemplate').value;
-      userSettings.clearanceFormat.includeAtis = document.getElementById('userIncludeAtis').checked;
-      userSettings.clearanceFormat.includeSquawk = document.getElementById('userIncludeSquawk').checked;
-      userSettings.clearanceFormat.includeFlightLevel = document.getElementById('userIncludeFlightLevel').checked;
-      userSettings.clearanceFormat.includeStartupApproval = document.getElementById('userIncludeStartupApproval').checked;
-      userSettings.clearanceFormat.includeInitialClimb = document.getElementById('userIncludeInitialClimb').checked;
-
       // Aviation settings
       const altitudesText = document.getElementById('userDefaultAltitudes').value.trim();
       if (altitudesText) {
@@ -407,16 +366,6 @@
 
   // Update UI elements with user settings
   function updateUserSettingsUI() {
-    // Set custom template or default template if empty
-    const templateValue = userSettings.clearanceFormat.customTemplate || (adminSettings.clearanceFormat && adminSettings.clearanceFormat.customTemplate) || '';
-    document.getElementById('userPhraseologyTemplate').value = templateValue;
-
-    document.getElementById('userIncludeAtis').checked = userSettings.clearanceFormat.includeAtis;
-    document.getElementById('userIncludeSquawk').checked = userSettings.clearanceFormat.includeSquawk;
-    document.getElementById('userIncludeFlightLevel').checked = userSettings.clearanceFormat.includeFlightLevel;
-    document.getElementById('userIncludeStartupApproval').checked = userSettings.clearanceFormat.includeStartupApproval;
-    document.getElementById('userIncludeInitialClimb').checked = userSettings.clearanceFormat.includeInitialClimb;
-
     if (userSettings.aviation.defaultAltitudes && userSettings.aviation.defaultAltitudes.length > 0) {
       document.getElementById('userDefaultAltitudes').value = userSettings.aviation.defaultAltitudes.join(',');
     }
@@ -630,34 +579,11 @@
         routePhrase = planRoute || 'as filed';
     }
 
-    // Generate clearance based on the effective custom template
-    let template = effectiveSettings.clearanceFormat.customTemplate;
-    if (!template) {
-        alert('Clearance template is missing!');
-        return;
-    }
+    // Generate clearance based on the default template, with a fallback
+    const defaultTemplate = "{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.";
+    const template = adminSettings?.clearanceFormat?.customTemplate || defaultTemplate;
 
-    const format = effectiveSettings.clearanceFormat;
-
-    // Conditionally remove parts of the template based on settings
-    if (!format.includeStartupApproval) {
-        template = template.replace('Startup approved.', '');
-    }
-    if (!format.includeAtis) {
-        template = template.replace('Information {ATIS} is correct.', '');
-    }
-    if (!format.includeInitialClimb) {
-        template = template.replace('Initial climb {INITIAL_ALT}FT,', '');
-    }
-    if (!format.includeFlightLevel) {
-        template = template.replace('expect further climb to Flight Level {FLIGHT_LEVEL}.', '');
-    }
-    if (!format.includeSquawk) {
-        template = template.replace('Squawk {SQUAWK}.', '');
-    }
-
-    // Now, replace the placeholders with actual values
-    let clearance = template
+    const clearance = template
       .replace('{CALLSIGN}', callsign)
       .replace('{ATC_STATION}', groundCallsign)
       .replace('{ATIS}', atisInfo)
@@ -667,9 +593,6 @@
       .replace('{INITIAL_ALT}', ifl)
       .replace('{FLIGHT_LEVEL}', flightLevel.replace('FL', '').padStart(3, '0'))
       .replace('{SQUAWK}', squawk);
-
-    // Clean up extra spaces, commas, and periods from removed sections
-    clearance = clearance.replace(/\s\s+/g, ' ').replace(' ,', ',').replace(' .', '.').replace(',.', '.').trim();
     document.getElementById("clearanceOutput").textContent = clearance;
 
     // Track analytics
