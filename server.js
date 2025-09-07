@@ -983,6 +983,11 @@ app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
+// Serve the status page
+app.get("/api", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "status.html"));
+});
+
 // Serve static files (like styles.css) from a 'public' directory
 // This must come AFTER specific route handlers to avoid bypassing tracking
 app.use(express.static('public'));
