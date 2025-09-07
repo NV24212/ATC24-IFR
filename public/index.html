@@ -328,20 +328,25 @@
   };
 
   // Notification system
-  function showNotification(message, type = 'success') {
+  function showNotification(message, type = 'info', duration = 4000) {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
+
     document.body.appendChild(notification);
 
     // Trigger animation
     setTimeout(() => notification.classList.add('show'), 100);
 
-    // Auto-remove after 3 seconds
+    // Auto-remove after the specified duration
     setTimeout(() => {
       notification.classList.remove('show');
-      setTimeout(() => document.body.removeChild(notification), 400);
-    }, 3000);
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 400); // Wait for fade-out animation
+    }, duration);
   }
 
   // Load user settings from localStorage
@@ -789,27 +794,6 @@
     }
   }
 
-  // Show notification function
-  function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-
-    document.body.appendChild(notification);
-
-    // Trigger animation
-    setTimeout(() => notification.classList.add('show'), 100);
-
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-      notification.classList.remove('show');
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
-        }
-      }, 400);
-    }, 5000);
-  }
 
   // Load admin settings for the frontend
   async function loadAdminSettings() {
@@ -1337,33 +1321,57 @@
     setTimeout(() => modal.style.display = 'none', 300);
   }
 
-  // Initial load of flight plans when the page loads
-  document.addEventListener('DOMContentLoaded', () => {
+  // New function to handle environment-specific logic and polling
+  async function initializeApp() {
     // Check auth params first
     checkAuthParams();
 
     // Check authentication status
     checkAuthStatus();
 
-    // Load controllers
+    // Load initial data that doesn't depend on polling interval
     loadControllers();
-
-    // Load initial flight plans
-    loadFlightPlans();
-
-    // Load ATIS data
+    loadFlightPlans(); // Initial load
     loadAtis();
-
-    // Load leaderboard
     loadLeaderboard();
-
-    // Load user settings first
     loadUserSettings();
 
-    // Then load admin settings
-    loadAdminSettings().then(() => {
-      updateUIFromSettings(); // Update UI with effective settings
-    });
+    try {
+      // Load admin settings first to get intervals
+      await loadAdminSettings();
+      updateUIFromSettings();
+
+      // Check system health to decide on polling for flight plans
+      const healthRes = await fetch('/health');
+      if (!healthRes.ok) {
+        throw new Error(`Health check failed with status ${healthRes.status}`);
+      }
+      const healthData = await healthRes.json();
+
+      // Only set up flight plan polling if in a serverless environment
+      if (healthData.environment === 'serverless') {
+        showEnvironmentNotification();
+        const flightPlanInterval = adminSettings.system?.autoRefreshInterval || 10000;
+        setInterval(loadFlightPlans, flightPlanInterval);
+        console.log(`Serverless environment detected. Starting flight plan polling every ${flightPlanInterval}ms.`);
+      } else {
+        console.log('Traditional server environment detected. Real-time flight plan updates via WebSocket are expected.');
+      }
+
+      // Set up polling for controllers and ATIS data regardless of environment, as this data is cached server-side
+      const controllerInterval = adminSettings.system?.controllerPollInterval || 300000;
+      setInterval(loadControllers, controllerInterval);
+      console.log(`Starting controller data polling every ${controllerInterval}ms.`);
+
+      const atisInterval = adminSettings.system?.atisPollInterval || 300000;
+      setInterval(loadAtis, atisInterval);
+      console.log(`Starting ATIS data polling every ${atisInterval}ms.`);
+    } catch (error) {
+      console.error('Failed to initialize app settings or health check:', error);
+      // Fallback to a default polling interval if initialization fails
+      setInterval(loadFlightPlans, 30000);
+      showNotification('warning', 'Initialization Incomplete', 'Could not determine server environment. Falling back to a 30-second refresh rate.');
+    }
 
     // Toggle for advanced config
     const detailsElement = document.querySelector('details.section');
@@ -1373,7 +1381,10 @@
             toggle.textContent = detailsElement.open ? '▼' : '▶';
         });
     }
-  });
+  }
+
+  // Initial load of flight plans when the page loads
+  document.addEventListener('DOMContentLoaded', initializeApp);
 </script>
 
 <div class="modal-overlay" id="leaderboardModal" style="display: none;">
