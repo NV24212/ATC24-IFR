@@ -1883,34 +1883,23 @@ app.get("/api/full-status", async (req, res) => {
     status["24data"].endpoints.push({ name: "Real-time WebSocket", status: wsStatusValue, message: wsMessage });
 
     // 2. Check 24IFR API Status (internal services)
-    const internalEndpoints = [
-        { name: "Flight Plans", path: "/flight-plans" },
-        { name: "Controllers", path: "/controllers" },
-        { name: "ATIS", path: "/api/atis" },
-        { name: "Leaderboard", path: "/api/leaderboard" }
-    ];
+    status["24ifr_api"].endpoints.push({
+        name: "Flight Plan Service",
+        status: flightPlans ? "operational" : "degraded",
+        message: `${flightPlans.length} plans in memory`
+    });
 
-    for (const endpoint of internalEndpoints) {
-        try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 5000);
-            const response = await fetch(`http://localhost:${PORT}${endpoint.path}`, { signal: controller.signal });
-            clearTimeout(timeout);
-            status["24ifr_api"].endpoints.push({
-                name: endpoint.name,
-                status: response.ok ? "operational" : "degraded",
-                statusCode: response.status
-            });
-            if (!response.ok) status["24ifr_api"].status = "degraded";
-        } catch (error) {
-            status["24ifr_api"].endpoints.push({
-                name: endpoint.name,
-                status: "outage",
-                error: error.message
-            });
-            status["24ifr_api"].status = "outage";
-        }
-    }
+    status["24ifr_api"].endpoints.push({
+        name: "Controller Service",
+        status: controllerCache.lastUpdated ? "operational" : "outage",
+        message: controllerCache.source === 'live' ? 'Live data' : 'Stale data'
+    });
+
+    status["24ifr_api"].endpoints.push({
+        name: "ATIS Service",
+        status: atisCache.lastUpdated ? "operational" : "outage",
+        message: atisCache.source === 'live' ? 'Live data' : 'Stale data'
+    });
 
     // Supabase status
     status["24ifr_api"].endpoints.push({
