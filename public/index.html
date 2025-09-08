@@ -292,10 +292,14 @@
   };
 
   // Notification system
-  function showNotification(message, type = 'info', duration = 4000) {
+  function showNotification(message, type = 'info', duration = 4000, isHtml = false) {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
-    notification.innerHTML = message;
+    if (isHtml) {
+      notification.innerHTML = message;
+    } else {
+      notification.textContent = message;
+    }
 
     document.body.appendChild(notification);
 
@@ -1329,7 +1333,7 @@
 
     // Show contact notification on page load after a small delay
     setTimeout(() => {
-        showNotification('For bugs and suggestions or outages, contact me on Discord: <strong class="discord-username">h.a.s2</strong>', 'contact', 10000);
+        showNotification('For bugs and suggestions or outages, contact me on Discord: <strong class="discord-username">h.a.s2</strong>', 'contact', 10000, true);
     }, 1500);
   }
 

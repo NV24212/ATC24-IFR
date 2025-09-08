@@ -28,32 +28,86 @@
             display: inline-block;
         }
         .status-list {
-            background: var(--surface-color);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .status-category {
+            background: var(--surface-hover);
             border: 1px solid var(--border-color);
             border-radius: 12px;
-            padding: 20px;
-            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
         }
-        .status-item {
+        .status-category[open] {
+            background: var(--surface-color);
+            border-color: rgba(245, 222, 64, 0.3);
+        }
+        .category-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 15px;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 18px;
+            padding: 20px;
+            cursor: pointer;
+            list-style: none; /* Remove default marker */
         }
-        .status-item:last-child {
-            border-bottom: none;
+        .category-header::-webkit-details-marker {
+            display: none; /* For Chrome */
         }
-        .status-name {
-            font-weight: 500;
+        .category-title {
+            font-size: 20px;
+            font-weight: 600;
             color: var(--text-color);
         }
-        .status-indicator {
+        .category-status {
             font-weight: 600;
             padding: 6px 12px;
             border-radius: 6px;
             font-size: 14px;
+            text-transform: capitalize;
+        }
+        .endpoint-list, .error-log-list {
+            padding: 0 20px 20px 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        .endpoint-item, .error-log-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .endpoint-item:last-child, .error-log-item:last-child {
+            border-bottom: none;
+        }
+        .endpoint-name, .error-log-message {
+            font-weight: 500;
+        }
+        .endpoint-status {
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            text-transform: capitalize;
+        }
+        .error-log-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 5px;
+        }
+        .error-log-timestamp {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .error-log-data {
+            font-family: monospace;
+            background: var(--background-color);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #ff9f9f;
+            white-space: pre-wrap;
+            word-break: break-all;
+            width: 100%;
         }
         .status-operational {
             color: #2ecc71;
@@ -98,30 +152,29 @@
         </div>
 
         <div class="status-list">
-            <div class="status-item">
-                <span class="status-name">Main Website</span>
-                <div id="status-website" class="status-indicator">
-                    <div class="loading-spinner"></div>
-                </div>
-            </div>
-            <div class="status-item">
-                <span class="status-name">API Services</span>
-                <div id="status-api" class="status-indicator">
-                    <div class="loading-spinner"></div>
-                </div>
-            </div>
-            <div class="status-item">
-                <span class="status-name">Real-time Flight Plan Updates</span>
-                <div id="status-realtime" class="status-indicator">
-                    <div class="loading-spinner"></div>
-                </div>
-            </div>
-            <div class="status-item">
-                <span class="status-name">Database Connectivity</span>
-                <div id="status-database" class="status-indicator">
-                    <div class="loading-spinner"></div>
-                </div>
-            </div>
+            <details class="status-category" open>
+                <summary class="category-header">
+                    <h2 class="category-title">24data Connectivity</h2>
+                    <div class="category-status" id="status-24data"><div class="loading-spinner"></div></div>
+                </summary>
+                <div class="endpoint-list" id="endpoints-24data"></div>
+            </details>
+
+            <details class="status-category" open>
+                <summary class="category-header">
+                    <h2 class="category-title">24IFR API</h2>
+                    <div class="category-status" id="status-24ifr_api"><div class="loading-spinner"></div></div>
+                </summary>
+                <div class="endpoint-list" id="endpoints-24ifr_api"></div>
+            </details>
+
+            <details class="status-category">
+                <summary class="category-header">
+                    <h2 class="category-title">Error Reporting</h2>
+                    <div class="category-status" id="status-errors"><div class="loading-spinner"></div></div>
+                </summary>
+                <div class="error-log-list" id="logs-errors"></div>
+            </details>
         </div>
 
         <footer class="footer" style="margin-top: 40px; text-align: center;">
@@ -131,76 +184,110 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const statusWebsite = document.getElementById('status-website');
-            const statusApi = document.getElementById('status-api');
-            const statusRealtime = document.getElementById('status-realtime');
-            const statusDatabase = document.getElementById('status-database');
-            const overallStatus = document.getElementById('overall-status');
-            const lastUpdated = document.getElementById('last-updated');
+            const statusMapping = {
+                operational: { text: 'Operational', className: 'status-operational' },
+                degraded: { text: 'Degraded', className: 'status-degraded' },
+                outage: { text: 'Outage', className: 'status-outage' },
+                info: { text: 'Info', className: 'status-info' }
+            };
 
-            function setStatus(element, text, className) {
-                element.innerHTML = text;
-                element.className = 'status-indicator'; // Reset classes
-                element.classList.add(className);
+            function setStatus(element, status, text) {
+                const config = statusMapping[status] || { text: 'Unknown', className: '' };
+                element.textContent = text || config.text;
+                element.className = 'category-status'; // Reset
+                element.classList.add(config.className);
+            }
+
+            function setEndpointStatus(element, status) {
+                const config = statusMapping[status] || { text: 'Unknown', className: '' };
+                element.textContent = config.text;
+                element.className = 'endpoint-status'; // Reset
+                element.classList.add(config.className);
             }
 
             async function checkStatus() {
                 try {
-                    const response = await fetch('/api/health');
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
+                    const response = await fetch('/api/full-status');
+                    if (!response.ok) throw new Error(`API error: ${response.status}`);
                     const data = await response.json();
 
-                    let isOverallOperational = true;
+                    // Render each category
+                    for (const key in data) {
+                        const category = data[key];
+                        const statusEl = document.getElementById(`status-${key}`);
+                        const listEl = document.getElementById(`endpoints-${key}`) || document.getElementById(`logs-${key}`);
 
-                    // Website and API are implicitly operational if this page loads and the health check succeeds.
-                    setStatus(statusWebsite, 'Operational', 'status-operational');
-                    setStatus(statusApi, 'Operational', 'status-operational');
+                        if (statusEl) {
+                            setStatus(statusEl, category.status);
+                        }
 
-                    // Database Status
-                    if (data.supabaseConfigured) {
-                        setStatus(statusDatabase, 'Operational', 'status-operational');
-                    } else {
-                        setStatus(statusDatabase, 'Outage', 'status-outage');
-                        isOverallOperational = false;
+                        if (listEl) {
+                            listEl.innerHTML = ''; // Clear previous content
+
+                            if (key === 'errors') {
+                                document.getElementById('status-errors').textContent += ` (${category.count} total)`;
+                                if (category.logs.length === 0) {
+                                    listEl.innerHTML = '<div class="endpoint-item" style="justify-content: center;">No errors to display.</div>';
+                                }
+                                category.logs.forEach(log => {
+                                    const item = document.createElement('div');
+                                    item.className = 'error-log-item';
+                                    item.innerHTML = `
+                                        <div>
+                                            <span class="error-log-timestamp">${new Date(log.timestamp).toLocaleString()}</span>
+                                            <div class="error-log-message">${log.message}</div>
+                                        </div>
+                                        ${log.data ? `<pre class="error-log-data">${log.data}</pre>` : ''}
+                                    `;
+                                    listEl.appendChild(item);
+                                });
+                            } else {
+                                category.endpoints.forEach(endpoint => {
+                                    const item = document.createElement('div');
+                                    item.className = 'endpoint-item';
+                                    const statusIndicator = document.createElement('div');
+                                    setEndpointStatus(statusIndicator, endpoint.status);
+
+                                    let nameHTML = `<span class="endpoint-name">${endpoint.name}</span>`;
+                                    if (endpoint.statusCode) {
+                                        nameHTML += ` <span style="font-size: 12px; color: var(--text-muted);">(${endpoint.statusCode})</span>`;
+                                    }
+                                    if (endpoint.message) {
+                                        statusIndicator.textContent = endpoint.message;
+                                    }
+
+                                    item.innerHTML = nameHTML;
+                                    item.appendChild(statusIndicator);
+                                    listEl.appendChild(item);
+                                });
+                            }
+                        }
                     }
 
-                    // Real-time Status
-                    if (data.wsStatus === 'connected') {
-                        setStatus(statusRealtime, 'Operational', 'status-operational');
-                    } else if (data.environment === 'serverless') {
-                        setStatus(statusRealtime, 'Polling Fallback', 'status-info');
+                    // Overall status
+                    const overall = document.getElementById('overall-status');
+                    const hasOutage = Object.values(data).some(cat => cat.status === 'outage');
+                    const hasDegraded = Object.values(data).some(cat => cat.status === 'degraded');
+
+                    if (hasOutage) {
+                        setStatus(overall, 'outage', "Major System Outage");
+                    } else if (hasDegraded) {
+                        setStatus(overall, 'degraded', "Degraded Performance");
                     } else {
-                        setStatus(statusRealtime, 'Degraded', 'status-degraded');
-                        isOverallOperational = false;
+                        setStatus(overall, 'operational', "All Systems Operational");
                     }
 
-                    // Overall Status
-                    if (isOverallOperational) {
-                        overallStatus.innerHTML = 'All Systems Operational';
-                        overallStatus.className = 'overall-status status-operational';
-                    } else {
-                        overallStatus.innerHTML = 'Degraded Performance';
-                        overallStatus.className = 'overall-status status-degraded';
-                    }
-
-                    lastUpdated.textContent = new Date().toLocaleString();
+                    document.getElementById('last-updated').textContent = new Date().toLocaleString();
 
                 } catch (error) {
                     console.error('Failed to fetch system status:', error);
-                    setStatus(statusWebsite, 'Outage', 'status-outage');
-                    setStatus(statusApi, 'Outage', 'status-outage');
-                    setStatus(statusRealtime, 'Outage', 'status-outage');
-                    setStatus(statusDatabase, 'Outage', 'status-outage');
-                    overallStatus.innerHTML = 'Major System Outage';
-                    overallStatus.className = 'overall-status status-outage';
-                    lastUpdated.textContent = new Date().toLocaleString();
+                    const overall = document.getElementById('overall-status');
+                    setStatus(overall, 'outage', "Status Page Error");
                 }
             }
 
             checkStatus();
-            setInterval(checkStatus, 60000); // Refresh every 60 seconds
+            setInterval(checkStatus, 30000); // Refresh every 30 seconds
         });
     </script>
 </body>
