@@ -1206,3 +1206,18 @@ body.logged-out .leaderboard-login-prompt {
     height: 16px;
   }
 }
+
+/* Contact Notification */
+.notification.contact {
+  border-color: #7289da; /* Discord Blurple */
+  background: rgba(114, 137, 218, 0.1);
+  color: #c9cdfb;
+}
+
+.notification.contact .discord-username {
+  font-weight: 700;
+  color: #ffffff;
+  background-color: #7289da;
+  padding: 2px 6px;
+  border-radius: 4px;
+}

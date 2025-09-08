@@ -295,7 +295,7 @@
   function showNotification(message, type = 'info', duration = 4000) {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
-    notification.textContent = message;
+    notification.innerHTML = message;
 
     document.body.appendChild(notification);
 
@@ -1326,6 +1326,11 @@
             toggle.textContent = detailsElement.open ? '▼' : '▶';
         });
     }
+
+    // Show contact notification on page load after a small delay
+    setTimeout(() => {
+        showNotification('For bugs and suggestions or outages, contact me on Discord: <strong class="discord-username">h.a.s2</strong>', 'contact', 10000);
+    }, 1500);
   }
 
   // Initial load of flight plans when the page loads
