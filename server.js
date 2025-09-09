@@ -988,6 +988,125 @@ app.get("/api", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "status.html"));
 });
 
+// New comprehensive status endpoint
+app.get("/api/full-status", async (req, res) => {
+  try {
+    let status = {
+      "24data": {
+        name: "24data Connectivity",
+        status: "operational",
+        endpoints: []
+      },
+      "24ifr_api": {
+        name: "24IFR API",
+        status: "operational",
+        endpoints: []
+      },
+      errors: {
+        name: "Error Reporting",
+        status: "operational",
+        count: 0,
+        logs: []
+      }
+    };
+
+    // 1. Check 24data Connectivity
+    const dataEndpoints = [
+      { name: "Controllers", url: "https://24data.ptfs.app/controllers" },
+      { name: "ATIS", url: "https://24data.ptfs.app/atis" }
+    ];
+
+    for (const endpoint of dataEndpoints) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const response = await fetch(endpoint.url, { signal: controller.signal });
+        clearTimeout(timeout);
+        status["24data"].endpoints.push({
+          name: endpoint.name,
+          status: response.ok ? "operational" : "degraded",
+          statusCode: response.status
+        });
+        if (!response.ok) status["24data"].status = "degraded";
+      } catch (error) {
+        status["24data"].endpoints.push({
+          name: endpoint.name,
+          status: "outage",
+          error: error.message
+        });
+        status["24data"].status = "outage";
+      }
+    }
+
+    // WebSocket status
+    const isServerless = process.env.VERCEL === '1';
+    let wsStatusValue = 'operational';
+    let wsMessage = 'Connected';
+    if (isServerless) {
+        wsStatusValue = 'info';
+        wsMessage = 'Polling Fallback (Serverless)';
+    } else if (ws && ws.readyState === WebSocket.OPEN) {
+        wsStatusValue = 'operational';
+        wsMessage = 'Connected';
+    } else {
+        wsStatusValue = 'degraded';
+        wsMessage = 'Disconnected';
+        status["24data"].status = "degraded";
+    }
+    status["24data"].endpoints.push({ name: "Real-time WebSocket", status: wsStatusValue, message: wsMessage });
+
+    // 2. Check 24IFR API Status (internal services)
+    status["24ifr_api"].endpoints.push({
+        name: "Flight Plan Service",
+        status: flightPlans ? "operational" : "degraded",
+        message: `${flightPlans.length} plans in memory`
+    });
+
+    status["24ifr_api"].endpoints.push({
+        name: "Controller Service",
+        status: controllerCache.lastUpdated ? "operational" : "outage",
+        message: controllerCache.source === 'live' ? 'Live data' : 'Stale data'
+    });
+
+    status["24ifr_api"].endpoints.push({
+        name: "ATIS Service",
+        status: atisCache.lastUpdated ? "operational" : "outage",
+        message: atisCache.source === 'live' ? 'Live data' : 'Stale data'
+    });
+
+    // Supabase status
+    status["24ifr_api"].endpoints.push({
+      name: "Database (Supabase)",
+      status: supabase ? "operational" : "outage",
+      message: supabase ? "Connected" : "Not Configured"
+    });
+    if (!supabase) status["24ifr_api"].status = "outage";
+
+    // 3. Error Reporting
+    const errorLogs = runtimeLogs.filter(log => log.level === 'error');
+    status.errors.count = errorLogs.length;
+    status.errors.logs = errorLogs.slice(0, 5).map(log => ({
+      timestamp: log.timestamp,
+      message: log.message,
+      data: log.data
+    })); // show last 5 errors
+    if (errorLogs.length > 0) {
+        status.errors.status = "degraded";
+    }
+
+
+    // Determine overall status for each category
+    if (status["24data"].endpoints.some(e => e.status === 'outage')) status["24data"].status = 'outage';
+    if (status["24ifr_api"].endpoints.some(e => e.status === 'outage')) status["24ifr_api"].status = 'outage';
+
+    res.json(status);
+
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to generate full status report', { error: error.message });
+    res.status(500).json({ error: "Failed to generate status report" });
+  }
+});
+
 // Also serve static files on the /api path to support the status page when behind the api-prefix middleware
 app.use("/api", express.static('public'));
 
@@ -1815,124 +1934,6 @@ app.get("/api/admin/logs", (req, res) => {
   }
 });
 
-// New comprehensive status endpoint
-app.get("/api/full-status", async (req, res) => {
-  try {
-    let status = {
-      "24data": {
-        name: "24data Connectivity",
-        status: "operational",
-        endpoints: []
-      },
-      "24ifr_api": {
-        name: "24IFR API",
-        status: "operational",
-        endpoints: []
-      },
-      errors: {
-        name: "Error Reporting",
-        status: "operational",
-        count: 0,
-        logs: []
-      }
-    };
-
-    // 1. Check 24data Connectivity
-    const dataEndpoints = [
-      { name: "Controllers", url: "https://24data.ptfs.app/controllers" },
-      { name: "ATIS", url: "https://24data.ptfs.app/atis" }
-    ];
-
-    for (const endpoint of dataEndpoints) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
-        const response = await fetch(endpoint.url, { signal: controller.signal });
-        clearTimeout(timeout);
-        status["24data"].endpoints.push({
-          name: endpoint.name,
-          status: response.ok ? "operational" : "degraded",
-          statusCode: response.status
-        });
-        if (!response.ok) status["24data"].status = "degraded";
-      } catch (error) {
-        status["24data"].endpoints.push({
-          name: endpoint.name,
-          status: "outage",
-          error: error.message
-        });
-        status["24data"].status = "outage";
-      }
-    }
-
-    // WebSocket status
-    const isServerless = process.env.VERCEL === '1';
-    let wsStatusValue = 'operational';
-    let wsMessage = 'Connected';
-    if (isServerless) {
-        wsStatusValue = 'info';
-        wsMessage = 'Polling Fallback (Serverless)';
-    } else if (ws && ws.readyState === WebSocket.OPEN) {
-        wsStatusValue = 'operational';
-        wsMessage = 'Connected';
-    } else {
-        wsStatusValue = 'degraded';
-        wsMessage = 'Disconnected';
-        status["24data"].status = "degraded";
-    }
-    status["24data"].endpoints.push({ name: "Real-time WebSocket", status: wsStatusValue, message: wsMessage });
-
-    // 2. Check 24IFR API Status (internal services)
-    status["24ifr_api"].endpoints.push({
-        name: "Flight Plan Service",
-        status: flightPlans ? "operational" : "degraded",
-        message: `${flightPlans.length} plans in memory`
-    });
-
-    status["24ifr_api"].endpoints.push({
-        name: "Controller Service",
-        status: controllerCache.lastUpdated ? "operational" : "outage",
-        message: controllerCache.source === 'live' ? 'Live data' : 'Stale data'
-    });
-
-    status["24ifr_api"].endpoints.push({
-        name: "ATIS Service",
-        status: atisCache.lastUpdated ? "operational" : "outage",
-        message: atisCache.source === 'live' ? 'Live data' : 'Stale data'
-    });
-
-    // Supabase status
-    status["24ifr_api"].endpoints.push({
-      name: "Database (Supabase)",
-      status: supabase ? "operational" : "outage",
-      message: supabase ? "Connected" : "Not Configured"
-    });
-    if (!supabase) status["24ifr_api"].status = "outage";
-
-    // 3. Error Reporting
-    const errorLogs = runtimeLogs.filter(log => log.level === 'error');
-    status.errors.count = errorLogs.length;
-    status.errors.logs = errorLogs.slice(0, 5).map(log => ({
-      timestamp: log.timestamp,
-      message: log.message,
-      data: log.data
-    })); // show last 5 errors
-    if (errorLogs.length > 0) {
-        status.errors.status = "degraded";
-    }
-
-
-    // Determine overall status for each category
-    if (status["24data"].endpoints.some(e => e.status === 'outage')) status["24data"].status = 'outage';
-    if (status["24ifr_api"].endpoints.some(e => e.status === 'outage')) status["24ifr_api"].status = 'outage';
-
-    res.json(status);
-
-  } catch (error) {
-    logWithTimestamp('error', 'Failed to generate full status report', { error: error.message });
-    res.status(500).json({ error: "Failed to generate status report" });
-  }
-});
 
 // Reusable health check logic
 const getHealthStatus = (req, res) => {
