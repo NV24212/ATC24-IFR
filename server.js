@@ -23,15 +23,6 @@ console.log(`   Redirect URI: ${DISCORD_REDIRECT_URI}`);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Logging middleware to debug routing issues
-app.use((req, res, next) => {
-  logWithTimestamp('info', `Request received: ${req.method} ${req.originalUrl}`, {
-    headers: req.headers,
-    ip: req.ip
-  });
-  next();
-});
-
 // Runtime logs storage for debugging - moved before first usage
 let runtimeLogs = [];
 const MAX_LOGS = 100; // Keep last 100 log entries to prevent memory issues
@@ -1942,7 +1933,6 @@ app.get("/api/admin/logs", (req, res) => {
     });
   }
 });
-
 
 // Reusable health check logic
 const getHealthStatus = (req, res) => {
