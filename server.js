@@ -989,7 +989,7 @@ app.get("/api", (req, res) => {
 });
 
 // New comprehensive status endpoint
-app.get("/api/full-status", async (req, res) => {
+app.get("/full-status", async (req, res) => {
   try {
     let status = {
       "24data": {

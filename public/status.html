@@ -207,7 +207,7 @@
 
             async function checkStatus() {
                 try {
-                    const response = await fetch('/api/full-status');
+                    const response = await fetch('/full-status');
                     if (!response.ok) throw new Error(`API error: ${response.status}`);
                     const data = await response.json();
 
