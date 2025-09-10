@@ -6,10 +6,10 @@ const { createClient } = require('@supabase/supabase-js');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
-// Discord OAuth configuration with deployment safety
+// Discord OAuth configuration
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/auth/discord/callback` || 'http://localhost:3000/auth/discord/callback';
+const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'http://localhost:3000/auth/discord/callback';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'default_session_secret_change_in_production';
 
 // Log configuration status for debugging deployment issues
@@ -27,13 +27,11 @@ const PORT = process.env.PORT || 3000;
 let runtimeLogs = [];
 const MAX_LOGS = 100; // Keep last 100 log entries to prevent memory issues
 
-// Enhanced logging function - moved before first usage
+// Optimized logging function
 function logWithTimestamp(level, message, data = null) {
   const timestamp = new Date().toISOString();
   const logEntry = {
-    timestamp,
-    level,
-    message,
+    timestamp, level, message,
     data: data ? JSON.stringify(data) : null,
     id: uuidv4().slice(0, 8)
   };
@@ -41,9 +39,7 @@ function logWithTimestamp(level, message, data = null) {
   // Add to runtime logs with memory safety
   try {
     runtimeLogs.unshift(logEntry);
-    if (runtimeLogs.length > MAX_LOGS) {
-      runtimeLogs = runtimeLogs.slice(0, MAX_LOGS);
-    }
+    if (runtimeLogs.length > MAX_LOGS) runtimeLogs = runtimeLogs.slice(0, MAX_LOGS);
   } catch (error) {
     console.error('Failed to add to runtime logs:', error);
   }
@@ -51,15 +47,10 @@ function logWithTimestamp(level, message, data = null) {
   // Console output with formatting
   const formattedMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
   switch(level) {
-    case 'error':
-      console.error(formattedMessage, data || '');
-      break;
-    case 'warn':
-      console.warn(formattedMessage, data || '');
-      break;
+    case 'error': console.error(formattedMessage, data || ''); break;
+    case 'warn': console.warn(formattedMessage, data || ''); break;
     case 'info':
-      console.info(formattedMessage, data || '');
-      break;
+      console.info(formattedMessage, data || ''); break;
     default:
       console.log(formattedMessage, data || '');
   }
@@ -71,42 +62,40 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE; // SECURE: Loaded 
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY; // PUBLIC: Safe to be in .env file
 let supabase = null;
 
-// The server should ALWAYS use the service role key for admin operations.
-// This key MUST be kept secret and set as an environment variable in your hosting platform.
-if (supabaseUrl && supabaseServiceKey && supabaseUrl.startsWith('https://')) {
-  try {
+// Initialize Supabase client with service role key for admin operations
+try {
+  if (supabaseUrl && supabaseServiceKey && supabaseUrl.startsWith('https://')) {
     supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+      auth: { autoRefreshToken: false, persistSession: false }
     });
-    logWithTimestamp('info', 'Supabase admin client initialized successfully using SERVICE_ROLE key.');
-  } catch (error) {
-    logWithTimestamp('error', 'Failed to initialize Supabase admin client', { error: error.message });
-    supabase = null;
+    logWithTimestamp('info', 'Supabase admin client initialized successfully');
+  } else {
+    const errors = [];
+    if (!supabaseUrl || !supabaseUrl.startsWith('https://')) errors.push('Invalid SUPABASE_URL');
+    if (!supabaseServiceKey) errors.push('Missing SERVICE_ROLE key');
+    logWithTimestamp('warn', `Supabase initialization failed: ${errors.join(', ')}`);
   }
-} else {
-    logWithTimestamp('warn', 'Supabase SERVICE_ROLE key not configured or URL is invalid.');
-    logWithTimestamp('error', 'SERVER IS NOT PROPERLY CONFIGURED. Admin operations will fail.');
-    if (!supabaseUrl || !supabaseUrl.startsWith('https://')) {
-        console.log("   ❌ Missing or invalid SUPABASE_URL.");
-    }
-    if (!supabaseServiceKey) {
-        console.log("   ❌ CRITICAL: SUPABASE_SERVICE_ROLE key is not set in the environment.");
-        console.log("   For security, this key should NOT be in a .env file. Set it in your hosting provider's secrets/environment variables.");
-    }
+} catch (error) {
+  logWithTimestamp('error', 'Failed to initialize Supabase client', { error: error.message });
+  supabase = null;
 }
 
-// Validation for the public (anon) key which is sent to the client
+// Check for anon key (used by frontend)
 if (!supabaseAnonKey) {
-    logWithTimestamp('warn', 'SUPABASE_ANON_KEY is not set. Frontend functionality may be limited.');
+  logWithTimestamp('warn', 'SUPABASE_ANON_KEY is not set. Frontend functionality may be limited.');
 }
 
 let flightPlans = []; // Store multiple flight plans
 
 // Controller data cache and polling
 let controllerCache = {
+  data: [],
+  lastUpdated: null,
+  source: 'cache'
+};
+
+// ATIS data cache and polling
+let atisCache = {
   data: [],
   lastUpdated: null,
   source: 'cache'
@@ -155,7 +144,6 @@ function startControllerPolling() {
 
 // Initialize startup log
 logWithTimestamp('info', 'ATC24 Server starting up', {
-  environment: process.env.VERCEL === '1' ? 'serverless' : 'traditional',
   nodeVersion: process.version,
   timestamp: new Date().toISOString()
 });
@@ -793,11 +781,11 @@ function cleanupExpiredSessions() {
 // Run OAuth session cleanup every hour
 setInterval(cleanupExpiredSessions, 60 * 60 * 1000);
 
-// WebSocket connection - only initialize if not in serverless environment
+// WebSocket connection
 let ws = null;
 
 function initializeWebSocket() {
-  if (process.env.VERCEL !== '1' && !ws) {
+  if (!ws) {
     try {
       logWithTimestamp('info', 'Attempting WebSocket connection to 24data.ptfs.app...');
 
@@ -881,11 +869,9 @@ function initializeWebSocket() {
         // Clean up WebSocket reference on error
         ws = null;
 
-        // Attempt to reconnect after 10 seconds if not in serverless
-        if (process.env.VERCEL !== '1') {
-          logWithTimestamp('info', 'Scheduling WebSocket reconnection in 10 seconds due to error');
-          setTimeout(initializeWebSocket, 10000);
-        }
+        // Attempt to reconnect after 10 seconds
+        logWithTimestamp('info', 'Scheduling WebSocket reconnection in 10 seconds due to error');
+        setTimeout(initializeWebSocket, 10000);
       });
 
       ws.on("close", (code, reason) => {
@@ -898,8 +884,8 @@ function initializeWebSocket() {
         // Clean up WebSocket reference
         ws = null;
 
-        // Attempt to reconnect after 5 seconds if not in serverless and not a clean close
-        if (process.env.VERCEL !== '1' && code !== 1000) {
+        // Attempt to reconnect after 5 seconds if not a clean close
+        if (code !== 1000) {
           logWithTimestamp('info', 'Scheduling WebSocket reconnection in 5 seconds');
           setTimeout(initializeWebSocket, 5000);
         }
@@ -1039,13 +1025,9 @@ app.get("/full-status", async (req, res) => {
     }
 
     // WebSocket status
-    const isServerless = process.env.VERCEL === '1';
     let wsStatusValue = 'operational';
     let wsMessage = 'Connected';
-    if (isServerless) {
-        wsStatusValue = 'info';
-        wsMessage = 'Polling Fallback (Serverless)';
-    } else if (ws && ws.readyState === WebSocket.OPEN) {
+    if (ws && typeof ws.readyState !== 'undefined' && ws.readyState === WebSocket.OPEN) {
         wsStatusValue = 'operational';
         wsMessage = 'Connected';
     } else {
@@ -1070,8 +1052,8 @@ app.get("/full-status", async (req, res) => {
 
     status["24ifr_api"].endpoints.push({
         name: "ATIS Service",
-        status: atisCache.lastUpdated ? "operational" : "outage",
-        message: atisCache.source === 'live' ? 'Live data' : 'Stale data'
+        status: typeof atisCache !== 'undefined' && atisCache.lastUpdated ? "operational" : "outage",
+        message: typeof atisCache !== 'undefined' && atisCache.source === 'live' ? 'Live data' : 'Stale data'
     });
 
     // Supabase status
@@ -1116,11 +1098,7 @@ app.use(express.static('public'));
 
 
 // ATIS data cache and polling
-let atisCache = {
-  data: [],
-  lastUpdated: null,
-  source: 'cache'
-};
+// atisCache is already defined at the top of the file
 
 async function pollAtis() {
   const controller = new AbortController();
@@ -1203,8 +1181,13 @@ app.get("/api/user/clearances", requireDiscordAuth, async (req, res) => {
 // REST: Get all flight plans with serverless-aware fallback
 app.get("/flight-plans", async (req, res) => {
   try {
-    // If we're in serverless and have Supabase, try to get recent flight plans
-    if (process.env.VERCEL === '1' && supabase && flightPlans.length === 0) {
+    // Try to get flight plans from memory first
+    if (flightPlans.length > 0) {
+      return res.json(flightPlans);
+    }
+    
+    // If no flight plans in memory and Supabase is available, try to get from database
+    if (supabase) {
       try {
         const { data: recentPlans } = await supabase
           .from('flight_plans_received')
@@ -1224,7 +1207,7 @@ app.get("/flight-plans", async (req, res) => {
             ...plan.raw_data
           }));
 
-          console.log(`📡 Retrieved ${convertedPlans.length} flight plans from Supabase for serverless`);
+          console.log(`📡 Retrieved ${convertedPlans.length} flight plans from Supabase`);
           return res.json(convertedPlans);
         }
       } catch (dbError) {
@@ -1232,6 +1215,7 @@ app.get("/flight-plans", async (req, res) => {
       }
     }
 
+    // Return empty array if no flight plans found
     res.json(flightPlans);
   } catch (error) {
     console.error('Error in flight plans endpoint:', error);
@@ -1936,12 +1920,9 @@ app.get("/api/admin/logs", (req, res) => {
 
 // Reusable health check logic
 const getHealthStatus = (req, res) => {
-  const isServerless = process.env.VERCEL === '1';
   let wsStatus = 'disabled';
 
-  if (isServerless) {
-    wsStatus = 'disabled_serverless';
-  } else if (ws) {
+  if (ws) {
     wsStatus = ws.readyState === WebSocket.OPEN ? 'connected' : 'disconnected';
   } else {
     wsStatus = 'not_initialized';
@@ -1951,16 +1932,13 @@ const getHealthStatus = (req, res) => {
     status: "ok",
     wsConnected: ws ? ws.readyState === WebSocket.OPEN : false,
     wsStatus: wsStatus,
-    environment: isServerless ? 'serverless' : 'traditional',
     deployment: {
-      platform: isServerless ? 'vercel' : 'traditional',
-      supportsWebSocket: !isServerless,
       persistentStorage: supabase !== null,
       sessionCount: sessions.size,
       memoryFlightPlans: flightPlans.length
     },
     capabilities: {
-      realtime_updates: !isServerless,
+      realtime_updates: true,
       polling_fallback: true,
       analytics_persistence: supabase !== null,
       admin_panel: true,
@@ -1968,21 +1946,6 @@ const getHealthStatus = (req, res) => {
     },
     flightPlansCount: flightPlans.length,
     supabaseConfigured: supabase !== null,
-    supportsRealtime: !isServerless,
-    limitations: isServerless ? {
-      websocket: 'disabled_in_serverless',
-      memory_persistence: 'function_lifecycle_only',
-      recommended_polling_interval: '10_seconds',
-      session_cleanup: 'automatic'
-    } : null,
-    recommendations: isServerless ? {
-      data_update_method: 'client_side_polling',
-      fallback_storage: supabase !== null ? 'supabase_available' : 'memory_only',
-      user_experience: 'polling_with_notification'
-    } : {
-      data_update_method: 'websocket_realtime',
-      storage: 'in_memory_with_supabase_backup'
-    },
     analytics: {
       totalVisits: analytics.totalVisits,
       clearancesGenerated: analytics.clearancesGenerated,
@@ -2170,21 +2133,13 @@ app.get("/api/admin/current-users", async (req, res) => {
   }
 });
 
-// Start server only if not in Vercel environment
-if (process.env.VERCEL !== '1') {
-  app.listen(PORT, () => {
-    logWithTimestamp('info', `Server started successfully on port ${PORT}`, {
-      port: PORT,
-      environment: 'traditional',
-      supabaseConfigured: supabase !== null
-    });
-  });
-} else {
-  logWithTimestamp('info', 'Server deployed in serverless environment (Vercel)', {
-    environment: 'serverless',
+// Start server
+app.listen(PORT, () => {
+  logWithTimestamp('info', `Server started successfully on port ${PORT}`, {
+    port: PORT,
     supabaseConfigured: supabase !== null
   });
-}
+});
 
-// Export app for Vercel
+// Export app for module usage
 module.exports = app;
