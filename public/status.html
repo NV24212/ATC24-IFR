@@ -207,8 +207,26 @@
 
             async function checkStatus() {
                 try {
-                    const response = await fetch('/full-status');
-                    if (!response.ok) throw new Error(`API error: ${response.status}`);
+                    // Try multiple paths to find the working endpoint
+                    const paths = ['./full-status', '/full-status', '/api/full-status'];
+                    let response = null;
+                    let lastError = null;
+                    
+                    for (const path of paths) {
+                        try {
+                            response = await fetch(path);
+                            if (response.ok) break; // Found a working endpoint
+                        } catch (e) {
+                            lastError = e;
+                            console.log(`Failed to fetch from ${path}:`, e);
+                            // Continue to the next path
+                        }
+                    }
+                    
+                    if (!response || !response.ok) {
+                        throw new Error(`API error: ${response?.status || 'Connection failed'}`);
+                    }
+                    
                     const data = await response.json();
 
                     // Render each category

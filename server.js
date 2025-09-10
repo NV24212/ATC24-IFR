@@ -974,6 +974,11 @@ app.get("/api", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "status.html"));
 });
 
+// Also serve status page at /status for direct access
+app.get("/status", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "status.html"));
+});
+
 // New comprehensive status endpoint
 app.get("/full-status", async (req, res) => {
   try {
@@ -1091,6 +1096,20 @@ app.get("/full-status", async (req, res) => {
 
 // Also serve static files on the /api path to support the status page when behind the api-prefix middleware
 app.use("/api", express.static('public'));
+
+// Mirror the full-status endpoint at /api/full-status
+app.get("/api/full-status", async (req, res) => {
+  // Forward to the main full-status endpoint handler
+  try {
+    const fullStatusUrl = `http://localhost:${PORT}/full-status`;
+    const response = await fetch(fullStatusUrl);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    logWithTimestamp('error', 'Failed to proxy full-status request', { error: error.message });
+    res.status(500).json({ error: "Failed to generate status report" });
+  }
+});
 
 // Serve static files (like styles.css) from a 'public' directory
 // This must come AFTER specific route handlers to avoid bypassing tracking
