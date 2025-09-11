@@ -1,45 +1,18 @@
-# syntax = docker/dockerfile:1
+# Use an official Python runtime as a parent image
+FROM python:3.9-slim
 
-# Adjust NODE_VERSION as desired
-ARG NODE_VERSION=20.18.0
-FROM node:${NODE_VERSION}-slim AS base
-
-LABEL fly_launch_runtime="Node.js"
-
-# Node.js app lives here
+# Set the working directory in the container
 WORKDIR /app
 
-# Set production environment
-ENV NODE_ENV="production"
+# Copy the backend directory contents into the container at /app
+# This assumes you build the Docker image from the root of the repository
+COPY backend/ /app/
 
+# Install any needed packages specified in requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Throw-away build stage to reduce size of final image
-FROM base AS build
+# Make port 5000 available to the world outside this container
+EXPOSE 5000
 
-# Install packages needed to build node modules
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3
-
-# Install node modules
-COPY package-lock.json package.json ./
-RUN npm ci --include=dev
-
-# Copy application code
-COPY . .
-
-# Build application
-RUN npm run build
-
-# Remove development dependencies
-RUN npm prune --omit=dev
-
-
-# Final stage for app image
-FROM base
-
-# Copy built application
-COPY --from=build /app /app
-
-# Start the server by default, this can be overwritten at runtime
-EXPOSE 3000
-CMD [ "npm", "run", "start" ]
+# Run app.py when the container launches using Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
