@@ -468,7 +468,7 @@
       const flightPlansContainer = document.getElementById("flightPlans");
       flightPlansContainer.innerHTML = '<div class="no-plans loading">Loading flight plans...</div>';
 
-      const res = await fetch("/flight-plans");
+      const res = await fetch("/api/flight-plans");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       flightPlans = await res.json();
       displayFlightPlans();
@@ -1086,7 +1086,7 @@
     refreshBtn.disabled = true;
 
     try {
-      const response = await fetch('/controllers');
+      const response = await fetch('/api/controllers');
       if (!response.ok) {
         throw new Error(`HTTP Error: ${response.status}`);
       }
@@ -1287,7 +1287,7 @@
       updateUIFromSettings();
 
       // Check system health to decide on polling for flight plans
-      const healthRes = await fetch('/health');
+      const healthRes = await fetch('/api/health');
       if (!healthRes.ok) {
         throw new Error(`Health check failed with status ${healthRes.status}`);
       }
