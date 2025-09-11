@@ -5,7 +5,7 @@ This project has been migrated from a monolithic Node.js application to a separa
 ## Project Structure
 
 - `/frontend`: Contains all the static frontend files (HTML, CSS, JavaScript). This is a standalone application that can be deployed to any static hosting provider (e.g., Cloudflare Pages, Vercel, Netlify).
-- `/backend`: Contains the Python Flask backend application. This is designed to be run as a Docker container.
+- `/backend`: Contains the Python Flask backend application and its `Dockerfile`. This is a self-contained application designed to be run as a Docker container.
 
 ## How to Run with Docker
 
@@ -13,17 +13,22 @@ This project is set up to run the backend in a Docker container.
 
 ### Prerequisites
 - Docker installed and running.
-- An `.env` file in the root of the project with your Supabase and Discord credentials. You can copy the existing `.env` file and fill in the values.
+- An `.env` file in the `backend/` directory with your Supabase and Discord credentials.
 
 ### Building and Running the Backend
 
-1.  **Build the Docker image:**
-    From the root of the project, run:
+1.  **Navigate to the backend directory:**
+    ```bash
+    cd backend
+    ```
+
+2.  **Build the Docker image:**
+    From the `backend` directory, run:
     ```bash
     docker build -t atc24-backend .
     ```
 
-2.  **Run the Docker container:**
+3.  **Run the Docker container:**
     ```bash
     docker run -p 5000:5000 --env-file .env atc24-backend
     ```
