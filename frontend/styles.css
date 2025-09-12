@@ -17,7 +17,8 @@
 }
 
 body {
-  font-family: 'Funnel Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Noto Sans Mono', monospace;
+  font-weight: 300;
   background: var(--background-color);
   color: var(--text-color);
   line-height: 1.6;
@@ -299,7 +300,7 @@ textarea:focus, input[type="text"]:focus {
 
 textarea {
   resize: vertical;
-  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+  font-family: 'Noto Sans Mono', monospace;
   line-height: 1.6;
   min-height: 120px;
 }
@@ -363,7 +364,7 @@ input[type="text"]::placeholder {
   border: 2px solid var(--primary-color);
   border-radius: 16px;
   padding: 30px;
-  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+  font-family: 'Noto Sans Mono', monospace;
   font-size: 16px;
   line-height: 1.8;
   color: var(--primary-color);
@@ -727,7 +728,7 @@ input[type="text"]::placeholder {
 }
 
 .config-section textarea {
-  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+  font-family: 'Noto Sans Mono', monospace;
   font-size: 13px;
   line-height: 1.5;
   min-height: 140px;
@@ -1090,7 +1091,7 @@ input[type="text"]::placeholder {
 }
 
 .clearance-item-body {
-  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+  font-family: 'Noto Sans Mono', monospace;
   font-size: 13px;
   color: var(--text-muted);
   white-space: pre-wrap;

@@ -146,32 +146,6 @@ def get_user_clearances():
     except Exception as e:
         return jsonify({"error": "Failed to fetch user clearances", "details": str(e)}), 500
 
-@app.route('/api/user/settings', methods=['POST'])
-@require_auth
-def save_user_settings():
-    if not supabase:
-        return jsonify({"error": "Supabase not configured"}), 503
-
-    try:
-        user_id = session['user']['id']
-        settings = request.json.get('settings')
-
-        if not settings:
-            return jsonify({"error": "No settings provided"}), 400
-
-        # Assuming the table for user profiles is named 'profiles'
-        supabase.table('profiles').update({'settings': settings}).eq('id', user_id).execute()
-
-        # Update the session as well so the user gets the latest settings
-        if 'user' in session:
-            session['user']['settings'] = settings
-            session.modified = True
-
-        return jsonify({"success": True, "message": "Settings saved successfully."})
-    except Exception as e:
-        print(f"Error saving user settings: {e}")
-        return jsonify({"error": "Failed to save settings", "details": str(e)}), 500
-
 @app.route('/api/clearance-generated', methods=['POST'])
 def track_clearance_generation():
     if not supabase: return jsonify({"success": False, "error": "Supabase not configured"}), 503
@@ -242,6 +216,9 @@ def logout():
     session.pop('user', None)
     return jsonify({"success": True, "message": "Logged out"})
 
-
 if __name__ == '__main__':
+    # The WebSocket client is started by the Gunicorn `post_worker_init` hook in production.
+    # For local development, you might want to start it here, but it's better
+    # to run with Gunicorn locally to mimic the production environment.
+    # Example: gunicorn --config gunicorn.conf.py app:app
     app.run(debug=True, port=5000, use_reloader=False)
