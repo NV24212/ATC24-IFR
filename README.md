@@ -14,7 +14,7 @@ This project is set up to run the backend in a Docker container.
 ### Prerequisites
 - Docker installed and running.
 - An `.env` file in the `backend/` directory with your Supabase and Discord credentials.
-
+ dsf
 ### Building and Running the Backend
 
 1.  **Navigate to the backend directory:**
