@@ -62,10 +62,6 @@ def run_websocket_in_background():
     asyncio.set_event_loop(loop)
     loop.run_until_complete(flight_plan_websocket_client())
 
-# Start the WebSocket client in a background thread
-websocket_thread = threading.Thread(target=run_websocket_in_background, daemon=True)
-websocket_thread.start()
-
 # --- Auth Decorator ---
 def require_auth(f):
     @wraps(f)
