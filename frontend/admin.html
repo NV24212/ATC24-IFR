@@ -1407,6 +1407,8 @@
   </div>
 
   <script>
+    const API_BASE_URL = 'https://api.hasmah.xyz';
+
     // Info Popup for Table Data
     function showInfoPopup(content) {
       const overlay = document.getElementById('infoOverlay');
@@ -1507,7 +1509,7 @@
         document.getElementById('authLoginRequired').style.display = 'none';
         document.getElementById('authNoAccess').style.display = 'none';
 
-        const response = await fetch('/api/auth/user', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/user`, {
           headers: {
             'X-Session-ID': currentSessionId
           }
@@ -1558,12 +1560,12 @@
     }
 
     function loginWithDiscord() {
-      window.location.href = '/auth/discord';
+      window.location.href = `${API_BASE_URL}/auth/discord`;
     }
 
     async function logout() {
       try {
-        await fetch('/api/auth/logout', {
+        await fetch(`${API_BASE_URL}/api/auth/logout`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1685,7 +1687,7 @@
 
     async function loadAnalytics() {
       try {
-        const response = await fetch('/api/admin/analytics', {
+        const response = await fetch(`${API_BASE_URL}/api/admin/analytics`, {
           headers: {
             'X-Session-ID': sessionId,
             'Authorization': `Bearer ${sessionId}`
@@ -1713,7 +1715,7 @@
     let charts = {};
     async function loadChartData() {
         try {
-            const response = await fetch('/api/admin/charts', {
+            const response = await fetch(`${API_BASE_URL}/api/admin/charts`, {
                 headers: {
                     'X-Session-ID': sessionId,
                     'Authorization': `Bearer ${sessionId}`
@@ -1811,7 +1813,7 @@
 
     async function loadSettings() {
       try {
-        const response = await fetch(`/api/admin/settings`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
           headers: {
             'X-Session-ID': sessionId,
             'Authorization': `Bearer ${sessionId}`
@@ -1855,7 +1857,7 @@
       wsStatus.style.border = '1px solid var(--border-color)';
 
       try {
-        const response = await fetch('/health');
+        const response = await fetch(`${API_BASE_URL}/health`);
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1947,7 +1949,7 @@
           }
         };
 
-        const response = await fetch('/api/admin/settings', {
+        const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1978,7 +1980,7 @@
       }
 
       try {
-        const response = await fetch('/api/admin/reset-analytics', {
+        const response = await fetch(`${API_BASE_URL}/api/admin/reset-analytics`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2016,7 +2018,7 @@
       try {
         debugLogsContainer.innerHTML = '<div style="color: var(--text-muted);">Loading debug logs...</div>';
 
-        const url = `/api/admin/logs?level=${encodeURIComponent(level)}&limit=50`;
+        const url = `${API_BASE_URL}/api/admin/logs?level=${encodeURIComponent(level)}&limit=50`;
         const response = await fetch(url, {
           headers: {
             'X-Session-ID': sessionId,
@@ -2107,7 +2109,7 @@
         // Test basic connectivity first
         console.log('Testing basic endpoint connectivity...');
 
-        const testUrl = `/api/admin/logs?level=all&limit=5`;
+        const testUrl = `${API_BASE_URL}/api/admin/logs?level=all&limit=5`;
         console.log('Test URL:', testUrl);
 
         const response = await fetch(testUrl, {
@@ -2218,7 +2220,7 @@
         tableDisplay.innerHTML = '<div class="table-loading">Loading table data...</div>';
 
         // Removed insecure password from URL. Session auth is handled by the browser cookie.
-        const url = `/api/admin/tables/${currentTable}?limit=${pageSize}&offset=${currentOffset}`;
+        const url = `${API_BASE_URL}/api/admin/tables/${currentTable}?limit=${pageSize}&offset=${currentOffset}`;
         const response = await fetch(url, {
           headers: {
             'X-Session-ID': sessionId,
@@ -2466,7 +2468,7 @@
     // Current users functionality
     async function loadCurrentUsers() {
       try {
-        const response = await fetch(`/api/admin/current-users`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/current-users`, {
           headers: {
             'X-Session-ID': sessionId,
             'Authorization': `Bearer ${sessionId}`
@@ -2579,7 +2581,7 @@
 
     async function loadAdminUsers() {
       try {
-        const response = await fetch('/api/admin/users', {
+        const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
           headers: {
             'X-Session-ID': sessionId,
             'Authorization': `Bearer ${sessionId}`
@@ -2667,7 +2669,7 @@
       if (isSuperAdmin) roles.push('super_admin');
 
       try {
-        const response = await fetch('/api/admin/users', {
+        const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2701,7 +2703,7 @@
       }
 
       try {
-        const response = await fetch(`/api/admin/users/${userId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
           method: 'DELETE',
           headers: {
             'X-Session-ID': sessionId,
