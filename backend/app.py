@@ -77,7 +77,7 @@ def require_auth(f):
 
 # --- API Endpoints ---
 
-@app.route('/api/health')
+@app.route('/health')
 def health_check():
     return jsonify({
         "status": "ok",
@@ -85,7 +85,7 @@ def health_check():
         "flight_plan_cache_size": len(flight_plans_cache)
     })
 
-@app.route('/api/controllers')
+@app.route('/controllers')
 def get_controllers():
     try:
         response = requests.get('https://24data.ptfs.app/controllers', timeout=15)
@@ -94,7 +94,7 @@ def get_controllers():
     except requests.exceptions.RequestException as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/atis')
+@app.route('/atis')
 def get_atis():
     try:
         response = requests.get('https://24data.ptfs.app/atis', timeout=15)
@@ -103,7 +103,7 @@ def get_atis():
     except requests.exceptions.RequestException as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/flight-plans')
+@app.route('/flight-plans')
 def get_flight_plans():
     if flight_plans_cache:
         return jsonify(list(flight_plans_cache))
@@ -115,7 +115,7 @@ def get_flight_plans():
     except Exception as e:
         return jsonify({"error": "Failed to fetch flight plans from database", "details": str(e)}), 500
 
-@app.route('/api/settings')
+@app.route('/settings')
 def get_public_settings():
     public_settings = {
         "clearanceFormat": {
@@ -130,7 +130,7 @@ def get_public_settings():
     }
     return jsonify(public_settings)
 
-@app.route('/api/leaderboard')
+@app.route('/leaderboard')
 def get_leaderboard():
     if not supabase: return jsonify({"error": "Supabase not configured"}), 503
     try:
@@ -139,7 +139,7 @@ def get_leaderboard():
     except Exception as e:
         return jsonify({"error": "Failed to fetch leaderboard", "details": str(e)}), 500
 
-@app.route('/api/user/clearances')
+@app.route('/user/clearances')
 @require_auth
 def get_user_clearances():
     if not supabase: return jsonify({"error": "Supabase not configured"}), 503
@@ -150,7 +150,7 @@ def get_user_clearances():
     except Exception as e:
         return jsonify({"error": "Failed to fetch user clearances", "details": str(e)}), 500
 
-@app.route('/api/user/settings', methods=['POST'])
+@app.route('/user/settings', methods=['POST'])
 @require_auth
 def save_user_settings():
     if not supabase:
@@ -176,7 +176,7 @@ def save_user_settings():
         print(f"Error saving user settings: {e}")
         return jsonify({"error": "Failed to save settings", "details": str(e)}), 500
 
-@app.route('/api/clearance-generated', methods=['POST'])
+@app.route('/clearance-generated', methods=['POST'])
 def track_clearance_generation():
     if not supabase: return jsonify({"success": False, "error": "Supabase not configured"}), 503
     try:
@@ -237,11 +237,15 @@ def discord_callback():
 
     return redirect(f"{frontend_url}?auth=success")
 
-@app.route('/api/auth/user')
+@app.route('/auth/user')
 def get_current_user():
     return jsonify({"authenticated": 'user' in session, "user": session.get('user')})
 
-@app.route('/api/auth/logout', methods=['POST'])
+@app.route('/auth/logout', methods=['POST'])
 def logout():
     session.pop('user', None)
     return jsonify({"success": True, "message": "Logged out"})
+
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000, use_reloader=False)
