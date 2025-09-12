@@ -184,6 +184,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const API_BASE_URL = 'https://api.hasmah.xyz';
             const statusMapping = {
                 operational: { text: 'Operational', className: 'status-operational' },
                 degraded: { text: 'Degraded', className: 'status-degraded' },
@@ -207,23 +208,9 @@
 
             async function checkStatus() {
                 try {
-                    // Try multiple paths to find the working endpoint
-                    const paths = ['./full-status', '/full-status', '/api/full-status'];
-                    let response = null;
-                    let lastError = null;
+                    const response = await fetch(`${API_BASE_URL}/api/full-status`);
                     
-                    for (const path of paths) {
-                        try {
-                            response = await fetch(path);
-                            if (response.ok) break; // Found a working endpoint
-                        } catch (e) {
-                            lastError = e;
-                            console.log(`Failed to fetch from ${path}:`, e);
-                            // Continue to the next path
-                        }
-                    }
-                    
-                    if (!response || !response.ok) {
+                    if (!response.ok) {
                         throw new Error(`API error: ${response?.status || 'Connection failed'}`);
                     }
                     
