@@ -62,6 +62,10 @@ def run_websocket_in_background():
     asyncio.set_event_loop(loop)
     loop.run_until_complete(flight_plan_websocket_client())
 
+# Start the WebSocket client in a background thread
+websocket_thread = threading.Thread(target=run_websocket_in_background, daemon=True)
+websocket_thread.start()
+
 # --- Auth Decorator ---
 def require_auth(f):
     @wraps(f)
@@ -146,6 +150,32 @@ def get_user_clearances():
     except Exception as e:
         return jsonify({"error": "Failed to fetch user clearances", "details": str(e)}), 500
 
+@app.route('/api/user/settings', methods=['POST'])
+@require_auth
+def save_user_settings():
+    if not supabase:
+        return jsonify({"error": "Supabase not configured"}), 503
+
+    try:
+        user_id = session['user']['id']
+        settings = request.json.get('settings')
+
+        if not settings:
+            return jsonify({"error": "No settings provided"}), 400
+
+        # Assuming the table for user profiles is named 'profiles'
+        supabase.table('profiles').update({'settings': settings}).eq('id', user_id).execute()
+
+        # Update the session as well so the user gets the latest settings
+        if 'user' in session:
+            session['user']['settings'] = settings
+            session.modified = True
+
+        return jsonify({"success": True, "message": "Settings saved successfully."})
+    except Exception as e:
+        print(f"Error saving user settings: {e}")
+        return jsonify({"error": "Failed to save settings", "details": str(e)}), 500
+
 @app.route('/api/clearance-generated', methods=['POST'])
 def track_clearance_generation():
     if not supabase: return jsonify({"success": False, "error": "Supabase not configured"}), 503
@@ -215,8 +245,3 @@ def get_current_user():
 def logout():
     session.pop('user', None)
     return jsonify({"success": True, "message": "Logged out"})
-
-if __name__ == '__main__':
-    websocket_thread = threading.Thread(target=run_websocket_in_background, daemon=True)
-    websocket_thread.start()
-    app.run(debug=True, port=5000, use_reloader=False)
