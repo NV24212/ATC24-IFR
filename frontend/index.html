@@ -1268,12 +1268,25 @@
   }
 
   // New function to handle environment-specific logic and polling
+  function showContactNotification() {
+    // Use sessionStorage to only show this once per session
+    if (!sessionStorage.getItem('contactNotificationShown')) {
+      setTimeout(() => {
+        showNotification('For bugs or suggestions, contact me on Discord: h.a.s2', 'info', 10000); // Show for 10 seconds
+        sessionStorage.setItem('contactNotificationShown', 'true');
+      }, 5000); // Show after 5 seconds
+    }
+  }
+
   async function initializeApp() {
     // Check auth params first
     checkAuthParams();
 
     // Check authentication status
     checkAuthStatus();
+
+    // Show contact notification
+    showContactNotification();
 
     // Load initial data that doesn't depend on polling interval
     loadControllers();
@@ -1375,7 +1388,6 @@
   <p>All rights reserved, Hasan Mahmood ©</p>
   <a href="/license" class="footer-link">License</a>
   <a href="https://api.hasmah.xyz" class="footer-link" target="_blank">Status</a>
-  <p class="footer-contact">For bugs or suggestions, contact me on Discord: h.a.s2</p>
 </footer>
 
 </body>
