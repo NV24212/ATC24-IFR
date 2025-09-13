@@ -93,7 +93,7 @@
               <button class="leaderboard-btn" onclick="showLeaderboard()">Leaderboard</button>
               <button class="profile-btn" onclick="showProfile()">Profile</button>
               <button class="logout-btn" onclick="logout()">Logout</button>
-              <button class="admin-btn" id="adminBtn" onclick="window.location.href='/admin.html'" style="display: none;">Admin</button>
+              <button class="admin-btn" id="adminBtn" onclick="window.location.href='/admin'" style="display: none;">Admin</button>
             </div>
           </div>
         </div>
@@ -955,15 +955,15 @@
 
     if (authResult === 'success') {
       console.log('Discord authentication successful');
-      // Remove the param from URL and set path to /app
-      window.history.replaceState({}, document.title, '/app');
+      // Remove the param from URL and set path to /
+      window.history.replaceState({}, document.title, '/');
       // Check auth status to update UI
       setTimeout(checkAuthStatus, 500);
     } else if (authError) {
       console.error('Discord authentication error:', authError);
       showAuthError(authError);
-      // Remove the param from URL and set path to /app
-      window.history.replaceState({}, document.title, '/app');
+      // Remove the param from URL and set path to /
+      window.history.replaceState({}, document.title, '/');
     }
   }
 
