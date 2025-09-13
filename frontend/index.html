@@ -3,7 +3,7 @@
 <head>
   <title>ATC24 IFR Clearance Generator</title>
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="/styles.css">
   <style>
     .controller-header {
         display: flex;
@@ -66,7 +66,7 @@
 <body>
 <div class="container">
   <div class="header">
-    <img src="logo.png" alt="Logo" class="header-logo" style="width: 150px; height: auto; margin-bottom: 0px;">
+    <img src="/logo.png" alt="Logo" class="header-logo" style="width: 150px; height: auto; margin-bottom: 0px;">
     <h1>ATC24 IFR Clearance Generator</h1>
 
     <div class="auth-section" id="authSection">
@@ -93,7 +93,7 @@
               <button class="leaderboard-btn" onclick="showLeaderboard()">Leaderboard</button>
               <button class="profile-btn" onclick="showProfile()">Profile</button>
               <button class="logout-btn" onclick="logout()">Logout</button>
-              <button class="admin-btn" id="adminBtn" onclick="window.location.href='/admin'" style="display: none;">Admin</button>
+              <button class="admin-btn" id="adminBtn" onclick="window.location.href='/admin.html'" style="display: none;">Admin</button>
             </div>
           </div>
         </div>
@@ -255,7 +255,7 @@
 
 </div>
 
-<script src="config.js"></script>
+<script src="/config.js"></script>
 <script>
   let selectedFlightPlan = null;
   let flightPlans = []; // This will hold flight plans fetched from the server
@@ -677,7 +677,7 @@
         routing_type: document.getElementById("routingType").value,
         runway: document.getElementById("departureRunway").value,
         initial_altitude: parseInt(document.getElementById("ifl").value),
-        atc_station: atc_station,
+        station: atc_station,
         atis_info: document.getElementById("atisInfo").value,
         clearance_text: document.getElementById("clearanceOutput").textContent,
         user_id: currentUser?.id || null,
