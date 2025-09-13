@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify, session, redirect, request
+from flask import Flask, jsonify, session, redirect, request, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -11,19 +11,39 @@ import json
 from collections import deque
 import time
 from requests_oauthlib import OAuth2Session
+from collections import deque
 from functools import wraps
 
 # Load environment variables from .env file
 load_dotenv()
 
+import logging
+from logging.handlers import RotatingFileHandler
+
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
 app.config['SECRET_KEY'] = os.environ.get('SESSION_SECRET', 'a_very_secret_key_that_should_be_changed')
 
+# --- Logging Configuration ---
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+log_handler = RotatingFileHandler('app_errors.log', maxBytes=1024 * 1024, backupCount=5) # 1MB per file, 5 backups
+log_handler.setFormatter(log_formatter)
+log_handler.setLevel(logging.ERROR) # Only log ERROR and CRITICAL
+app.logger.addHandler(log_handler)
+app.logger.setLevel(logging.ERROR)
+
 # --- Supabase Initialization ---
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_ANON_KEY")
-supabase: Client = create_client(url, key) if url and key else None
+supabase: Client = None # Default to None
+if url and key and 'your_supabase_url' not in url:
+    try:
+        supabase = create_client(url, key)
+    except Exception as e:
+        # Using print because logger might not be configured yet
+        print(f"WARNING: Supabase client failed to initialize: {e}. Supabase-dependent features will be disabled.")
+else:
+    print("WARNING: SUPABASE_URL is not set or is a placeholder. Supabase-dependent features will be disabled.")
 
 # --- Discord OAuth Configuration ---
 DISCORD_CLIENT_ID = os.environ.get("DISCORD_CLIENT_ID")
@@ -54,7 +74,7 @@ async def flight_plan_websocket_client():
                             flight_plan["source"] = data.get("t")
                             flight_plans_cache.appendleft(flight_plan)
         except Exception as e:
-            print(f"WebSocket error: {e}. Reconnecting in 5 seconds...")
+            app.logger.error(f"WebSocket error: {e}. Reconnecting in 5 seconds...", exc_info=True)
         await asyncio.sleep(5)
 
 def run_websocket_in_background():
@@ -81,6 +101,94 @@ def health_check():
         "flight_plan_cache_size": len(flight_plans_cache)
     })
 
+# --- Status Page ---
+@app.route('/api/full-status')
+def get_full_status():
+    external_services = get_external_service_status()
+    internal_routes = get_internal_routes()
+    error_log = get_error_log()
+
+    # Determine overall status for each category
+    data_status = 'operational'
+    if any(s['status'] != 'Online (Receiving Data)' and s['status'] != 'Online' for s in external_services.values()):
+        data_status = 'degraded'
+    if all(s['status'] == 'Offline' for s in external_services.values()):
+        data_status = 'outage'
+
+    api_status = 'operational' # Assume operational unless an error is found, a more robust check could be added
+
+    error_status = 'operational'
+    if error_log:
+        error_status = 'degraded'
+
+
+    response = {
+        "24data_connectivity": {
+            "status": data_status,
+            "endpoints": [{"name": name, "status": "operational" if "Online" in details["status"] else "outage", "message": details["status"]} for name, details in external_services.items()]
+        },
+        "24ifr_api": {
+            "status": api_status,
+            "endpoints": [{"name": route["endpoint"], "path": route["path"], "methods": route["methods"], "status": "operational"} for route in internal_routes]
+        },
+        "errors": {
+            "status": error_status,
+            "count": len(error_log),
+            "logs": list(error_log)
+        }
+    }
+    return jsonify(response)
+
+def get_external_service_status():
+    services = {
+        "24DATA_Controllers": {"url": "https://24data.ptfs.app/controllers", "status": "Offline"},
+        "24DATA_ATIS": {"url": "https://24data.ptfs.app/atis", "status": "Offline"},
+        "24DATA_WebSocket": {"url": "wss://24data.ptfs.app/wss", "status": "Offline"}
+    }
+    try:
+        response = requests.head(services["24DATA_Controllers"]["url"], timeout=5)
+        if response.status_code == 200:
+            services["24DATA_Controllers"]["status"] = "Online"
+    except requests.RequestException:
+        pass # Status remains Offline
+    try:
+        response = requests.head(services["24DATA_ATIS"]["url"], timeout=5)
+        if response.status_code == 200:
+            services["24DATA_ATIS"]["status"] = "Online"
+    except requests.RequestException:
+        pass # Status remains Offline
+
+    # WebSocket status is harder to check synchronously.
+    # We'll assume it's online if the flight plan cache has recent entries.
+    if flight_plans_cache and (time.time() - flight_plans_cache[0]['timestamp']) < 300: # 5 minutes
+        services["24DATA_WebSocket"]["status"] = "Online (Receiving Data)"
+
+    return services
+
+def get_internal_routes():
+    routes = []
+    for rule in app.url_map.iter_rules():
+        if "static" not in rule.endpoint:
+            methods = ','.join(sorted([m for m in rule.methods if m not in ["HEAD", "OPTIONS"]]))
+            routes.append({"endpoint": rule.endpoint, "methods": methods, "path": str(rule)})
+    return routes
+
+def get_error_log():
+    try:
+        with open('app_errors.log', 'r') as f:
+            # Read last 25 lines for brevity
+            return deque(f, 25)
+    except FileNotFoundError:
+        return []
+    except Exception as e:
+        # Log this error to the console, not to the file to avoid loops
+        print(f"Error reading error log: {e}")
+        return ["Could not read error log file."]
+
+@app.route('/')
+def status_page():
+    return render_template('status.html')
+
 @app.route('/api/controllers')
 def get_controllers():
     try:
@@ -88,6 +196,7 @@ def get_controllers():
         response.raise_for_status()
         return jsonify({"data": response.json(), "lastUpdated": time.time(), "source": "live"})
     except requests.exceptions.RequestException as e:
+        app.logger.error(f"Failed to fetch controllers: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/atis')
@@ -97,6 +206,7 @@ def get_atis():
         response.raise_for_status()
         return jsonify({"data": response.json(), "lastUpdated": time.time(), "source": "live"})
     except requests.exceptions.RequestException as e:
+        app.logger.error(f"Failed to fetch ATIS data: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/flight-plans')
@@ -109,6 +219,7 @@ def get_flight_plans():
         response = supabase.from_('flight_plans_received').select("*").order('created_at', desc=True).limit(20).execute()
         return jsonify(response.data or [])
     except Exception as e:
+        app.logger.error(f"Failed to fetch flight plans from Supabase: {e}", exc_info=True)
         return jsonify({"error": "Failed to fetch flight plans from database", "details": str(e)}), 500
 
 @app.route('/api/settings')
@@ -133,6 +244,7 @@ def get_leaderboard():
         response = supabase.rpc('get_clearance_leaderboard', {}).execute()
         return jsonify(response.data)
     except Exception as e:
+        app.logger.error(f"Failed to fetch leaderboard from Supabase: {e}", exc_info=True)
         return jsonify({"error": "Failed to fetch leaderboard", "details": str(e)}), 500
 
 @app.route('/api/user/clearances')
@@ -144,6 +256,7 @@ def get_user_clearances():
         response = supabase.rpc('get_user_clearances', {'p_user_id': user_id}).execute()
         return jsonify(response.data)
     except Exception as e:
+        app.logger.error(f"Failed to fetch user clearances from Supabase: {e}", exc_info=True)
         return jsonify({"error": "Failed to fetch user clearances", "details": str(e)}), 500
 
 @app.route('/api/clearance-generated', methods=['POST'])
@@ -160,6 +273,7 @@ def track_clearance_generation():
         supabase.table('clearance_generations').insert(clearance_data).execute()
         return jsonify({"success": True})
     except Exception as e:
+        app.logger.error(f"Failed to track clearance generation in Supabase: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 # --- Authentication Endpoints ---
@@ -176,6 +290,8 @@ def discord_login():
 
 @app.route('/auth/discord/callback')
 def discord_callback():
+    # The frontend URL MUST be set in the environment for production.
+    # Defaulting to localhost:8000 for local development only.
     frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:8000")
     if request.values.get('error'):
         return redirect(f"{frontend_url}?error={request.values['error']}")
@@ -200,7 +316,7 @@ def discord_callback():
                 'is_admin': db_user.get('is_admin', False)
             }
         except Exception as e:
-            print(f"Supabase user upsert error: {e}")
+            app.logger.error(f"Supabase user upsert error: {e}", exc_info=True)
             session['user'] = {'username': user_json['username'], 'discord_id': user_json['id']}
     else:
         session['user'] = {'username': user_json['username'], 'discord_id': user_json['id']}

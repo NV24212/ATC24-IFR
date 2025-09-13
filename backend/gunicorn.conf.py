@@ -1,6 +1,12 @@
 """Gunicorn configuration file."""
 
+import os
+import sys
 import threading
+
+# Add the current directory to the Python path
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
 from app import run_websocket_in_background
 
 # Server socket
