@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify, session, redirect, request, render_template
+from flask import Flask, jsonify, session, redirect, request, render_template, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -20,7 +20,12 @@ load_dotenv()
 import logging
 from logging.handlers import RotatingFileHandler
 
-app = Flask(__name__)
+# Construct the path to the frontend directory
+frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend')
+
+app = Flask(__name__,
+            static_folder=frontend_dir,
+            template_folder=frontend_dir)
 CORS(app, supports_credentials=True)
 app.config['SECRET_KEY'] = os.environ.get('SESSION_SECRET', 'a_very_secret_key_that_should_be_changed')
 
@@ -185,9 +190,20 @@ def get_error_log():
         print(f"Error reading error log: {e}")
         return ["Could not read error log file."]
 
-@app.route('/')
+@app.route('/status')
 def status_page():
+    # This route now specifically serves the status page
     return render_template('status.html')
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    # Serve static files from the static folder
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    # Serve the frontend's entry point for all other requests
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/api/controllers')
 def get_controllers():
