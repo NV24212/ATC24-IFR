@@ -190,20 +190,17 @@ def get_error_log():
         print(f"Error reading error log: {e}")
         return ["Could not read error log file."]
 
-@app.route('/status')
+@app.route('/')
 def status_page():
-    # This route now specifically serves the status page
     return render_template('status.html')
 
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def serve_frontend(path):
-    # Serve static files from the static folder
-    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
-        return send_from_directory(app.static_folder, path)
-    # Serve the frontend's entry point for all other requests
-    else:
-        return send_from_directory(app.static_folder, 'index.html')
+@app.route('/app')
+def serve_spa():
+    return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/app/<path:path>')
+def serve_spa_paths(path):
+    return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/api/controllers')
 def get_controllers():
@@ -306,11 +303,8 @@ def discord_login():
 
 @app.route('/auth/discord/callback')
 def discord_callback():
-    # The frontend URL MUST be set in the environment for production.
-    # Defaulting to localhost:8000 for local development only.
-    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:8000")
     if request.values.get('error'):
-        return redirect(f"{frontend_url}?error={request.values['error']}")
+        return redirect(f"/app?error={request.values['error']}")
 
     discord = OAuth2Session(DISCORD_CLIENT_ID, state=session.get('oauth2_state'), redirect_uri=DISCORD_REDIRECT_URI)
     token = discord.fetch_token(TOKEN_URL, client_secret=DISCORD_CLIENT_SECRET, authorization_response=request.url)
@@ -337,7 +331,7 @@ def discord_callback():
     else:
         session['user'] = {'username': user_json['username'], 'discord_id': user_json['id']}
 
-    return redirect(f"{frontend_url}?auth=success")
+    return redirect("/app?auth=success")
 
 @app.route('/api/auth/user')
 def get_current_user():
