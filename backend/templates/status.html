@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>24IFR - System Status</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='status.css') }}">
+</head>
+<body>
+    <div class="container status-container">
+        <div class="header">
+            <a href="https://24ifr.hasmah.xyz"><img src="https://24ifr.hasmah.xyz/logo.png" alt="Logo" class="header-logo" style="width: 150px; height: auto;"></a>
+        </div>
+
+        <div class="status-header">
+            <h1>System Status</h1>
+            <div id="overall-status" class="overall-status">
+                <div class="loading-spinner" style="width: 30px; height: 30px;"></div>
+            </div>
+        </div>
+
+        <div class="status-list">
+            <details class="status-category" open>
+                <summary class="category-header">
+                    <h2 class="category-title">24DATA Connectivity</h2>
+                    <div class="category-status" id="status-24data_connectivity"><div class="loading-spinner"></div></div>
+                </summary>
+                <div class="endpoint-list" id="endpoints-24data_connectivity"></div>
+            </details>
+
+            <details class="status-category" open>
+                <summary class="category-header">
+                    <h2 class="category-title">24IFR API</h2>
+                    <div class="category-status" id="status-24ifr_api"><div class="loading-spinner"></div></div>
+                </summary>
+                <div class="endpoint-list" id="endpoints-24ifr_api"></div>
+            </details>
+
+            <details class="status-category">
+                <summary class="category-header">
+                    <h2 class="category-title">Error Reporting</h2>
+                    <div class="category-status" id="status-errors"><div class="loading-spinner"></div></div>
+                </summary>
+                <div class="error-log-list" id="logs-errors"></div>
+            </details>
+        </div>
+
+        <footer class="footer" style="margin-top: 40px; text-align: center;">
+            <p>Last updated: <span id="last-updated">...</span></p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // No need for API_BASE_URL, as this page is served from the same origin
+            const API_BASE_URL = '';
+            const statusMapping = {
+                operational: { text: 'Operational', className: 'status-operational' },
+                degraded: { text: 'Degraded', className: 'status-degraded' },
+                outage: { text: 'Outage', className: 'status-outage' },
+                info: { text: 'Info', className: 'status-info' }
+            };
+
+            function setStatus(element, status, text) {
+                const config = statusMapping[status] || { text: 'Unknown', className: '' };
+                element.textContent = text || config.text;
+                element.className = 'category-status'; // Reset
+                element.classList.add(config.className);
+            }
+
+            function setEndpointStatus(element, status) {
+                const config = statusMapping[status] || { text: 'Unknown', className: '' };
+                element.textContent = config.text;
+                element.className = 'endpoint-status'; // Reset
+                element.classList.add(config.className);
+            }
+
+            async function checkStatus() {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/full-status`);
+
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response?.status || 'Connection failed'}`);
+                    }
+
+                    const data = await response.json();
+
+                    // Render each category
+                    for (const key in data) {
+                        const category = data[key];
+                        const statusEl = document.getElementById(`status-${key}`);
+                        const listEl = document.getElementById(`endpoints-${key}`) || document.getElementById(`logs-${key}`);
+
+                        if (statusEl) {
+                            setStatus(statusEl, category.status);
+                        }
+
+                        if (listEl) {
+                            listEl.innerHTML = ''; // Clear previous content
+
+                            if (key === 'errors') {
+                                document.getElementById('status-errors').textContent += ` (${category.count} total)`;
+                                if (!category.logs || category.logs.length === 0) {
+                                    listEl.innerHTML = '<div class="endpoint-item" style="justify-content: center;">No errors to display.</div>';
+                                } else {
+                                    category.logs.forEach(log => {
+                                        const item = document.createElement('div');
+                                        item.className = 'error-log-item';
+                                        item.innerHTML = `<pre class="error-log-data">${log}</pre>`;
+                                        listEl.appendChild(item);
+                                    });
+                                }
+                            } else {
+                                if (category.endpoints && category.endpoints.length > 0) {
+                                    category.endpoints.forEach(endpoint => {
+                                        const item = document.createElement('div');
+                                        item.className = 'endpoint-item';
+                                        const statusIndicator = document.createElement('div');
+                                        setEndpointStatus(statusIndicator, endpoint.status);
+
+                                        let nameHTML = `<span class="endpoint-name">${endpoint.name}</span>`;
+                                        if (endpoint.path) {
+                                            nameHTML += `<span style="font-size: 12px; color: var(--text-muted); margin-left: 10px;">${endpoint.path}</span>`;
+                                        }
+                                        if (endpoint.methods) {
+                                            nameHTML += ` <span style="font-size: 12px; color: var(--text-muted); font-family: monospace;">[${endpoint.methods}]</span>`;
+                                        }
+                                        if (endpoint.message) {
+                                            statusIndicator.textContent = endpoint.message;
+                                        }
+
+                                        item.innerHTML = nameHTML;
+                                        item.appendChild(statusIndicator);
+                                        listEl.appendChild(item);
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    // Overall status
+                    const overall = document.getElementById('overall-status');
+                    const hasOutage = Object.values(data).some(cat => cat.status === 'outage');
+                    const hasDegraded = Object.values(data).some(cat => cat.status === 'degraded');
+
+                    if (hasOutage) {
+                        setStatus(overall, 'outage', "Major System Outage");
+                    } else if (hasDegraded) {
+                        setStatus(overall, 'degraded', "Degraded Performance");
+                    } else {
+                        setStatus(overall, 'operational', "All Systems Operational");
+                    }
+
+                    document.getElementById('last-updated').textContent = new Date().toLocaleString();
+
+                } catch (error) {
+                    console.error('Failed to fetch system status:', error);
+                    const overall = document.getElementById('overall-status');
+                    setStatus(overall, 'outage', "Status Page Error");
+                }
+            }
+
+            checkStatus();
+            setInterval(checkStatus, 30000); // Refresh every 30 seconds
+        });
+    </script>
+</body>
+</html>
