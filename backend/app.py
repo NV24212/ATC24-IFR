@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify, session, redirect, request, render_template, send_from_directory
+from flask import Flask, jsonify, session, redirect, request, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -20,12 +20,7 @@ load_dotenv()
 import logging
 from logging.handlers import RotatingFileHandler
 
-# Construct the path to the frontend directory
-frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend')
-
-app = Flask(__name__,
-            static_folder=frontend_dir,
-            static_url_path='')
+app = Flask(__name__)
 CORS(app, supports_credentials=True)
 app.config['SECRET_KEY'] = os.environ.get('SESSION_SECRET', 'a_very_secret_key_that_should_be_changed')
 
@@ -191,22 +186,8 @@ def get_error_log():
         return ["Could not read error log file."]
 
 @app.route('/')
-def serve_index():
-    return send_from_directory(app.static_folder, 'index.html')
-
-@app.route('/admin')
-def serve_admin():
-    # Note: This assumes you have an admin.html in your frontend directory
-    return send_from_directory(app.static_folder, 'admin.html')
-
-@app.route('/license')
-def serve_license():
-    # Note: This assumes you have a license.html in your frontend directory
-    return send_from_directory(app.static_folder, 'license.html')
-
-@app.route('/status')
-def status_page():
-    return render_template('status.html')
+def root():
+    return jsonify(status="ok", message="ATC24 IFR API is running.")
 
 @app.route('/api/controllers')
 def get_controllers():
@@ -309,8 +290,11 @@ def discord_login():
 
 @app.route('/auth/discord/callback')
 def discord_callback():
+    # The frontend URL MUST be set in the environment for production.
+    # Defaulting to localhost:8000 for local development only.
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:8000")
     if request.values.get('error'):
-        return redirect(f"/?error={request.values['error']}")
+        return redirect(f"{frontend_url}?error={request.values['error']}")
 
     discord = OAuth2Session(DISCORD_CLIENT_ID, state=session.get('oauth2_state'), redirect_uri=DISCORD_REDIRECT_URI)
     token = discord.fetch_token(TOKEN_URL, client_secret=DISCORD_CLIENT_SECRET, authorization_response=request.url)
@@ -337,7 +321,7 @@ def discord_callback():
     else:
         session['user'] = {'username': user_json['username'], 'discord_id': user_json['id']}
 
-    return redirect("/?auth=success")
+    return redirect(f"{frontend_url}?auth=success")
 
 @app.route('/api/auth/user')
 def get_current_user():
@@ -347,17 +331,6 @@ def get_current_user():
 def logout():
     session.pop('user', None)
     return jsonify({"success": True, "message": "Logged out"})
-
-@app.errorhandler(404)
-def page_not_found(e):
-    # For API routes, return a JSON 404
-    if request.path.startswith('/api/'):
-        return jsonify(error="Not Found"), 404
-    # For other routes, you can return a simple text message or a custom HTML page
-    # Note: A request for a non-existent static file will also trigger this.
-    # Flask's default static handling is now at the root, so if a file like
-    # '/nonexistent.css' is requested, it won't be found and will hit this handler.
-    return "<h1>404 - Not Found</h1><p>The page you are looking for does not exist.</p>", 404
 
 if __name__ == '__main__':
     # The WebSocket client is started by the Gunicorn `post_worker_init` hook in production.
