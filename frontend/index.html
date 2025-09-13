@@ -955,15 +955,15 @@
 
     if (authResult === 'success') {
       console.log('Discord authentication successful');
-      // Remove the param from URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Remove the param from URL and set path to /app
+      window.history.replaceState({}, document.title, '/app');
       // Check auth status to update UI
       setTimeout(checkAuthStatus, 500);
     } else if (authError) {
       console.error('Discord authentication error:', authError);
       showAuthError(authError);
-      // Remove the param from URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Remove the param from URL and set path to /app
+      window.history.replaceState({}, document.title, '/app');
     }
   }
 
