@@ -1,5 +1,6 @@
 -- =============================================================================
 -- ATC24 Simplified Database Migrations
+-- V2 - Adds tables for analytics and admin panel, fixes column names.
 -- =============================================================================
 
 -- Enable UUID extension
@@ -42,7 +43,7 @@ CREATE TABLE IF NOT EXISTS public.clearance_generations (
     runway TEXT,
     squawk_code TEXT,
     flight_level TEXT,
-    atis_letter TEXT,
+    atis_info TEXT, -- Changed from atis_letter to match application
     clearance_text TEXT,
     user_id UUID REFERENCES public.discord_users(id) ON DELETE SET NULL,
     discord_username TEXT,
@@ -70,6 +71,44 @@ CREATE TABLE IF NOT EXISTS public.flight_plans_received (
 );
 CREATE INDEX IF NOT EXISTS idx_flight_plans_received_callsign ON public.flight_plans_received(callsign);
 
+-- New table for page visits
+CREATE TABLE IF NOT EXISTS public.page_visits (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    session_id TEXT,
+    ip_address TEXT,
+    user_agent TEXT,
+    page_path TEXT,
+    user_id UUID REFERENCES public.discord_users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_page_visits_session_id ON public.page_visits(session_id);
+CREATE INDEX IF NOT EXISTS idx_page_visits_user_id ON public.page_visits(user_id);
+
+-- New table for user sessions
+CREATE TABLE IF NOT EXISTS public.user_sessions (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    session_id TEXT UNIQUE NOT NULL,
+    user_id UUID REFERENCES public.discord_users(id) ON DELETE SET NULL,
+    page_views INT DEFAULT 0,
+    clearances_generated INT DEFAULT 0,
+    source TEXT,
+    last_activity TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON public.user_sessions(user_id);
+
+-- New table for admin activities
+CREATE TABLE IF NOT EXISTS public.admin_activities (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    admin_user_id UUID NOT NULL REFERENCES public.discord_users(id) ON DELETE CASCADE,
+    action TEXT NOT NULL,
+    target_id TEXT,
+    details JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_admin_activities_admin_user_id ON public.admin_activities(admin_user_id);
+
 -- =============================================================================
 -- Functions
 -- =============================================================================
@@ -92,71 +131,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.upsert_discord_user(
-    p_discord_id TEXT,
-    p_username TEXT,
-    p_discriminator TEXT,
-    p_email TEXT,
-    p_avatar TEXT,
-    p_access_token TEXT,
-    p_refresh_token TEXT,
-    p_token_expires_at TIMESTAMPTZ
-) RETURNS TABLE(
-    id UUID,
-    discord_id TEXT,
-    username TEXT,
-    email TEXT,
-    avatar TEXT,
-    is_admin BOOLEAN,
-    roles JSONB,
-    vatsim_cid TEXT,
-    is_controller BOOLEAN
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    -- Assign parameters to local variables to prevent any ambiguity in the SQL statements below.
-    local_discord_id TEXT := p_discord_id;
-    local_username TEXT := p_username;
-    local_discriminator TEXT := p_discriminator;
-    local_email TEXT := p_email;
-    local_avatar TEXT := p_avatar;
-    local_access_token TEXT := p_access_token;
-    local_refresh_token TEXT := p_refresh_token;
-    local_token_expires_at TIMESTAMPTZ := p_token_expires_at;
-    v_is_admin BOOLEAN;
-    v_roles JSONB;
-BEGIN
-    -- Use local variables for logic to avoid any conflicts with column names.
-    v_is_admin := (local_discord_id = '1200035083550208042' OR local_username = 'h.a.s2');
-    v_roles := CASE WHEN v_is_admin THEN '["admin", "super_admin"]'::JSONB ELSE '[]'::JSONB END;
-
-    INSERT INTO public.discord_users (
-        discord_id, username, discriminator, email, avatar, access_token, refresh_token, token_expires_at, is_admin, roles, last_login
-    ) VALUES (
-        local_discord_id, local_username, local_discriminator, local_email, local_avatar, local_access_token, local_refresh_token, local_token_expires_at, v_is_admin, v_roles, NOW()
-    )
-    ON CONFLICT (discord_id) DO UPDATE SET
-        username = EXCLUDED.username,
-        discriminator = EXCLUDED.discriminator,
-        email = EXCLUDED.email,
-        avatar = EXCLUDED.avatar,
-        access_token = EXCLUDED.access_token,
-        refresh_token = EXCLUDED.refresh_token,
-        token_expires_at = EXCLUDED.token_expires_at,
-        -- `discord_users.discord_id` now unambiguously refers to the column of the existing row.
-        is_admin = CASE WHEN (discord_users.discord_id = '1200035083550208042' OR discord_users.username = 'h.a.s2') THEN TRUE ELSE EXCLUDED.is_admin END,
-        roles = CASE WHEN (discord_users.discord_id = '1200035083550208042' OR discord_users.username = 'h.a.s2') THEN '["admin", "super_admin"]'::JSONB ELSE EXCLUDED.roles END,
-        last_login = NOW(),
-        updated_at = NOW();
-
-    -- Use local variable in the WHERE clause for clarity and safety.
-    RETURN QUERY
-    SELECT du.id, du.discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles, du.vatsim_cid, du.is_controller
-    FROM public.discord_users du WHERE du.discord_id = local_discord_id;
-END;
-$$;
-
+-- Removed the old upsert_discord_user function as the backend now handles this logic directly.
 
 CREATE OR REPLACE FUNCTION public.get_clearance_leaderboard(p_limit INT DEFAULT 25)
 RETURNS TABLE(
@@ -215,9 +190,11 @@ ALTER TABLE public.discord_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clearance_generations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.flight_plans_received ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.page_visits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_activities ENABLE ROW LEVEL SECURITY;
 
--- Policies
--- service_role has full access
+-- Policies for existing tables
 DROP POLICY IF EXISTS "Service role full access" ON public.discord_users;
 CREATE POLICY "Service role full access" ON public.discord_users FOR ALL TO service_role USING (true) WITH CHECK (true);
 DROP POLICY IF EXISTS "Service role full access" ON public.clearance_generations;
@@ -227,32 +204,48 @@ CREATE POLICY "Service role full access" ON public.admin_settings FOR ALL TO ser
 DROP POLICY IF EXISTS "Service role full access" ON public.flight_plans_received;
 CREATE POLICY "Service role full access" ON public.flight_plans_received FOR ALL TO service_role USING (true) WITH CHECK (true);
 
--- Admins can manage users and settings
 DROP POLICY IF EXISTS "Admins can manage discord_users" ON public.discord_users;
 CREATE POLICY "Admins can manage discord_users" ON public.discord_users FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
 DROP POLICY IF EXISTS "Admins can manage admin_settings" ON public.admin_settings;
 CREATE POLICY "Admins can manage admin_settings" ON public.admin_settings FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
-
--- Users can view their own data
 DROP POLICY IF EXISTS "Users can view their own data" ON public.discord_users;
 CREATE POLICY "Users can view their own data" ON public.discord_users FOR SELECT TO authenticated USING (id = auth.uid());
-
--- Allow anonymous clearance generation, but only admins can see all of them
 DROP POLICY IF EXISTS "Anon can insert clearances" ON public.clearance_generations;
-CREATE POLICY "Anon can insert clearances" ON public.clearance_generations FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Anon can insert clearances" ON public.clearance_generations FOR INSERT TO anon, authenticated WITH CHECK (true);
 DROP POLICY IF EXISTS "Admins can see all clearances" ON public.clearance_generations;
 CREATE POLICY "Admins can see all clearances" ON public.clearance_generations FOR SELECT TO authenticated USING (is_admin());
-
--- Allow anonymous read on flight plans
 DROP POLICY IF EXISTS "Anon can read flight plans" ON public.flight_plans_received;
-CREATE POLICY "Anon can read flight plans" ON public.flight_plans_received FOR SELECT TO anon USING (true);
+CREATE POLICY "Anon can read flight plans" ON public.flight_plans_received FOR SELECT TO anon, authenticated USING (true);
+
+
+-- Policies for new tables
+DROP POLICY IF EXISTS "Service role full access" ON public.page_visits;
+CREATE POLICY "Service role full access" ON public.page_visits FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Anon can insert page visits" ON public.page_visits;
+CREATE POLICY "Anon can insert page visits" ON public.page_visits FOR INSERT TO anon, authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can see all page visits" ON public.page_visits;
+CREATE POLICY "Admins can see all page visits" ON public.page_visits FOR SELECT TO authenticated USING (is_admin());
+
+DROP POLICY IF EXISTS "Service role full access" ON public.user_sessions;
+CREATE POLICY "Service role full access" ON public.user_sessions FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Anon can insert/update sessions" ON public.user_sessions;
+CREATE POLICY "Anon can insert/update sessions" ON public.user_sessions FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can see all sessions" ON public.user_sessions;
+CREATE POLICY "Admins can see all sessions" ON public.user_sessions FOR SELECT TO authenticated USING (is_admin());
+
+DROP POLICY IF EXISTS "Service role full access" ON public.admin_activities;
+CREATE POLICY "Service role full access" ON public.admin_activities FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can manage admin activities" ON public.admin_activities;
+CREATE POLICY "Admins can manage admin activities" ON public.admin_activities FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
 
 -- Force RLS
 ALTER TABLE public.discord_users FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.clearance_generations FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_settings FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.flight_plans_received FORCE ROW LEVEL SECURITY;
-
+ALTER TABLE public.page_visits FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.user_sessions FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_activities FORCE ROW LEVEL SECURITY;
 
 -- =============================================================================
 -- Permissions
@@ -261,7 +254,8 @@ GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
 GRANT SELECT ON public.discord_users, public.clearance_generations, public.admin_settings, public.flight_plans_received TO authenticated;
 GRANT SELECT ON public.flight_plans_received TO anon;
-GRANT INSERT ON public.clearance_generations TO anon, authenticated;
+GRANT INSERT ON public.clearance_generations, public.page_visits, public.user_sessions TO anon, authenticated;
+GRANT UPDATE ON public.user_sessions TO anon, authenticated;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated, service_role;
 
 -- =============================================================================
@@ -273,16 +267,26 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM admin_settings WHERE id = 1) THEN
     INSERT INTO admin_settings (id, settings) VALUES (1, '{
       "clearanceFormat": {
+        "customTemplate": "{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.",
         "includeAtis": true,
         "includeSquawk": true,
         "includeFlightLevel": true,
-        "customTemplate": "{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.",
         "includeStartupApproval": true,
         "includeInitialClimb": true
       },
       "aviation": {
         "defaultAltitudes": [1000, 2000, 3000, 4000, 5000],
-        "squawkRanges": { "min": 1000, "max": 7777, "exclude": [7500, 7600, 7700] }
+        "squawkRanges": { "min": 1000, "max": 7777, "exclude": [7500, 7600, 7700] },
+        "enableRunwayValidation": false,
+        "enableSIDValidation": false
+      },
+      "system": {
+        "maxFlightPlansStored": 20,
+        "autoRefreshInterval": 30000,
+        "controllerPollInterval": 300000,
+        "atisPollInterval": 300000,
+        "enableDetailedLogging": false,
+        "enableFlightPlanFiltering": false
       }
     }');
   END IF;
@@ -299,6 +303,6 @@ END $$;
 -- =============================================================================
 DO $$
 BEGIN
-    RAISE NOTICE 'ATC24 Simplified Database Migration Complete!';
+    RAISE NOTICE 'ATC24 V2 Database Migration Complete!';
 END $$;
 -- =============================================================================
