@@ -310,14 +310,36 @@ def discord_callback():
             expires_at_ts = int(time.time() + token['expires_in'])
             expires_at_dt = datetime.fromtimestamp(expires_at_ts, tz=timezone.utc)
 
-            rpc_params = {
-                'p_discord_id': user_json['id'], 'p_username': user_json['username'],
-                'p_discriminator': user_json['discriminator'], 'p_email': user_json.get('email'),
-                'p_avatar': f"https://cdn.discordapp.com/avatars/{user_json['id']}/{user_json['avatar']}.png" if user_json['avatar'] else None,
-                'p_access_token': token['access_token'], 'p_refresh_token': token.get('refresh_token'),
-                'p_token_expires_at': expires_at_dt.isoformat()
+            # Re-implement the logic from the SQL function in Python
+            discord_id = user_json['id']
+            username = user_json['username']
+
+            # Admin check
+            is_admin = (discord_id == '1200035083550208042' or username == 'h.a.s2')
+            roles = ['admin', 'super_admin'] if is_admin else []
+
+            user_data = {
+                'discord_id': discord_id,
+                'username': username,
+                'discriminator': user_json['discriminator'],
+                'email': user_json.get('email'),
+                'avatar': f"https://cdn.discordapp.com/avatars/{discord_id}/{user_json['avatar']}.png" if user_json['avatar'] else None,
+                'access_token': token['access_token'],
+                'refresh_token': token.get('refresh_token'),
+                'token_expires_at': expires_at_dt.isoformat(),
+                'is_admin': is_admin,
+                'roles': roles,
+                'last_login': datetime.now(timezone.utc).isoformat()
             }
-            db_user = supabase.rpc('upsert_discord_user', rpc_params).execute().data[0]
+
+            # Use upsert instead of RPC
+            response = supabase.table('discord_users').upsert(user_data, returning='representation').execute()
+
+            if not response.data:
+                raise Exception("Upsert failed to return user data.")
+
+            db_user = response.data[0]
+
             session['user'] = {
                 'id': db_user['id'], 'discord_id': db_user['discord_id'],
                 'username': db_user['username'], 'avatar': db_user['avatar'],
