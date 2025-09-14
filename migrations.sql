@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS public.discord_users (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX ON public.discord_users(discord_id);
-CREATE INDEX ON public.discord_users(is_admin);
+CREATE INDEX IF NOT EXISTS ON public.discord_users(discord_id);
+CREATE INDEX IF NOT EXISTS ON public.discord_users(is_admin);
 
 CREATE TABLE IF NOT EXISTS public.clearance_generations (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -48,8 +48,8 @@ CREATE TABLE IF NOT EXISTS public.clearance_generations (
     discord_username TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX ON public.clearance_generations(user_id);
-CREATE INDEX ON public.clearance_generations(callsign);
+CREATE INDEX IF NOT EXISTS ON public.clearance_generations(user_id);
+CREATE INDEX IF NOT EXISTS ON public.clearance_generations(callsign);
 
 CREATE TABLE IF NOT EXISTS public.admin_settings (
     id INT PRIMARY KEY DEFAULT 1,
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS public.flight_plans_received (
     raw_data JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX ON public.flight_plans_received(callsign);
+CREATE INDEX IF NOT EXISTS ON public.flight_plans_received(callsign);
 
 -- =============================================================================
 -- Functions
@@ -208,23 +208,33 @@ ALTER TABLE public.flight_plans_received ENABLE ROW LEVEL SECURITY;
 
 -- Policies
 -- service_role has full access
+DROP POLICY IF EXISTS "Service role full access" ON public.discord_users;
 CREATE POLICY "Service role full access" ON public.discord_users FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Service role full access" ON public.clearance_generations;
 CREATE POLICY "Service role full access" ON public.clearance_generations FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Service role full access" ON public.admin_settings;
 CREATE POLICY "Service role full access" ON public.admin_settings FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Service role full access" ON public.flight_plans_received;
 CREATE POLICY "Service role full access" ON public.flight_plans_received FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- Admins can manage users and settings
+DROP POLICY IF EXISTS "Admins can manage discord_users" ON public.discord_users;
 CREATE POLICY "Admins can manage discord_users" ON public.discord_users FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+DROP POLICY IF EXISTS "Admins can manage admin_settings" ON public.admin_settings;
 CREATE POLICY "Admins can manage admin_settings" ON public.admin_settings FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
 
 -- Users can view their own data
+DROP POLICY IF EXISTS "Users can view their own data" ON public.discord_users;
 CREATE POLICY "Users can view their own data" ON public.discord_users FOR SELECT TO authenticated USING (id = auth.uid());
 
 -- Allow anonymous clearance generation, but only admins can see all of them
+DROP POLICY IF EXISTS "Anon can insert clearances" ON public.clearance_generations;
 CREATE POLICY "Anon can insert clearances" ON public.clearance_generations FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can see all clearances" ON public.clearance_generations;
 CREATE POLICY "Admins can see all clearances" ON public.clearance_generations FOR SELECT TO authenticated USING (is_admin());
 
 -- Allow anonymous read on flight plans
+DROP POLICY IF EXISTS "Anon can read flight plans" ON public.flight_plans_received;
 CREATE POLICY "Anon can read flight plans" ON public.flight_plans_received FOR SELECT TO anon USING (true);
 
 -- Force RLS
