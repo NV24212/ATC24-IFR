@@ -7,7 +7,7 @@ import {
 } from './src/auth.js';
 import {
     loadFlightPlans as apiLoadFlightPlans,
-    loadPublicSettings as apiLoadPublicSettings,
+    loadAdminSettings as apiLoadAdminSettings,
     loadControllers as apiLoadControllers,
     loadAtis as apiLoadAtis,
     trackClearanceGeneration as apiTrackClearance,
@@ -102,12 +102,6 @@ function updateUserSettingsUI() {
 
 function getEffectiveSettings() {
   const effective = JSON.parse(JSON.stringify(adminSettings)); // Deep clone
-
-  // Ensure nested objects exist before trying to merge properties
-  if (!effective.clearanceFormat) effective.clearanceFormat = {};
-  if (!effective.aviation) effective.aviation = {};
-  if (!effective.aviation.squawkRanges) effective.aviation.squawkRanges = {};
-
   if (userSettings.clearanceFormat && userSettings.clearanceFormat.customTemplate) {
     effective.clearanceFormat.customTemplate = userSettings.clearanceFormat.customTemplate;
   }
@@ -326,8 +320,8 @@ async function generateClearance() {
   }
 }
 
-async function loadPublicSettings() {
-    const settings = await apiLoadPublicSettings();
+async function loadAdminSettings() {
+    const settings = await apiLoadAdminSettings();
     if (settings) {
         adminSettings = settings;
         updateUIFromSettings();
@@ -684,7 +678,7 @@ async function initializeApp() {
   loadLeaderboard();
   loadUserSettings();
   try {
-    await loadPublicSettings();
+    await loadAdminSettings();
     updateUIFromSettings();
     const healthData = await getSystemHealth();
     if (healthData.environment === 'serverless') {
