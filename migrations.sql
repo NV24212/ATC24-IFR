@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS public.discord_users (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS ON public.discord_users(discord_id);
-CREATE INDEX IF NOT EXISTS ON public.discord_users(is_admin);
+CREATE INDEX IF NOT EXISTS idx_discord_users_discord_id ON public.discord_users(discord_id);
+CREATE INDEX IF NOT EXISTS idx_discord_users_is_admin ON public.discord_users(is_admin);
 
 CREATE TABLE IF NOT EXISTS public.clearance_generations (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -48,8 +48,8 @@ CREATE TABLE IF NOT EXISTS public.clearance_generations (
     discord_username TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS ON public.clearance_generations(user_id);
-CREATE INDEX IF NOT EXISTS ON public.clearance_generations(callsign);
+CREATE INDEX IF NOT EXISTS idx_clearance_generations_user_id ON public.clearance_generations(user_id);
+CREATE INDEX IF NOT EXISTS idx_clearance_generations_callsign ON public.clearance_generations(callsign);
 
 CREATE TABLE IF NOT EXISTS public.admin_settings (
     id INT PRIMARY KEY DEFAULT 1,
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS public.flight_plans_received (
     raw_data JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS ON public.flight_plans_received(callsign);
+CREATE INDEX IF NOT EXISTS idx_flight_plans_received_callsign ON public.flight_plans_received(callsign);
 
 -- =============================================================================
 -- Functions
