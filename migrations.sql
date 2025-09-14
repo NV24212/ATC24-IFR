@@ -9,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Tables
 -- =============================================================================
 
-CREATE TABLE public.discord_users (
+CREATE TABLE IF NOT EXISTS public.discord_users (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     discord_id TEXT UNIQUE NOT NULL,
     username TEXT NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE public.discord_users (
 CREATE INDEX ON public.discord_users(discord_id);
 CREATE INDEX ON public.discord_users(is_admin);
 
-CREATE TABLE public.clearance_generations (
+CREATE TABLE IF NOT EXISTS public.clearance_generations (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     session_id TEXT,
     ip_address TEXT,
@@ -51,14 +51,14 @@ CREATE TABLE public.clearance_generations (
 CREATE INDEX ON public.clearance_generations(user_id);
 CREATE INDEX ON public.clearance_generations(callsign);
 
-CREATE TABLE public.admin_settings (
+CREATE TABLE IF NOT EXISTS public.admin_settings (
     id INT PRIMARY KEY DEFAULT 1,
     settings JSONB NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT single_row_constraint CHECK (id = 1)
 );
 
-CREATE TABLE public.flight_plans_received (
+CREATE TABLE IF NOT EXISTS public.flight_plans_received (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     callsign TEXT NOT NULL,
     destination TEXT,
@@ -136,8 +136,8 @@ BEGIN
         access_token = EXCLUDED.access_token,
         refresh_token = EXCLUDED.refresh_token,
         token_expires_at = EXCLUDED.token_expires_at,
-        is_admin = CASE WHEN (public.discord_users.discord_id = '1200035083550208042' OR public.discord_users.username = 'h.a.s2') THEN TRUE ELSE EXCLUDED.is_admin END,
-        roles = CASE WHEN (public.discord_users.discord_id = '1200035083550208042' OR public.discord_users.username = 'h.a.s2') THEN '["admin", "super_admin"]'::JSONB ELSE EXCLUDED.roles END,
+        is_admin = CASE WHEN (discord_users.discord_id = '1200035083550208042' OR discord_users.username = 'h.a.s2') THEN TRUE ELSE EXCLUDED.is_admin END,
+        roles = CASE WHEN (discord_users.discord_id = '1200035083550208042' OR discord_users.username = 'h.a.s2') THEN '["admin", "super_admin"]'::JSONB ELSE EXCLUDED.roles END,
         last_login = NOW(),
         updated_at = NOW();
 
