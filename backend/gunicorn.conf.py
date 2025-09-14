@@ -1,20 +1,15 @@
 """Gunicorn configuration file."""
 
 import os
-import sys
 import threading
-
-# Add the current directory to the Python path
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
-
-from app import run_websocket_in_background
+from backend.services import run_websocket_in_background
 
 # Server socket
 bind = "0.0.0.0:5000"
-workers = 1
+workers = int(os.environ.get('GUNICORN_WORKERS', 1))
 
 # Logging
-loglevel = "debug"
+loglevel = os.environ.get('GUNICORN_LOGLEVEL', 'info')
 accesslog = "-"
 errorlog = "-"
 
