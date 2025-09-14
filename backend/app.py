@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify, session, redirect, request, render_template, send_from_directory
+from flask import Flask, jsonify, session, redirect, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -10,6 +10,7 @@ import websockets
 import json
 from collections import deque
 import time
+from datetime import datetime, timezone
 from requests_oauthlib import OAuth2Session
 from collections import deque
 from functools import wraps
@@ -21,12 +22,8 @@ load_dotenv()
 import logging
 from logging.handlers import RotatingFileHandler
 
-# Construct the path to the frontend directory
-frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend')
-
-app = Flask(__name__,
-            static_folder=frontend_dir,
-            static_url_path='')
+# This is now a pure API server. No static file serving.
+app = Flask(__name__)
 
 # Apply ProxyFix to handle headers from Traefik
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
@@ -59,6 +56,7 @@ else:
 DISCORD_CLIENT_ID = os.environ.get("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = os.environ.get("DISCORD_CLIENT_SECRET")
 DISCORD_REDIRECT_URI = os.environ.get("DISCORD_REDIRECT_URI", "http://localhost:5000/auth/discord/callback")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:8000") # Default for local dev
 API_BASE_URL = 'https://discord.com/api'
 AUTHORIZATION_BASE_URL = API_BASE_URL + '/oauth2/authorize'
 TOKEN_URL = API_BASE_URL + '/oauth2/token'
@@ -195,10 +193,7 @@ def get_error_log():
         print(f"Error reading error log: {e}")
         return ["Could not read error log file."]
 
-@app.route('/')
-def serve_index():
-    # The main entry point for the SPA
-    return send_from_directory(app.static_folder, 'index.html')
+# The root route is removed, as this is a pure API server.
 
 @app.route('/api/controllers')
 def get_controllers():
@@ -302,7 +297,8 @@ def discord_login():
 @app.route('/auth/discord/callback')
 def discord_callback():
     if request.values.get('error'):
-        return redirect(f"/?error={request.values['error']}")
+        error_message = request.values['error']
+        return redirect(f"{FRONTEND_URL}/?error={error_message}")
 
     discord = OAuth2Session(DISCORD_CLIENT_ID, state=session.get('oauth2_state'), redirect_uri=DISCORD_REDIRECT_URI)
     token = discord.fetch_token(TOKEN_URL, client_secret=DISCORD_CLIENT_SECRET, authorization_response=request.url)
@@ -310,12 +306,16 @@ def discord_callback():
 
     if supabase:
         try:
+            # Convert expires_in to a proper ISO 8601 timestamp for Postgres
+            expires_at_ts = int(time.time() + token['expires_in'])
+            expires_at_dt = datetime.fromtimestamp(expires_at_ts, tz=timezone.utc)
+
             rpc_params = {
                 'p_discord_id': user_json['id'], 'p_username': user_json['username'],
                 'p_discriminator': user_json['discriminator'], 'p_email': user_json.get('email'),
                 'p_avatar': f"https://cdn.discordapp.com/avatars/{user_json['id']}/{user_json['avatar']}.png" if user_json['avatar'] else None,
                 'p_access_token': token['access_token'], 'p_refresh_token': token.get('refresh_token'),
-                'p_token_expires_at': str(int(time.time() + token['expires_in']))
+                'p_token_expires_at': expires_at_dt.isoformat()
             }
             db_user = supabase.rpc('upsert_discord_user', rpc_params).execute().data[0]
             session['user'] = {
@@ -325,11 +325,15 @@ def discord_callback():
             }
         except Exception as e:
             app.logger.error(f"Supabase user upsert error: {e}", exc_info=True)
-            session['user'] = {'username': user_json['username'], 'discord_id': user_json['id']}
+            # If the upsert fails, we can't really proceed with a valid session.
+            # Redirect with an error.
+            return redirect(f"{FRONTEND_URL}/?error=db_error")
     else:
+        # This case is for when Supabase is not configured.
+        # It's unlikely to be used in production but useful for local testing.
         session['user'] = {'username': user_json['username'], 'discord_id': user_json['id']}
 
-    return redirect("/?auth=success")
+    return redirect(f"{FRONTEND_URL}/?auth=success")
 
 @app.route('/api/auth/user')
 def get_current_user():
@@ -342,11 +346,8 @@ def logout():
 
 @app.errorhandler(404)
 def not_found(e):
-    # If the path starts with /api, it's a 404 for an API endpoint
-    if request.path.startswith('/api/'):
-        return jsonify(error='Not found'), 404
-    # Otherwise, serve the main app and let the frontend router handle it
-    return send_from_directory(app.static_folder, 'index.html')
+    # This is a pure API server, so we always return a JSON 404 for any unknown path.
+    return jsonify(error='Not found'), 404
 
 if __name__ == '__main__':
     # The WebSocket client is started by the Gunicorn `post_worker_init` hook in production.
