@@ -7,7 +7,7 @@ import {
 } from './src/auth.js';
 import {
     loadFlightPlans as apiLoadFlightPlans,
-    loadAdminSettings as apiLoadAdminSettings,
+    loadPublicSettings as apiLoadPublicSettings,
     loadControllers as apiLoadControllers,
     loadAtis as apiLoadAtis,
     trackClearanceGeneration as apiTrackClearance,
@@ -320,8 +320,8 @@ async function generateClearance() {
   }
 }
 
-async function loadAdminSettings() {
-    const settings = await apiLoadAdminSettings();
+async function loadPublicSettings() {
+    const settings = await apiLoadPublicSettings();
     if (settings) {
         adminSettings = settings;
         updateUIFromSettings();
@@ -678,7 +678,7 @@ async function initializeApp() {
   loadLeaderboard();
   loadUserSettings();
   try {
-    await loadAdminSettings();
+    await loadPublicSettings();
     updateUIFromSettings();
     const healthData = await getSystemHealth();
     if (healthData.environment === 'serverless') {
