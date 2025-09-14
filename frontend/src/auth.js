@@ -63,6 +63,14 @@ export function checkAuthParams(updateUI) {
   const authResult = urlParams.get('auth');
   const authError = urlParams.get('error');
 
+  // Handle the case where the redirect lands on /auth
+  if (window.location.pathname === '/auth') {
+    // Reconstruct the URL to be on the root path
+    const newUrl = window.location.origin + '/?' + urlParams.toString();
+    window.location.href = newUrl;
+    return; // Stop execution to allow for redirect
+  }
+
   if (authResult === 'success') {
     console.log('Discord authentication successful');
     // Remove the param from URL and set path to /

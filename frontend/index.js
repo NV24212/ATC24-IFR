@@ -431,16 +431,19 @@ function updateAuthUI(isLoggedIn, user = null) {
     }
 }
 
+let atisData = []; // Module-level variable to hold ATIS data
+
 async function loadAtis() {
     try {
-        const atisData = await apiLoadAtis();
-        populateAirportSelect(atisData.data || []);
+        const freshAtisData = await apiLoadAtis();
+        atisData = freshAtisData.data || [];
+        populateAirportSelect();
     } catch (error) {
         document.getElementById('departureAirportSelect').innerHTML = '<option value="">Error loading airports</option>';
     }
 }
 
-function populateAirportSelect(atisData) {
+function populateAirportSelect() {
   const select = document.getElementById('departureAirportSelect');
   select.innerHTML = '<option value="">-- Select Airport --</option>';
   const airports = [...new Set(atisData.map(a => a.airport))].sort();
@@ -450,10 +453,10 @@ function populateAirportSelect(atisData) {
     option.textContent = airport;
     select.appendChild(option);
   });
-  select.addEventListener('change', () => onAirportSelect(atisData));
+  select.addEventListener('change', onAirportSelect);
 }
 
-function onAirportSelect(atisData) {
+function onAirportSelect() {
   const airport = document.getElementById('departureAirportSelect').value;
   if (!airport) return;
   const atis = atisData.find(a => a.airport === airport);
@@ -462,12 +465,16 @@ function onAirportSelect(atisData) {
   if (atis.letter && [...atisLetterSelect.options].some(opt => opt.value === atis.letter)) {
     atisLetterSelect.value = atis.letter;
     document.getElementById('atis-auto').style.display = 'inline';
+  } else {
+    document.getElementById('atis-auto').style.display = 'none';
   }
   const runwayRegex = /DEP RWY (\w+)/;
   const match = atis.content.match(runwayRegex);
   if (match && match[1]) {
     document.getElementById('departureRunway').value = match[1];
     document.getElementById('runway-auto').style.display = 'inline';
+  } else {
+    document.getElementById('runway-auto').style.display = 'none';
   }
 }
 
@@ -530,7 +537,7 @@ function onControllerSelect() {
       const airport = select.value.split('_')[0];
       if ([...airportSelect.options].some(opt => opt.value === airport)) {
         airportSelect.value = airport;
-        onAirportSelect(atisData);
+        onAirportSelect(); // This will now use the module-level atisData
       }
     }
   }
