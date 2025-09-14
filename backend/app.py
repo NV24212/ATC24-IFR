@@ -162,14 +162,28 @@ def get_flight_plans():
         app.logger.error(f"Failed to fetch flight plans from Supabase: {e}", exc_info=True)
         return jsonify({"error": "Failed to fetch flight plans from database", "details": str(e)}), 500
 
+def get_default_public_settings():
+    """Returns a complete, default settings object for the frontend."""
+    return {
+        "clearanceFormat": {
+            "customTemplate": "{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.",
+            "includeAtis": True,
+            "includeSquawk": True,
+            "includeFlightLevel": True,
+            "includeStartupApproval": True,
+            "includeInitialClimb": True
+        },
+        "aviation": {
+            "defaultAltitudes": [1000, 2000, 3000, 4000, 5000],
+            "squawkRanges": { "min": 1000, "max": 7777, "exclude": [7500, 7600, 7700] }
+        }
+    }
+
 @app.route('/api/settings')
 def get_public_settings():
     if not supabase_admin:
         # Fallback for when admin client is not available
-        return jsonify({
-            "clearanceFormat": { "includeAtis": True, "includeSquawk": True, "includeFlightLevel": True },
-            "aviation": { "defaultAltitudes": [1000, 2000, 3000, 4000, 5000] }
-        })
+        return jsonify(get_default_public_settings())
     try:
         response = supabase_admin.table('admin_settings').select('settings').eq('id', 1).single().execute()
         settings = response.data.get('settings', {})
@@ -178,13 +192,15 @@ def get_public_settings():
             "clearanceFormat": settings.get('clearanceFormat', {}),
             "aviation": settings.get('aviation', {})
         }
+        # Ensure the returned object has the same shape as the default
+        default_settings = get_default_public_settings()
+        public_settings["aviation"] = {**default_settings["aviation"], **public_settings.get("aviation", {})}
+        public_settings["clearanceFormat"] = {**default_settings["clearanceFormat"], **public_settings.get("clearanceFormat", {})}
+
         return jsonify(public_settings)
     except Exception:
         # Fallback to hardcoded defaults if DB fails
-        return jsonify({
-            "clearanceFormat": { "includeAtis": True, "includeSquawk": True, "includeFlightLevel": True },
-            "aviation": { "defaultAltitudes": [1000, 2000, 3000, 4000, 5000] }
-        })
+        return jsonify(get_default_public_settings())
 
 
 @app.route('/api/leaderboard')

@@ -102,6 +102,12 @@ function updateUserSettingsUI() {
 
 function getEffectiveSettings() {
   const effective = JSON.parse(JSON.stringify(adminSettings)); // Deep clone
+
+  // Ensure nested objects exist before trying to merge properties
+  if (!effective.clearanceFormat) effective.clearanceFormat = {};
+  if (!effective.aviation) effective.aviation = {};
+  if (!effective.aviation.squawkRanges) effective.aviation.squawkRanges = {};
+
   if (userSettings.clearanceFormat && userSettings.clearanceFormat.customTemplate) {
     effective.clearanceFormat.customTemplate = userSettings.clearanceFormat.customTemplate;
   }
