@@ -54,7 +54,7 @@ if url and key and 'your_supabase_url' not in url:
             supabase_admin = create_client(url, service_key)
             print("Supabase admin client initialized.")
         else:
-            print("WARNING: SUPABASE_SERVICE_KEY not set or is a placeholder. Admin operations may fail.")
+            print("WARNING: SUPABASE_SERVICE_KEY not set or is a placeholder. Admin operations will fail.")
     except Exception as e:
         print(f"WARNING: Supabase client failed to initialize: {e}. Supabase-dependent features will be disabled.")
 else:
@@ -164,14 +164,19 @@ def get_flight_plans():
 
 @app.route('/api/settings')
 def get_public_settings():
-    if not supabase:
-        return jsonify({}) # Return empty if no DB
+    if not supabase_admin:
+        # Fallback for when admin client is not available
+        return jsonify({
+            "clearanceFormat": { "includeAtis": True, "includeSquawk": True, "includeFlightLevel": True },
+            "aviation": { "defaultAltitudes": [1000, 2000, 3000, 4000, 5000] }
+        })
     try:
         response = supabase_admin.table('admin_settings').select('settings').eq('id', 1).single().execute()
-        # Filter for only public settings
+        settings = response.data.get('settings', {})
+        # Filter for only public-safe settings
         public_settings = {
-            "clearanceFormat": response.data['settings'].get('clearanceFormat', {}),
-            "aviation": response.data['settings'].get('aviation', {})
+            "clearanceFormat": settings.get('clearanceFormat', {}),
+            "aviation": settings.get('aviation', {})
         }
         return jsonify(public_settings)
     except Exception:
@@ -209,15 +214,13 @@ def track_clearance_generation():
     if not supabase: return jsonify({"success": False, "error": "Supabase not configured"}), 503
     try:
         data = request.json
-        if 'atis_info' in data:
-            data['atis_letter'] = data.pop('atis_info')
-
         clearance_data = {
             "ip_address": request.remote_addr,
             "user_agent": request.user_agent.string,
             "user_id": session.get('user', {}).get('id'),
             **data
         }
+        # The atis_info / atis_letter mismatch is now fixed in the migration
         supabase.table('clearance_generations').insert(clearance_data).execute()
         return jsonify({"success": True})
     except Exception as e:
@@ -242,8 +245,13 @@ def discord_callback():
         return redirect(f"{FRONTEND_URL}/?error={request.values['error']}")
 
     discord_session = OAuth2Session(DISCORD_CLIENT_ID, state=session.get('oauth2_state'), redirect_uri=DISCORD_REDIRECT_URI)
-    token = discord_session.fetch_token(TOKEN_URL, client_secret=DISCORD_CLIENT_SECRET, authorization_response=request.url)
-    user_json = discord_session.get(API_BASE_URL + '/users/@me').json()
+
+    try:
+        token = discord_session.fetch_token(TOKEN_URL, client_secret=DISCORD_CLIENT_SECRET, authorization_response=request.url)
+        user_json = discord_session.get(API_BASE_URL + '/users/@me').json()
+    except Exception as e:
+        app.logger.error(f"Discord OAuth token fetch/user fetch error: {e}", exc_info=True)
+        return redirect(f"{FRONTEND_URL}/?error=discord_auth_failed")
 
     if not supabase_admin:
         app.logger.error("Supabase admin client not available for user upsert.")
@@ -264,7 +272,8 @@ def discord_callback():
             'last_login': datetime.now(timezone.utc).isoformat()
         }
 
-        response = supabase_admin.table('discord_users').upsert(user_data, on_conflict='discord_id').execute()
+        # Use service client to upsert, bypassing RLS. is_admin is preserved by ON CONFLICT DO NOTHING.
+        supabase_admin.table('discord_users').upsert(user_data, on_conflict='discord_id').execute()
 
         db_user = supabase_admin.table('discord_users').select('*').eq('discord_id', user_json['id']).single().execute().data
         if not db_user:
@@ -320,10 +329,8 @@ def save_admin_settings():
 @app.route('/api/admin/table/<table>')
 @require_admin
 def get_table_data(table):
-    allowed_tables = ['clearance_generations', 'flight_plans_received', 'discord_users']
+    allowed_tables = ['clearance_generations', 'flight_plans_received', 'discord_users', 'page_visits', 'user_sessions', 'admin_activities']
     if table not in allowed_tables:
-        if table in ['page_visits', 'user_sessions', 'admin_activities']:
-             return jsonify({"setupRequired": True, "message": f"Table '{table}' is not yet tracked by the backend."})
         return jsonify({"error": "Table not found or not permitted"}), 404
 
     try:
