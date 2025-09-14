@@ -115,18 +115,26 @@ CREATE OR REPLACE FUNCTION public.upsert_discord_user(
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_user_id UUID;
+    -- Assign parameters to local variables to prevent any ambiguity in the SQL statements below.
+    local_discord_id TEXT := p_discord_id;
+    local_username TEXT := p_username;
+    local_discriminator TEXT := p_discriminator;
+    local_email TEXT := p_email;
+    local_avatar TEXT := p_avatar;
+    local_access_token TEXT := p_access_token;
+    local_refresh_token TEXT := p_refresh_token;
+    local_token_expires_at TIMESTAMPTZ := p_token_expires_at;
     v_is_admin BOOLEAN;
     v_roles JSONB;
 BEGIN
-    -- Check if the user is a hardcoded admin
-    v_is_admin := (p_discord_id = '1200035083550208042' OR p_username = 'h.a.s2');
+    -- Use local variables for logic to avoid any conflicts with column names.
+    v_is_admin := (local_discord_id = '1200035083550208042' OR local_username = 'h.a.s2');
     v_roles := CASE WHEN v_is_admin THEN '["admin", "super_admin"]'::JSONB ELSE '[]'::JSONB END;
 
     INSERT INTO public.discord_users (
         discord_id, username, discriminator, email, avatar, access_token, refresh_token, token_expires_at, is_admin, roles, last_login
     ) VALUES (
-        p_discord_id, p_username, p_discriminator, p_email, p_avatar, p_access_token, p_refresh_token, p_token_expires_at, v_is_admin, v_roles, NOW()
+        local_discord_id, local_username, local_discriminator, local_email, local_avatar, local_access_token, local_refresh_token, local_token_expires_at, v_is_admin, v_roles, NOW()
     )
     ON CONFLICT (discord_id) DO UPDATE SET
         username = EXCLUDED.username,
@@ -136,14 +144,16 @@ BEGIN
         access_token = EXCLUDED.access_token,
         refresh_token = EXCLUDED.refresh_token,
         token_expires_at = EXCLUDED.token_expires_at,
+        -- `discord_users.discord_id` now unambiguously refers to the column of the existing row.
         is_admin = CASE WHEN (discord_users.discord_id = '1200035083550208042' OR discord_users.username = 'h.a.s2') THEN TRUE ELSE EXCLUDED.is_admin END,
         roles = CASE WHEN (discord_users.discord_id = '1200035083550208042' OR discord_users.username = 'h.a.s2') THEN '["admin", "super_admin"]'::JSONB ELSE EXCLUDED.roles END,
         last_login = NOW(),
         updated_at = NOW();
 
+    -- Use local variable in the WHERE clause for clarity and safety.
     RETURN QUERY
     SELECT du.id, du.discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles, du.vatsim_cid, du.is_controller
-    FROM public.discord_users du WHERE du.discord_id = p_discord_id;
+    FROM public.discord_users du WHERE du.discord_id = local_discord_id;
 END;
 $$;
 
