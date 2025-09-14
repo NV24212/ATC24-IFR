@@ -640,7 +640,35 @@ function showContactNotification() {
   }
 }
 
+function handleSimpleRouting() {
+    // Only allow the root path. Other paths will show a 404.
+    // This assumes the backend is correctly configured to serve index.html for all SPA routes.
+    if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
+        document.body.innerHTML = `
+            <style>
+                body { background-color: #1a1a1a; color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+                .container { text-align: center; padding-top: 100px; }
+                h1 { font-size: 3em; }
+                a { color: #5865F2; }
+            </style>
+            <div class="container">
+                <h1>404 - Page Not Found</h1>
+                <p>The page you are looking for does not exist.</p>
+                <a href="/">Return to ATC24</a>
+            </div>
+        `;
+        // Stop the rest of the app from initializing
+        throw new Error(`Path not found: ${window.location.pathname}`);
+    }
+}
+
 async function initializeApp() {
+  try {
+    handleSimpleRouting();
+  } catch (e) {
+    console.error(e.message);
+    return; // Stop initialization
+  }
   checkAuthParams(updateAuthUI);
   checkAuthStatus(updateAuthUI);
   showContactNotification();
