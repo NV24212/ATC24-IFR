@@ -13,6 +13,7 @@ import time
 from requests_oauthlib import OAuth2Session
 from collections import deque
 from functools import wraps
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Load environment variables from .env file
 load_dotenv()
@@ -26,6 +27,10 @@ frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'f
 app = Flask(__name__,
             static_folder=frontend_dir,
             static_url_path='')
+
+# Apply ProxyFix to handle headers from Traefik
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 CORS(app, supports_credentials=True)
 app.config['SECRET_KEY'] = os.environ.get('SESSION_SECRET', 'a_very_secret_key_that_should_be_changed')
 
