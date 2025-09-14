@@ -52,13 +52,45 @@ function updateAuthUI(isLoggedIn, user = null) {
     }
 }
 
+async function loadSystemInfo() {
+    const wsStatusDiv = document.getElementById('wsStatus');
+    try {
+        const health = await getSystemHealth(); // Imported from api.js
+        document.getElementById('environmentInfo').textContent = health.environment || 'Unknown';
+        document.getElementById('systemFlightPlans').textContent = health.flight_plan_cache_size !== undefined ? health.flight_plan_cache_size : 'N/A';
+
+        // The health check from app.py provides websocket status via flight plan cache size
+        const wsStatus = (health.flight_plan_cache_size > 0) ? 'connected' : 'disconnected';
+        document.getElementById('realtimeSupport').textContent = wsStatus;
+
+        if (wsStatus === 'connected') {
+            wsStatusDiv.innerHTML = '<div class="status-message online">WebSocket Connected (Receiving Flight Plans)</div>';
+        } else {
+            wsStatusDiv.innerHTML = `<div class="status-message offline">WebSocket Disconnected or No Data</div>`;
+        }
+
+    } catch (error) {
+        console.error('Failed to load system info:', error);
+        wsStatusDiv.innerHTML = '<div class="status-message offline">Failed to get system status</div>';
+        document.getElementById('environmentInfo').textContent = 'Error';
+    }
+}
+
 async function loadAdminData() {
-  await Promise.all([
+  const results = await Promise.allSettled([
     loadAnalytics(),
     loadSettings(),
-    loadSystemInfo()
+    loadSystemInfo(),
+    loadDebugLogs()
   ]);
-  loadDebugLogs();
+
+  results.forEach((result, i) => {
+    if (result.status === 'rejected') {
+      const failedComponent = ['Analytics', 'Settings', 'System Info', 'Debug Logs'][i];
+      console.error(`Failed to load ${failedComponent}:`, result.reason);
+      showNotification('error', 'Component Load Failed', `Could not load data for: ${failedComponent}`);
+    }
+  });
 }
 
 async function loadAnalytics() {
