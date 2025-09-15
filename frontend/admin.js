@@ -36,7 +36,7 @@ function updateAuthUI(isLoggedIn, user = null) {
     const authLoginRequired = document.getElementById('authLoginRequired');
     const authNoAccess = document.getElementById('authNoAccess');
 
-    authLoading.style.display = 'none';
+    authLoading.classList.add('hidden');
 
     if (isLoggedIn && user && user.is_admin) {
         loginScreen.classList.add('fade-out');
@@ -44,11 +44,11 @@ function updateAuthUI(isLoggedIn, user = null) {
         showNotification('success', 'Access Granted', `Welcome ${user.username}! Admin access confirmed.`);
         loadAdminData();
     } else if (isLoggedIn && user && !user.is_admin) {
-        authLoginRequired.style.display = 'none';
-        authNoAccess.style.display = 'block';
+        authLoginRequired.classList.add('hidden');
+        authNoAccess.classList.remove('hidden');
     } else {
-        authLoginRequired.style.display = 'block';
-        authNoAccess.style.display = 'none';
+        authLoginRequired.classList.remove('hidden');
+        authNoAccess.classList.add('hidden');
     }
 }
 

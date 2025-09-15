@@ -374,22 +374,20 @@ function showEnvironmentNotification() {
 }
 
 function updateAuthUI(isLoggedIn, user = null) {
-    if (isLoggedIn) {
+    const authLoading = document.getElementById('authLoading');
+    const authLoggedOut = document.getElementById('authLoggedOut');
+    const authLoggedIn = document.getElementById('authLoggedIn');
+    const adminBtn = document.getElementById('adminBtn');
+
+    // Always hide the loading spinner after a check
+    authLoading.classList.add('hidden');
+
+    if (isLoggedIn && user) {
         document.body.classList.remove('logged-out');
-        if (user.settings && Object.keys(user.settings).length > 0) {
-            userSettings.clearanceFormat = { ...userSettings.clearanceFormat, ...user.settings.clearanceFormat };
-            userSettings.aviation = { ...userSettings.aviation, ...user.settings.aviation };
-            updateUserSettingsUI();
-        }
-        document.getElementById('authLoading').style.display = 'none';
-        document.getElementById('authLoggedOut').style.opacity = '0';
-        document.getElementById('authLoggedOut').style.visibility = 'hidden';
-        document.getElementById('authLoggedIn').style.display = 'block';
-        setTimeout(() => {
-            document.getElementById('authLoggedOut').style.display = 'none';
-            document.getElementById('authLoggedIn').style.opacity = '1';
-            document.getElementById('authLoggedIn').style.visibility = 'visible';
-        }, 500);
+        authLoggedOut.classList.add('hidden');
+        authLoggedIn.classList.remove('hidden');
+
+        // Populate user-specific elements
         document.getElementById('userName').textContent = user.username;
         const avatarImg = document.getElementById('userAvatar');
         if (user.avatar) {
@@ -398,12 +396,22 @@ function updateAuthUI(isLoggedIn, user = null) {
         } else {
             avatarImg.style.display = 'none';
         }
-        const adminBtn = document.getElementById('adminBtn');
+
+        // Show admin button if user is admin
         if (user.is_admin) {
-            adminBtn.style.display = 'inline-block';
+            adminBtn.classList.remove('hidden');
         } else {
-            adminBtn.style.display = 'none';
+            adminBtn.classList.add('hidden');
         }
+
+        // Apply user settings if they exist
+        if (user.settings && Object.keys(user.settings).length > 0) {
+            userSettings.clearanceFormat = { ...userSettings.clearanceFormat, ...user.settings.clearanceFormat };
+            userSettings.aviation = { ...userSettings.aviation, ...user.settings.aviation };
+            updateUserSettingsUI();
+        }
+
+        // Auto-select controller if user is a controller
         if (user.is_controller) {
             const controllerSelect = document.getElementById('groundCallsignSelect');
             const selectUserCallsign = () => {
@@ -418,16 +426,11 @@ function updateAuthUI(isLoggedIn, user = null) {
             selectUserCallsign();
         }
     } else {
+        // Handle logged-out state
         document.body.classList.add('logged-out');
-        document.getElementById('authLoading').style.display = 'none';
-        document.getElementById('authLoggedIn').style.opacity = '0';
-        document.getElementById('authLoggedIn').style.visibility = 'hidden';
-        document.getElementById('authLoggedOut').style.display = 'block';
-        setTimeout(() => {
-            document.getElementById('authLoggedIn').style.display = 'none';
-            document.getElementById('authLoggedOut').style.opacity = '1';
-            document.getElementById('authLoggedOut').style.visibility = 'visible';
-        }, 500);
+        authLoggedIn.classList.add('hidden');
+        authLoggedOut.classList.remove('hidden');
+        adminBtn.classList.add('hidden');
     }
 }
 

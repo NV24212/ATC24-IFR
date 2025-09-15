@@ -143,3 +143,47 @@ export async function getSystemHealth() {
     }
     return await response.json();
 }
+
+// Admin User Management
+export async function loadAdminUsers() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+            headers: { 'Authorization': `Bearer ${getSessionId()}` }
+        });
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to load admin users:', error);
+        throw error;
+    }
+}
+
+export async function addAdminUser(username, roles) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getSessionId()}`
+            },
+            body: JSON.stringify({ username, roles })
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to add admin user:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function removeAdminUser(userId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${getSessionId()}` }
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to remove admin user:', error);
+        return { success: false, error: error.message };
+    }
+}
