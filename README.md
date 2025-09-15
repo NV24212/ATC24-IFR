@@ -17,20 +17,14 @@ This project is set up to run the backend in a Docker container.
  dsf
 ### Building and Running the Backend
 
-1.  **Navigate to the backend directory:**
+1.  **From the project's root directory**, build the Docker image. The build context **must** be the root for the `COPY` commands to work correctly.
     ```bash
-    cd backend
+    docker build -t atc24-backend -f backend/Dockerfile .
     ```
 
-2.  **Build the Docker image:**
-    From the `backend` directory, run:
+2.  **Run the Docker container.** Note that the `--env-file` flag should point to the `.env` file located inside the `backend` directory.
     ```bash
-    docker build -t atc24-backend .
-    ```
-
-3.  **Run the Docker container:**
-    ```bash
-    docker run -p 5000:5000 --env-file .env atc24-backend
+    docker run -p 5000:5000 --env-file backend/.env atc24-backend
     ```
     The backend will be running at `http://localhost:5000`.
 
