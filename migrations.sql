@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS public.clearance_generations (
     squawk_code TEXT,
     flight_level TEXT,
     atis_letter TEXT,
+    atis_info JSONB,
     clearance_text TEXT,
     user_id UUID REFERENCES public.discord_users(id) ON DELETE SET NULL,
     discord_username TEXT,

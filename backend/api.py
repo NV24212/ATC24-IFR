@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, jsonify, request, session, current_app
 from .database import supabase
 from .services import external_api_service, flight_plans_cache
 from .auth_utils import require_auth
