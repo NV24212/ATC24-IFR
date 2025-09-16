@@ -2,7 +2,7 @@ import { API_BASE_URL, getSessionId } from './utils.js';
 
 export async function loadFlightPlans() {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/flight-plans`);
+    const res = await fetch(`${API_BASE_URL}/api/flight-plans`, { credentials: 'include' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -13,7 +13,7 @@ export async function loadFlightPlans() {
 
 export async function loadPublicSettings() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/settings`);
+    const response = await fetch(`${API_BASE_URL}/api/settings`, { credentials: 'include' });
     if (response.ok) {
       const settings = await response.json();
       if (settings && !settings.error) {
@@ -39,7 +39,8 @@ export async function saveUserSettings(settings, currentUser) {
         const response = await fetch(`${API_BASE_URL}/api/user/settings`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ settings })
+            body: JSON.stringify({ settings }),
+            credentials: 'include'
         });
         return response.ok;
     } catch (dbError) {
@@ -50,7 +51,7 @@ export async function saveUserSettings(settings, currentUser) {
 
 export async function loadControllers() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/controllers`);
+        const response = await fetch(`${API_BASE_URL}/api/controllers`, { credentials: 'include' });
         if (!response.ok) {
             throw new Error(`HTTP Error: ${response.status}`);
         }
@@ -63,7 +64,7 @@ export async function loadControllers() {
 
 export async function loadAtis() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/atis`);
+        const response = await fetch(`${API_BASE_URL}/api/atis`, { credentials: 'include' });
         if (!response.ok) {
             throw new Error(`HTTP Error: ${response.status}`);
         }
@@ -88,7 +89,8 @@ export async function trackClearanceGeneration(clearanceData, currentUser) {
         const response = await fetch(`${API_BASE_URL}/api/clearance-generated`, {
             method: 'POST',
             headers: headers,
-            body: JSON.stringify(clearanceData)
+            body: JSON.stringify(clearanceData),
+            credentials: 'include'
         });
 
         if (!response.ok) {
@@ -112,7 +114,7 @@ export async function trackClearanceGeneration(clearanceData, currentUser) {
 
 export async function loadLeaderboard() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/leaderboard`);
+        const response = await fetch(`${API_BASE_URL}/api/leaderboard`, { credentials: 'include' });
         if (!response.ok) {
             throw new Error(`HTTP Error: ${response.status}`);
         }
@@ -126,7 +128,8 @@ export async function loadLeaderboard() {
 export async function loadUserClearances() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/user/clearances`, {
-            headers: { 'X-Session-ID': getSessionId() }
+            headers: { 'X-Session-ID': getSessionId() },
+            credentials: 'include'
         });
         if (!response.ok) throw new Error('Failed to fetch clearances');
         return await response.json();
@@ -137,7 +140,7 @@ export async function loadUserClearances() {
 }
 
 export async function getSystemHealth() {
-    const response = await fetch(`${API_BASE_URL}/api/health`);
+    const response = await fetch(`${API_BASE_URL}/api/health`, { credentials: 'include' });
     if (!response.ok) {
         throw new Error(`Health check failed with status ${response.status}`);
     }
@@ -151,7 +154,8 @@ export async function getSystemHealth() {
 export async function loadAdminUsers() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
-            headers: { 'Authorization': `Bearer ${getSessionId()}` }
+            headers: { 'Authorization': `Bearer ${getSessionId()}` },
+            credentials: 'include'
         });
         if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
         return await response.json();
@@ -169,7 +173,8 @@ export async function addAdminUser(username, roles) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${getSessionId()}`
             },
-            body: JSON.stringify({ username, roles })
+            body: JSON.stringify({ username, roles }),
+            credentials: 'include'
         });
         return await response.json();
     } catch (error) {
@@ -182,7 +187,8 @@ export async function removeAdminUser(userId) {
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
             method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${getSessionId()}` }
+            headers: { 'Authorization': `Bearer ${getSessionId()}` },
+            credentials: 'include'
         });
         return await response.json();
     } catch (error) {
@@ -194,7 +200,8 @@ export async function removeAdminUser(userId) {
 export async function loadAdminSettings() {
   try {
     const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
-        headers: { 'Authorization': `Bearer ${getSessionId()}` }
+        headers: { 'Authorization': `Bearer ${getSessionId()}` },
+        credentials: 'include'
     });
     if (response.ok) {
       const settings = await response.json();
@@ -217,7 +224,8 @@ export async function saveAdminSettings(settings) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${getSessionId()}`
             },
-            body: JSON.stringify(settings)
+            body: JSON.stringify(settings),
+            credentials: 'include'
         });
         return await response.json();
     } catch (error) {
@@ -229,7 +237,8 @@ export async function saveAdminSettings(settings) {
 export async function loadTable(tableName, limit, offset) {
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/tables/${tableName}?limit=${limit}&offset=${offset}`, {
-            headers: { 'Authorization': `Bearer ${getSessionId()}` }
+            headers: { 'Authorization': `Bearer ${getSessionId()}` },
+            credentials: 'include'
         });
         if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
         return await response.json();
