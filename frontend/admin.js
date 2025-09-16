@@ -29,6 +29,10 @@ let currentOffset = 0;
 const pageSize = 25;
 let totalRecords = 0;
 
+function goToMainSite() {
+    window.location.href = '/';
+}
+
 function updateAuthUI(isLoggedIn, user = null) {
     const loginScreen = document.getElementById('loginScreen');
     const adminPanel = document.getElementById('adminPanel');
@@ -36,7 +40,7 @@ function updateAuthUI(isLoggedIn, user = null) {
     const authLoginRequired = document.getElementById('authLoginRequired');
     const authNoAccess = document.getElementById('authNoAccess');
 
-    authLoading.classList.add('hidden');
+    authLoading.style.display = 'none';
 
     if (isLoggedIn && user && user.is_admin) {
         loginScreen.classList.add('fade-out');
@@ -44,11 +48,11 @@ function updateAuthUI(isLoggedIn, user = null) {
         showNotification('success', 'Access Granted', `Welcome ${user.username}! Admin access confirmed.`);
         loadAdminData();
     } else if (isLoggedIn && user && !user.is_admin) {
-        authLoginRequired.classList.add('hidden');
-        authNoAccess.classList.remove('hidden');
+        authLoginRequired.style.display = 'none';
+        authNoAccess.style.display = 'block';
     } else {
-        authLoginRequired.classList.remove('hidden');
-        authNoAccess.classList.add('hidden');
+        authLoginRequired.style.display = 'block';
+        authNoAccess.style.display = 'none';
     }
 }
 
@@ -125,9 +129,9 @@ async function loadChartData() {
             }
         });
         const chartData = await response.json();
-        document.getElementById('chartLoading').classList.add('hidden');
-        document.getElementById('clearancesChartLoading').classList.add('hidden');
-        document.getElementById('requestsChartLoading').classList.add('hidden');
+        document.getElementById('chartLoading').style.display = 'none';
+        document.getElementById('clearancesChartLoading').style.display = 'none';
+        document.getElementById('requestsChartLoading').style.display = 'none';
         renderLineChart('dailyVisitChart', chartData.daily_visits, 'Daily Visits', '#f5de40');
         renderLineChart('clearancesChart', chartData.daily_clearances, 'Clearances per Day', '#3498db');
         renderLineChart('requestsChart', chartData.daily_visits, 'HTTP Requests per Day', '#e74c3c');
@@ -367,13 +371,13 @@ async function fetchTableData() {
         </div>
       `;
       document.getElementById('tableRecordCount').textContent = 'Setup required';
-      document.getElementById('tablePagination').classList.add('hidden');
+      document.getElementById('tablePagination').style.display = 'none';
       return;
     }
     if (!data.data || data.data.length === 0) {
       tableDisplay.innerHTML = '<div class="table-loading">No records found in this table.</div>';
       document.getElementById('tableRecordCount').textContent = '0 records';
-      document.getElementById('tablePagination').classList.add('hidden');
+      document.getElementById('tablePagination').style.display = 'none';
       return;
     }
     const startRecord = currentOffset + 1;
@@ -521,12 +525,7 @@ function updatePagination() {
   prevBtn.disabled = currentOffset === 0;
   nextBtn.disabled = currentOffset + pageSize >= totalRecords;
   pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
-  if (totalPages > 1) {
-    pagination.classList.remove('hidden');
-    pagination.style.display = 'flex';
-  } else {
-    pagination.classList.add('hidden');
-  }
+  pagination.style.display = totalPages > 1 ? 'flex' : 'none';
 }
 
 async function previousPage() {
