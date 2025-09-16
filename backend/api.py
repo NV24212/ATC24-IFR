@@ -109,24 +109,17 @@ def add_admin_user():
 
         user_response = supabase.from_('discord_users').select('id').eq('username', username).single().execute()
 
-        # Supabase returns a list for `execute()`, so we need to check if data exists and is not empty
         if not user_response.data:
             return jsonify({"error": "User not found"}), 404
 
         user_id = user_response.data['id']
 
-        update_response = supabase.from_('discord_users').update({
+        supabase.from_('discord_users').update({
             'is_admin': True,
             'roles': roles
         }).eq('id', user_id).execute()
 
-        # Check if the update was successful
-        if update_response.data:
-            return jsonify({"success": True, "user": update_response.data[0]})
-        else:
-            # The API might return an empty list on success, so we might need to re-fetch the user
-            # For now, let's assume an empty list is not an error if no exception was thrown
-            return jsonify({"success": True})
+        return jsonify({"success": True})
 
     except Exception as e:
         current_app.logger.error(f"Failed to add admin user: {e}", exc_info=True)
@@ -142,19 +135,31 @@ def remove_admin_user(user_id):
         return jsonify({"error": "You cannot remove yourself as an admin."}), 400
 
     try:
-        update_response = supabase.from_('discord_users').update({
+        supabase.from_('discord_users').update({
             'is_admin': False,
             'roles': []
         }).eq('id', user_id).execute()
 
-        if update_response.data:
-            return jsonify({"success": True})
-        else:
-            return jsonify({"success": True}) # Assume success if no error
+        return jsonify({"success": True})
 
     except Exception as e:
         current_app.logger.error(f"Failed to remove admin user: {e}", exc_info=True)
         return jsonify({"error": "Failed to remove admin user", "details": str(e)}), 500
+
+@api_bp.route('/api/settings', methods=['GET'])
+def get_public_settings():
+    try:
+        # Use the admin client to read the single row of settings
+        response = supabase_admin.from_('admin_settings').select('settings').eq('id', 1).single().execute()
+        if response.data:
+            return jsonify(response.data.get('settings', {}))
+        else:
+            # Return default settings if none are found in the DB
+            return jsonify({})
+    except Exception as e:
+        # Log the error but return a default empty object to the public
+        current_app.logger.error(f"Failed to fetch public settings: {e}", exc_info=True)
+        return jsonify({})
 
 @api_bp.route('/api/admin/settings', methods=['GET'])
 @require_auth

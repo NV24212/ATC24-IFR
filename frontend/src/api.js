@@ -11,11 +11,9 @@ export async function loadFlightPlans() {
   }
 }
 
-export async function loadAdminSettings() {
+export async function loadPublicSettings() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
-        headers: { 'Authorization': `Bearer ${getSessionId()}` }
-    });
+    const response = await fetch(`${API_BASE_URL}/api/settings`);
     if (response.ok) {
       const settings = await response.json();
       if (settings && !settings.error) {
@@ -191,6 +189,24 @@ export async function removeAdminUser(userId) {
         console.error('Failed to remove admin user:', error);
         return { success: false, error: error.message };
     }
+}
+
+export async function loadAdminSettings() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
+        headers: { 'Authorization': `Bearer ${getSessionId()}` }
+    });
+    if (response.ok) {
+      const settings = await response.json();
+      if (settings && !settings.error) {
+        return settings;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to load admin settings:', error);
+    return null;
+  }
 }
 
 export async function saveAdminSettings(settings) {
