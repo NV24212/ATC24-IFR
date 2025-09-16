@@ -70,7 +70,7 @@ export function checkAuthParams(updateUI) {
     // Reconstruct the URL to be on the root path
     const newUrl = window.location.origin + '/?' + urlParams.toString();
     window.location.href = newUrl;
-    return; // Stop execution to allow for redirect
+    return true; // Stop execution to allow for redirect
   }
 
   if (authResult === 'success') {
@@ -81,6 +81,7 @@ export function checkAuthParams(updateUI) {
     window.history.replaceState({}, document.title, redirectPath);
     // Check auth status to update UI
     setTimeout(() => checkAuthStatus(updateUI), 500);
+    return true;
   } else if (authError) {
     console.error('Discord authentication error:', authError);
     showAuthError(authError);
@@ -88,7 +89,10 @@ export function checkAuthParams(updateUI) {
     sessionStorage.removeItem('authRedirectPath');
     // Remove the param from URL and set path to the stored path
     window.history.replaceState({}, document.title, redirectPath);
+    return true;
   }
+
+  return false;
 }
 
 export function getCurrentUser() {

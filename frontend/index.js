@@ -672,8 +672,10 @@ async function initializeApp() {
     console.error(e.message);
     return; // Stop initialization
   }
-  checkAuthParams(updateAuthUI);
-  checkAuthStatus(updateAuthUI);
+  const authHandled = checkAuthParams(updateAuthUI);
+  if (!authHandled) {
+    checkAuthStatus(updateAuthUI);
+  }
   showContactNotification();
   loadControllers();
   loadFlightPlans();
