@@ -155,3 +155,59 @@ def remove_admin_user(user_id):
     except Exception as e:
         current_app.logger.error(f"Failed to remove admin user: {e}", exc_info=True)
         return jsonify({"error": "Failed to remove admin user", "details": str(e)}), 500
+
+@api_bp.route('/api/admin/settings', methods=['POST'])
+@require_auth
+def save_admin_settings():
+    if not session.get('user', {}).get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        new_settings = request.json
+        # Use upsert to create or update the settings
+        response = supabase.from_('admin_settings').upsert({
+            'id': 1,
+            'settings': new_settings,
+            'updated_at': 'now()'
+        }).execute()
+        if response.data:
+            return jsonify({"success": True, "settings": response.data[0]['settings']})
+        return jsonify({"success": True})
+    except Exception as e:
+        current_app.logger.error(f"Failed to save admin settings: {e}", exc_info=True)
+        return jsonify({"error": "Failed to save settings", "details": str(e)}), 500
+
+@api_bp.route('/api/admin/tables/<string:table_name>', methods=['GET'])
+@require_auth
+def get_table_data(table_name):
+    if not session.get('user', {}).get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    ALLOWED_TABLES = [
+        'page_visits', 'clearance_generations', 'flight_plans_received',
+        'user_sessions', 'discord_users', 'admin_activities'
+    ]
+    if table_name not in ALLOWED_TABLES:
+        return jsonify({"error": "Table not found or access denied"}), 404
+
+    try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 25))
+        offset = (page - 1) * limit
+
+        # Get total count
+        count_res = supabase.from_(table_name).select('id', count='exact').execute()
+        total_count = count_res.count if count_res.count is not None else 0
+
+        # Get paginated data
+        data_res = supabase.from_(table_name).select('*').order('created_at', desc=True).range(offset, offset + limit - 1).execute()
+
+        return jsonify({
+            "data": data_res.data or [],
+            "totalCount": total_count
+        })
+    except Exception as e:
+        current_app.logger.error(f"Failed to fetch table '{table_name}': {e}", exc_info=True)
+        # Check for a common Supabase error when a table doesn't exist
+        if 'relation' in str(e) and 'does not exist' in str(e):
+            return jsonify({"setupRequired": True, "message": f"The table '{table_name}' does not exist in the database."}), 200
+        return jsonify({"error": f"Failed to fetch data for {table_name}", "details": str(e)}), 500
