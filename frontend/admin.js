@@ -738,8 +738,10 @@ function showSection(sectionName) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  checkAuthParams(updateAuthUI);
-  checkAuthStatus(updateAuthUI);
+  const authHandled = checkAuthParams(updateAuthUI);
+  if (!authHandled) {
+    checkAuthStatus(updateAuthUI);
+  }
 });
 
 window.logout = () => logout(updateAuthUI);
