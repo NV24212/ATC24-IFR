@@ -156,6 +156,22 @@ def remove_admin_user(user_id):
         current_app.logger.error(f"Failed to remove admin user: {e}", exc_info=True)
         return jsonify({"error": "Failed to remove admin user", "details": str(e)}), 500
 
+@api_bp.route('/api/admin/settings', methods=['GET'])
+@require_auth
+def get_admin_settings():
+    if not session.get('user', {}).get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        response = supabase.from_('admin_settings').select('settings').eq('id', 1).single().execute()
+        if response.data:
+            return jsonify(response.data.get('settings', {}))
+        else:
+            # Return default settings if none are found in the DB
+            return jsonify({})
+    except Exception as e:
+        current_app.logger.error(f"Failed to fetch admin settings: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch settings", "details": str(e)}), 500
+
 @api_bp.route('/api/admin/settings', methods=['POST'])
 @require_auth
 def save_admin_settings():
