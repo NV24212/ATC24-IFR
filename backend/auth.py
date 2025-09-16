@@ -17,12 +17,15 @@ def discord_login():
     discord_session = OAuth2Session(Config.DISCORD_CLIENT_ID, redirect_uri=Config.DISCORD_REDIRECT_URI, scope=scope)
     authorization_url, state = discord_session.authorization_url(Config.DISCORD_AUTH_BASE_URL)
     session['oauth2_state'] = state
+    session['auth_origin'] = request.args.get('origin', Config.FRONTEND_URL)
     return redirect(authorization_url)
 
 @auth_bp.route('/auth/discord/callback')
 def discord_callback():
+    auth_origin = session.pop('auth_origin', Config.FRONTEND_URL)
+
     if request.values.get('error'):
-        return redirect(f"{Config.FRONTEND_URL}/?error={request.values['error']}")
+        return redirect(f"{auth_origin}/?error={request.values['error']}")
 
     discord_session = OAuth2Session(Config.DISCORD_CLIENT_ID, state=session.get('oauth2_state'), redirect_uri=Config.DISCORD_REDIRECT_URI)
 
@@ -31,11 +34,11 @@ def discord_callback():
         user_json = discord_session.get(Config.DISCORD_API_BASE_URL + '/users/@me').json()
     except Exception as e:
         current_app.logger.error(f"Discord OAuth token fetch/user fetch error: {e}", exc_info=True)
-        return redirect(f"{Config.FRONTEND_URL}/?error=discord_auth_failed")
+        return redirect(f"{auth_origin}/?error=discord_auth_failed")
 
     if not supabase_admin:
         current_app.logger.error("Supabase admin client not available for user upsert.")
-        return redirect(f"{Config.FRONTEND_URL}/?error=admin_not_configured")
+        return redirect(f"{auth_origin}/?error=admin_not_configured")
 
     try:
         expires_at = datetime.fromtimestamp(int(time.time() + token['expires_in']), tz=timezone.utc)
@@ -72,9 +75,9 @@ def discord_callback():
         }
     except Exception as e:
         current_app.logger.error(f"Supabase user upsert error: {e}", exc_info=True)
-        return redirect(f"{Config.FRONTEND_URL}/?error=db_error")
+        return redirect(f"{auth_origin}/?error=db_error")
 
-    return redirect(f"{Config.FRONTEND_URL}/?auth=success")
+    return redirect(f"{auth_origin}/?auth=success")
 
 @auth_bp.route('/api/auth/user')
 def get_current_user():
