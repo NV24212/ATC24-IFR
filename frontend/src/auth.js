@@ -33,7 +33,8 @@ export async function checkAuthStatus(updateUI) {
 
 export function loginWithDiscord() {
   sessionStorage.setItem('authRedirectPath', window.location.pathname);
-  window.location.href = `${API_BASE_URL}/auth/discord`;
+  const origin = window.location.origin;
+  window.location.href = `${API_BASE_URL}/auth/discord?origin=${encodeURIComponent(origin)}`;
 }
 
 export async function logout(updateUI) {
