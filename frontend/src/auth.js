@@ -32,6 +32,7 @@ export async function checkAuthStatus(updateUI) {
 }
 
 export function loginWithDiscord() {
+  sessionStorage.setItem('authRedirectPath', window.location.pathname);
   window.location.href = `${API_BASE_URL}/auth/discord`;
 }
 
@@ -73,15 +74,19 @@ export function checkAuthParams(updateUI) {
 
   if (authResult === 'success') {
     console.log('Discord authentication successful');
-    // Remove the param from URL and set path to /
-    window.history.replaceState({}, document.title, '/');
+    const redirectPath = sessionStorage.getItem('authRedirectPath') || '/';
+    sessionStorage.removeItem('authRedirectPath');
+    // Remove the param from URL and set path to the stored path
+    window.history.replaceState({}, document.title, redirectPath);
     // Check auth status to update UI
     setTimeout(() => checkAuthStatus(updateUI), 500);
   } else if (authError) {
     console.error('Discord authentication error:', authError);
     showAuthError(authError);
-    // Remove the param from URL and set path to /
-    window.history.replaceState({}, document.title, '/');
+    const redirectPath = sessionStorage.getItem('authRedirectPath') || '/';
+    sessionStorage.removeItem('authRedirectPath');
+    // Remove the param from URL and set path to the stored path
+    window.history.replaceState({}, document.title, redirectPath);
   }
 }
 

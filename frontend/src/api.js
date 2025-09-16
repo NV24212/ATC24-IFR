@@ -144,7 +144,10 @@ export async function getSystemHealth() {
     return await response.json();
 }
 
-// Admin User Management
+// =============================================================================
+// Admin Panel API Functions
+// =============================================================================
+
 export async function loadAdminUsers() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
@@ -186,4 +189,56 @@ export async function removeAdminUser(userId) {
         console.error('Failed to remove admin user:', error);
         return { success: false, error: error.message };
     }
+}
+
+export async function saveAdminSettings(settings) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getSessionId()}`
+            },
+            body: JSON.stringify(settings)
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to save admin settings:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function loadTable(tableName, limit, offset) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/tables/${tableName}?limit=${limit}&offset=${offset}`, {
+            headers: { 'Authorization': `Bearer ${getSessionId()}` }
+        });
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error(`Failed to load table ${tableName}:`, error);
+        throw error;
+    }
+}
+
+export async function loadCurrentUsers() {
+    console.warn("loadCurrentUsers is not fully implemented yet. Returning dummy data.");
+    return {
+        activeCount: 0,
+        memorySessionsCount: 0,
+        supabaseSessionsCount: 0,
+        users: []
+    };
+}
+
+export async function loadDebugLogs(level) {
+    console.warn("loadDebugLogs is not implemented yet. Returning dummy data.");
+    return { logs: [
+        {timestamp: new Date().toISOString(), level: 'warn', message: 'Log fetching is not implemented. This is a placeholder.'}
+    ] };
+}
+
+export async function resetAnalytics() {
+    console.warn("resetAnalytics is not implemented yet. Returning dummy data.");
+    return { success: true, message: "Analytics reset (dummy response)." };
 }
