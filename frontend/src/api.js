@@ -13,7 +13,9 @@ export async function loadFlightPlans() {
 
 export async function loadAdminSettings() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/settings`);
+    const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
+        headers: { 'Authorization': `Bearer ${getSessionId()}` }
+    });
     if (response.ok) {
       const settings = await response.json();
       if (settings && !settings.error) {
