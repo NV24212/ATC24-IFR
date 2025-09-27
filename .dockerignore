@@ -1,6 +1,21 @@
-/.git
-/node_modules
-.dockerignore
-.env
+# Git
+.git/
+.gitignore
+
+# Docker
 Dockerfile
-fly.toml
+.dockerignore
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+
+# Environment
+.env
+.env.*
+
+# Documentation
+*.md
