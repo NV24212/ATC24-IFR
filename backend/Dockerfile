@@ -5,19 +5,15 @@ FROM python:3.9-slim
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy dependency file from the backend directory in the build context.
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy the entire project context into the /app directory
+COPY . .
 
-# Copy the backend application code into a backend directory in the image
-COPY backend/ /app/backend/
-
-# Copy root files needed for the application into the image root
-COPY wsgi.py .
-COPY gunicorn.conf.py .
+# Install dependencies from the requirements file now located at /app/backend/
+RUN pip install --no-cache-dir -r backend/requirements.txt
 
 # Make port 5000 available to the world outside this container
 EXPOSE 5000
 
-# Run the app using the wsgi entrypoint and the root gunicorn config
-CMD ["gunicorn", "--config", "gunicorn.conf.py", "wsgi:app"]
+# Run the app using the moved config and wsgi files.
+# The python path is /app, so imports like `from backend...` work.
+CMD ["gunicorn", "--config", "backend/gunicorn.conf.py", "backend.wsgi:app"]
