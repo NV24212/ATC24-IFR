@@ -1,14 +1,28 @@
-# Environment variables
-.env
-
 # Dependencies
 /node_modules
+/backend/node_modules
 
-# Python cache
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+/build
+/dist
+/target
 
 # Log files
 *.log
-gunicorn.log
-app_errors.log
+
+# IDE / Editor specific
+.vscode/
+.idea/
+*.swp
+*.swo
