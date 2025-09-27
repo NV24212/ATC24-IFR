@@ -12,6 +12,7 @@ def create_app(config_class=Config):
     """Create and configure an instance of the Flask application."""
     app = Flask(__name__)
     app.config.from_object(config_class)
+    app.config['SESSION_COOKIE_NAME'] = 'session_id'
 
     # --- Logging ---
     log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
