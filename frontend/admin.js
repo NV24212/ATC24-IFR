@@ -264,18 +264,8 @@ async function saveSettings() {
     }
 }
 
-async function resetAnalytics() {
-    if (!confirm('This will permanently delete all analytics data. Are you sure?')) {
-        return;
-    }
-    const result = await apiResetAnalytics();
-    if (result.success) {
-        showNotification('success', 'Analytics Reset', 'All analytics data has been cleared successfully');
-        loadAnalytics();
-    } else {
-        showNotification('error', 'Reset Failed', 'Unable to reset analytics. Please try again.');
-    }
-}
+// This function was removed to resolve the "Identifier has already been declared" error.
+// It is now correctly imported from api.js as apiResetAnalytics.
 
 // This function was moved to api.js to consolidate API calls.
 // async function loadDebugLogs() { ... }
@@ -777,6 +767,19 @@ function hideInfoPopup() {
     }
 }
 
+async function handleResetAnalyticsClick() {
+    if (!confirm('This will permanently delete all analytics data. Are you sure?')) {
+        return;
+    }
+    const result = await apiResetAnalytics();
+    if (result.success) {
+        showNotification('success', 'Analytics Reset', 'All analytics data has been cleared successfully');
+        loadAnalytics();
+    } else {
+        showNotification('error', 'Reset Failed', 'Unable to reset analytics. Please try again.');
+    }
+}
+
 function initializeAdminPanel() {
     // Auth
     const authHandled = checkAuthParams(updateAuthUI);
@@ -801,7 +804,7 @@ function initializeAdminPanel() {
     });
 
     // Analytics
-    document.querySelector('.danger-btn[onclick*="resetAnalytics"]')?.addEventListener('click', resetAnalytics);
+    document.getElementById('resetAnalyticsBtn')?.addEventListener('click', handleResetAnalyticsClick);
 
     // Tables
     document.querySelectorAll('.table-nav-btn').forEach(btn => {
