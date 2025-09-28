@@ -1,22 +1,23 @@
-# This Dockerfile lives in /backend, but the build context is the project root.
-# e.g., the build command should be `docker build -f backend/Dockerfile .`
+# This Dockerfile lives in /backend, and the build context is also the backend directory.
+# The project root is not available during the build.
 FROM python:3.9-slim
 
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy the entire project context into the /app directory
-COPY . .
+# Create a directory for the backend application
+RUN mkdir -p /app/backend
 
-# --- DEBUGGING: List all files in the /app directory ---
-RUN ls -laR /app
+# Copy the build context (the contents of the local /backend directory)
+# into the container's /app/backend/ directory.
+COPY . /app/backend/
 
-# Install dependencies from the requirements file now located at /app/backend/
-RUN pip install --no-cache-dir -r backend/requirements.txt
+# Install dependencies using the correct path to requirements.txt
+RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
 # Make port 5000 available to the world outside this container
 EXPOSE 5000
 
-# Run the app using the moved config and wsgi files.
-# The python path is /app, so imports like `from backend...` work.
-CMD ["gunicorn", "--config", "backend/gunicorn.conf.py", "backend.wsgi:app"]
+# Run the app using absolute paths.
+# The python path is /app, so imports like `from backend...` work correctly.
+CMD ["gunicorn", "--config", "/app/backend/gunicorn.conf.py", "backend.wsgi:app"]
