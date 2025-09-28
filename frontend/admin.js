@@ -800,6 +800,28 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!authHandled) {
     checkAuthStatus(updateAuthUI);
   }
+
+  // Sidebar collapse functionality
+  const collapseBtn = document.getElementById('collapseBtn');
+  const mainContainer = document.querySelector('.admin-container');
+
+  if (collapseBtn && mainContainer) {
+    const collapseIcon = collapseBtn.querySelector('.nav-icon');
+    const collapseText = collapseBtn.querySelector('span');
+
+    collapseBtn.addEventListener('click', () => {
+      mainContainer.classList.toggle('sidebar-collapsed');
+      const isCollapsed = mainContainer.classList.contains('sidebar-collapsed');
+
+      if (isCollapsed) {
+        collapseIcon.style.transform = 'rotate(180deg)';
+        collapseText.textContent = 'Expand';
+      } else {
+        collapseIcon.style.transform = 'rotate(0deg)';
+        collapseText.textContent = 'Collapse';
+      }
+    });
+  }
 });
 
 window.logout = () => logout(updateAuthUI);
