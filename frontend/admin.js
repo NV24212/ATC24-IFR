@@ -277,57 +277,8 @@ async function resetAnalytics() {
     }
 }
 
-async function loadDebugLogs() {
-  const level = document.getElementById('logLevel').value || 'all';
-  const debugLogsContainer = document.getElementById('debugLogs');
-  debugLogsContainer.innerHTML = '<div class="loading-message">Loading debug logs...</div>';
-  try {
-    const data = await apiLoadDebugLogs(level);
-    if (data.error) {
-      throw new Error(`Server error: ${data.error}`);
-    }
-    if (!data.logs || data.logs.length === 0) {
-      debugLogsContainer.innerHTML = '<div class="loading-message">No logs found for selected filter.</div>';
-      return;
-    }
-    const logsHtml = data.logs.map(log => {
-      if (!log || !log.timestamp || !log.level || !log.message) {
-        return '<div style="color: #ff6b6b;">Invalid log entry</div>';
-      }
-      const time = new Date(log.timestamp).toLocaleTimeString();
-      const date = new Date(log.timestamp).toLocaleDateString();
-      let levelColor = '#e0e0e0';
-      switch(log.level) {
-        case 'error': levelColor = '#ff6b6b'; break;
-        case 'warn': levelColor = '#ffa500'; break;
-        case 'info': levelColor = '#4CAF50'; break;
-        default: levelColor = '#87CEEB'; break;
-      }
-      return `
-        <div style="margin-bottom: 8px; padding: 6px 0; border-bottom: 1px solid #333;">
-          <span style="color: #888; font-size: 11px;">[${date} ${time}]</span>
-          <span style="color: ${levelColor}; font-weight: bold; margin-left: 8px;">${log.level.toUpperCase()}</span>
-          <span style="color: #bbb; margin-left: 8px; font-size: 10px;">(${log.id || 'no-id'})</span>
-          <div style="margin-top: 2px; color: #e0e0e0;">${escapeHtml(log.message)}</div>
-          ${log.data ? `<div style="margin-top: 2px; color: #999; font-size: 11px; font-style: italic;">${escapeHtml(log.data)}</div>` : ''}
-        </div>
-      `;
-    }).join('');
-    debugLogsContainer.innerHTML = logsHtml;
-    debugLogsContainer.scrollTop = 0;
-  } catch (error) {
-    console.error('Failed to load debug logs:', error);
-    debugLogsContainer.innerHTML = `
-      <div style="color: #ff6b6b; margin-bottom: 10px;">Failed to load debug logs</div>
-      <div style="color: #ffa500; font-size: 12px; margin-bottom: 5px;">Error Details</div>
-      <div style="color: #999; font-size: 11px; margin-bottom: 10px;">${escapeHtml(error.message)}</div>
-      <div style="color: #666; font-size: 10px;">
-        <div>• Check console (F12) for technical details</div>
-        <div>• Verify admin session is active</div>
-      </div>
-    `;
-  }
-}
+// This function was moved to api.js to consolidate API calls.
+// async function loadDebugLogs() { ... }
 
 function clearLogDisplay() {
   document.getElementById('debugLogs').innerHTML = '<div class="loading-message">Log display cleared. Click "Refresh Logs" to reload.</div>';

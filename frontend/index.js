@@ -715,28 +715,34 @@ function backToTop() {
 
 async function initializeApp() {
   try {
-    const backToTopBtn = document.getElementById('backToTopBtn');
-    if (backToTopBtn) {
-        backToTopBtn.addEventListener('click', backToTop);
-    }
     handleSimpleRouting();
-  } catch (e) {
-    console.error(e.message);
-    return; // Stop initialization
-  }
-  const authHandled = checkAuthParams(updateAuthUI);
-  if (!authHandled) {
-    checkAuthStatus(updateAuthUI);
-  }
-  showContactNotification();
-  loadControllers();
-  loadFlightPlans();
-  loadAtis();
-  loadLeaderboard();
-  loadUserSettings();
-  try {
+
+    // Attach all event listeners programmatically to avoid scope issues
+    document.getElementById('backToTopBtn')?.addEventListener('click', backToTop);
+    document.getElementById('refreshPlansBtn')?.addEventListener('click', loadFlightPlans);
+    document.getElementById('generateBtn')?.addEventListener('click', generateClearance);
+    document.getElementById('refreshControllersBtn')?.addEventListener('click', loadControllers);
+    document.getElementById('groundCallsignSelect')?.addEventListener('change', onControllerSelect);
+    document.getElementById('routingType')?.addEventListener('change', handleRoutingTypeChange);
+    document.getElementById('saveUserSettingsBtn')?.addEventListener('click', saveUserSettings);
+    document.getElementById('leaderboardBtn')?.addEventListener('click', showLeaderboard);
+    document.getElementById('profileBtn')?.addEventListener('click', showProfile);
+
+    const authHandled = checkAuthParams(updateAuthUI);
+    if (!authHandled) {
+      checkAuthStatus(updateAuthUI);
+    }
+
+    showContactNotification();
+    loadControllers();
+    loadFlightPlans();
+    loadAtis();
+    loadLeaderboard();
+    loadUserSettings();
+
     await loadPublicSettings();
     updateUIFromSettings();
+
     const healthData = await getSystemHealth();
     if (healthData.environment === 'serverless') {
       showEnvironmentNotification();
@@ -747,17 +753,10 @@ async function initializeApp() {
     setInterval(loadControllers, controllerInterval);
     const atisInterval = adminSettings.system?.atisPollInterval || 300000;
     setInterval(loadAtis, atisInterval);
+
   } catch (error) {
-    console.error('Failed to initialize app settings or health check:', error);
-    setInterval(loadFlightPlans, 30000);
-    showNotification('warning', 'Initialization Incomplete', 'Could not determine server environment. Falling back to a 30-second refresh rate.');
-  }
-  const detailsElement = document.querySelector('details.section');
-  if (detailsElement) {
-      const toggle = detailsElement.querySelector('.collapse-toggle');
-      detailsElement.addEventListener('toggle', () => {
-          toggle.textContent = detailsElement.open ? '▼' : '▶';
-      });
+    console.error("Initialization failed:", error);
+    showNotification('error', 'Initialization Failed', 'The application could not start correctly. Please refresh the page.');
   }
 }
 
@@ -778,3 +777,4 @@ window.onControllerSelect = onControllerSelect;
 window.handleRoutingTypeChange = handleRoutingTypeChange;
 window.saveUserSettings = saveUserSettings;
 window.loadLeaderboard = loadLeaderboard;
+window.backToTop = backToTop;
