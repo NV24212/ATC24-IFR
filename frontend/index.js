@@ -16,7 +16,6 @@ import {
     getSystemHealth
 } from './src/api.js';
 import { showNotification, showAuthError } from './src/notifications.js';
-import { getSessionId } from './src/utils.js';
 
 let selectedFlightPlan = null;
 let flightPlans = [];
