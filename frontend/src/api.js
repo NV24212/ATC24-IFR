@@ -108,6 +108,17 @@ export async function resetAnalytics() {
 
 // The duplicate placeholder function that was here has been removed.
 
+export async function loadCurrentUsers() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/current-users`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Network response was not ok');
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to load current users:', error);
+        throw error;
+    }
+}
+
 export async function loadAtis() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/atis`, { credentials: 'include' });
