@@ -643,18 +643,21 @@ function displayAdminUsers(users) {
     container.innerHTML = `<div class="loading-message">No admin users found</div>`;
     return;
   }
-  let html = '<div style="padding: 20px;">';
+  let html = '<div class="user-list-container">';
   users.forEach(user => {
     html += `
-      <div style="display: flex; align-items: center; gap: 15px; padding: 15px; background: var(--surface-hover); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 15px;">
-        ${user.avatar ? `<img src="${user.avatar}" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--primary-color);">` : ''}
-        <div style="flex: 1;">
-          <div style="font-weight: 600; color: var(--text-color); margin-bottom: 3px;">${user.username}</div>
-          <div style="color: var(--text-muted); font-size: 12px;">Discord ID: ${user.discord_id} | Last login: ${new Date(user.last_login).toLocaleDateString()}</div>
-          <div style="color: var(--text-muted); font-size: 11px; margin-top: 3px;">Roles: ${user.roles ? user.roles.join(', ') : 'admin'}</div>
+      <div class="user-list-item">
+        <img src="${user.avatar || 'logo.png'}" alt="Avatar" class="user-list-avatar">
+        <div class="user-list-info">
+          <div class="user-list-name">${user.username}</div>
+          <div class="user-list-details">
+            <span>ID: ${user.discord_id}</span> | <span>Roles: ${user.roles ? user.roles.join(', ') : 'admin'}</span>
+          </div>
         </div>
-        <div style="display: flex; gap: 8px;">
-          ${user.discord_id !== currentUser.discord_id ? `<button class="nav-btn" onclick="removeAdminUser('${user.id}')" style="margin: 0; padding: 6px 12px; font-size: 12px; background: #ff6b6b; border-color: #ff6b6b; color: white;">Remove</button>` : `<span style="color: var(--primary-color); font-size: 12px; font-weight: 600; padding: 6px 12px;">YOU</span>`}
+        <div class="user-list-actions">
+          ${user.discord_id !== currentUser.discord_id
+            ? `<button class="danger-btn small-btn" onclick="removeAdminUser('${user.id}')">Remove</button>`
+            : `<span class="current-user-tag">YOU</span>`}
         </div>
       </div>
     `;
@@ -806,20 +809,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const mainContainer = document.querySelector('.admin-container');
 
   if (collapseBtn && mainContainer) {
-    const collapseIcon = collapseBtn.querySelector('.nav-icon');
-    const collapseText = collapseBtn.querySelector('span');
-
     collapseBtn.addEventListener('click', () => {
       mainContainer.classList.toggle('sidebar-collapsed');
-      const isCollapsed = mainContainer.classList.contains('sidebar-collapsed');
-
-      if (isCollapsed) {
-        collapseIcon.style.transform = 'rotate(180deg)';
-        collapseText.textContent = 'Expand';
-      } else {
-        collapseIcon.style.transform = 'rotate(0deg)';
-        collapseText.textContent = 'Collapse';
-      }
     });
   }
 });

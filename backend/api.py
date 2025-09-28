@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, session, current_app
-from .database import supabase, supabase_admin
+from .database import supabase, supabase_admin, log_to_db
 from .services import external_api_service, flight_plans_cache
 from .auth_utils import require_auth
 
@@ -68,7 +68,6 @@ def track_clearance_generation():
     try:
         data = request.json
 
-        # Map frontend 'squawk_code' to backend 'transponder_code' to match new schema
         if 'squawk_code' in data:
             data['transponder_code'] = data.pop('squawk_code')
 
@@ -80,8 +79,11 @@ def track_clearance_generation():
             **data
         }
         supabase.table('clearance_generations').insert(clearance_data).execute()
+
+        log_to_db('info', f"Clearance generated for {clearance_data.get('callsign')}", data={'user': clearance_data.get('discord_username')})
         return jsonify({"success": True})
     except Exception as e:
+        log_to_db('error', 'Failed to track clearance generation', data={'error': str(e)})
         current_app.logger.error(f"Failed to track clearance generation in Supabase: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -113,8 +115,6 @@ def add_admin_user():
         if not username:
             return jsonify({"error": "Username is required"}), 400
 
-        # The .single() method can raise an error if no user is found.
-        # Instead, we fetch the user and check if the data list is empty.
         user_response = supabase.from_('discord_users').select('id').eq('username', username).execute()
 
         if not user_response.data:
@@ -127,9 +127,11 @@ def add_admin_user():
             'roles': roles
         }).eq('id', user_id).execute()
 
+        log_to_db('info', f"Admin access granted to {username}", data={'granted_by': session.get('user', {}).get('username')})
         return jsonify({"success": True})
 
     except Exception as e:
+        log_to_db('error', f"Failed to add admin user {username}", data={'error': str(e)})
         current_app.logger.error(f"Failed to add admin user: {e}", exc_info=True)
         return jsonify({"error": "Failed to add admin user", "details": str(e)}), 500
 
@@ -148,25 +150,23 @@ def remove_admin_user(user_id):
             'roles': []
         }).eq('id', user_id).execute()
 
+        log_to_db('warn', f"Admin access removed for user ID {user_id}", data={'removed_by': session.get('user', {}).get('username')})
         return jsonify({"success": True})
 
     except Exception as e:
+        log_to_db('error', f"Failed to remove admin for user ID {user_id}", data={'error': str(e)})
         current_app.logger.error(f"Failed to remove admin user: {e}", exc_info=True)
         return jsonify({"error": "Failed to remove admin user", "details": str(e)}), 500
 
 @api_bp.route('/api/settings', methods=['GET'])
 def get_public_settings():
     try:
-        # Use the admin client to read the single row of settings
         response = supabase_admin.from_('admin_settings').select('settings').eq('id', 1).execute()
         if response.data:
-            # response.data is a list, so we access the first item
             return jsonify(response.data[0].get('settings', {}))
         else:
-            # Return default settings if none are found in the DB
             return jsonify({})
     except Exception as e:
-        # Log the error but return a default empty object to the public
         current_app.logger.error(f"Failed to fetch public settings: {e}", exc_info=True)
         return jsonify({})
 
@@ -178,10 +178,8 @@ def get_admin_settings():
     try:
         response = supabase.from_('admin_settings').select('settings').eq('id', 1).execute()
         if response.data:
-            # response.data is a list, so we access the first item
             return jsonify(response.data[0].get('settings', {}))
         else:
-            # Return default settings if none are found in the DB
             return jsonify({})
     except Exception as e:
         current_app.logger.error(f"Failed to fetch admin settings: {e}", exc_info=True)
@@ -194,18 +192,99 @@ def save_admin_settings():
         return jsonify({"error": "Unauthorized"}), 403
     try:
         new_settings = request.json
-        # Use upsert to create or update the settings
         response = supabase.from_('admin_settings').upsert({
             'id': 1,
             'settings': new_settings,
             'updated_at': 'now()'
         }).execute()
+
+        log_to_db('info', "Admin settings saved", data={'saved_by': session.get('user', {}).get('username')})
+
         if response.data:
             return jsonify({"success": True, "settings": response.data[0]['settings']})
         return jsonify({"success": True})
     except Exception as e:
+        log_to_db('error', "Failed to save admin settings", data={'error': str(e)})
         current_app.logger.error(f"Failed to save admin settings: {e}", exc_info=True)
         return jsonify({"error": "Failed to save settings", "details": str(e)}), 500
+
+@api_bp.route('/api/admin/analytics', methods=['GET'])
+@require_auth
+def get_admin_analytics():
+    if not session.get('user', {}).get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        total_visits_res = supabase.from_('page_visits').select('id', count='exact').execute()
+        total_clearances_res = supabase.from_('clearance_generations').select('id', count='exact').execute()
+        total_flight_plans_res = supabase.from_('flight_plans_received').select('id', count='exact').execute()
+
+        analytics_data = {
+            "totalVisits": total_visits_res.count or 0,
+            "clearancesGenerated": total_clearances_res.count or 0,
+            "flightPlansReceived": total_flight_plans_res.count or 0,
+        }
+        return jsonify(analytics_data)
+    except Exception as e:
+        current_app.logger.error(f"Failed to fetch admin analytics: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch analytics data", "details": str(e)}), 500
+
+@api_bp.route('/api/admin/charts', methods=['GET'])
+@require_auth
+def get_chart_data():
+    if not session.get('user', {}).get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        # This is a simplified example. A real implementation would likely involve more complex SQL queries.
+        daily_visits_res = supabase.from_('page_visits').select('created_at').execute()
+        daily_clearances_res = supabase.from_('clearance_generations').select('created_at').execute()
+
+        def aggregate_by_day(data):
+            from collections import Counter
+            from datetime import datetime
+            dates = [datetime.fromisoformat(item['created_at']).strftime('%Y-%m-%d') for item in data]
+            counts = Counter(dates)
+            return [{"date": k, "count": v} for k, v in counts.items()]
+
+        chart_data = {
+            "daily_visits": aggregate_by_day(daily_visits_res.data or []),
+            "daily_clearances": aggregate_by_day(daily_clearances_res.data or [])
+        }
+        return jsonify(chart_data)
+    except Exception as e:
+        current_app.logger.error(f"Failed to fetch chart data: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch chart data", "details": str(e)}), 500
+
+@api_bp.route('/api/admin/logs', methods=['GET'])
+@require_auth
+def get_debug_logs():
+    if not session.get('user', {}).get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        level = request.args.get('level', 'all')
+        query = supabase.from_('debug_logs').select('*').order('timestamp', desc=True).limit(100)
+
+        if level != 'all':
+            query = query.eq('level', level)
+
+        response = query.execute()
+
+        return jsonify({"logs": response.data or []})
+    except Exception as e:
+        current_app.logger.error(f"Failed to fetch debug logs: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch logs", "details": str(e)}), 500
+
+@api_bp.route('/api/admin/analytics/reset', methods=['POST'])
+@require_auth
+def reset_analytics_data():
+    if not session.get('user', {}).get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        supabase.from_('page_visits').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+        supabase.from_('clearance_generations').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+        return jsonify({"success": True, "message": "Analytics data has been reset."})
+    except Exception as e:
+        current_app.logger.error(f"Failed to reset analytics data: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @api_bp.route('/api/admin/tables/<string:table_name>', methods=['GET'])
 @require_auth
