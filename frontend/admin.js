@@ -811,7 +811,7 @@ function initializeAdminPanel() {
         const tableName = btn.textContent.trim().toLowerCase().replace(' ', '_');
         btn.addEventListener('click', () => loadTable(tableName));
     });
-    document.querySelector('.nav-btn[onclick*="loadCurrentUsers"]')?.addEventListener('click', loadCurrentUsers);
+    document.getElementById('refreshUsersBtn')?.addEventListener('click', loadCurrentUsers);
     document.querySelector('.nav-btn[onclick*="refreshCurrentTable"]')?.addEventListener('click', refreshCurrentTable);
     document.getElementById('prevBtn')?.addEventListener('click', previousPage);
     document.getElementById('nextBtn')?.addEventListener('click', nextPage);

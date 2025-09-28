@@ -286,6 +286,39 @@ def reset_analytics_data():
         current_app.logger.error(f"Failed to reset analytics data: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
+@api_bp.route('/api/admin/current-users', methods=['GET'])
+@require_auth
+def get_current_users():
+    if not session.get('user', {}).get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        from datetime import datetime, timedelta
+        time_threshold = datetime.utcnow() - timedelta(minutes=5)
+
+        active_users_res = supabase.from_('page_visits').select('session_id, created_at').gt('created_at', time_threshold.isoformat()).execute()
+
+        if not active_users_res.data:
+            return jsonify({"activeCount": 0, "users": [], "memorySessionsCount": 0, "supabaseSessionsCount": 0})
+
+        sessions = {}
+        for visit in active_users_res.data:
+            sid = visit['session_id']
+            if sid not in sessions:
+                sessions[sid] = {"session_id": sid, "page_views": 0, "last_activity": "1970-01-01T00:00:00Z", "source": "db"}
+            sessions[sid]["page_views"] += 1
+            if visit['created_at'] > sessions[sid]['last_activity']:
+                sessions[sid]['last_activity'] = visit['created_at']
+
+        return jsonify({
+            "activeCount": len(sessions),
+            "users": list(sessions.values()),
+            "memorySessionsCount": len(sessions),
+            "supabaseSessionsCount": 0
+        })
+    except Exception as e:
+        current_app.logger.error(f"Failed to fetch current users: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch current users", "details": str(e)}), 500
+
 @api_bp.route('/api/admin/tables/<string:table_name>', methods=['GET'])
 @require_auth
 def get_table_data(table_name):
