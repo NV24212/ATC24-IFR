@@ -18,6 +18,7 @@ import {
     getSystemHealth
 } from './src/api.js';
 import { showNotification, showAuthError } from './src/notifications.js';
+import { API_BASE_URL } from './src/utils.js';
 
 let analytics = {};
 let settings = {};
@@ -728,6 +729,70 @@ function showSection(sectionName) {
     loadSystemInfo();
     loadDebugLogs();
   }
+}
+
+function escapeHtml(unsafe) {
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+}
+
+function showInfoPopup(content) {
+    let popup = document.getElementById('infoPopup');
+    if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'infoPopup';
+        popup.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--surface-primary);
+            color: var(--text-normal);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            z-index: 2000;
+            max-width: 80%;
+            max-height: 80%;
+            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        `;
+        const contentEl = document.createElement('pre');
+        contentEl.id = 'infoPopupContent';
+        contentEl.style.whiteSpace = 'pre-wrap';
+        contentEl.style.wordBreak = 'break-all';
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'Close';
+        closeBtn.onclick = hideInfoPopup;
+        closeBtn.style.cssText = `
+            margin-top: 15px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            background-color: var(--primary-color);
+            color: var(--background-primary);
+            cursor: pointer;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        `;
+        popup.appendChild(contentEl);
+        popup.appendChild(closeBtn);
+        document.body.appendChild(popup);
+    }
+    document.getElementById('infoPopupContent').textContent = content;
+    popup.style.display = 'block';
+}
+
+function hideInfoPopup() {
+    const popup = document.getElementById('infoPopup');
+    if (popup) {
+        popup.style.display = 'none';
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
