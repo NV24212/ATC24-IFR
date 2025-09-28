@@ -6,7 +6,7 @@ load_dotenv()
 class Config:
     """Flask configuration variables."""
     # General Config
-    SECRET_KEY = os.environ.get('SESSION_SECRET', 'a_very_secret_key_that_should_be_changed')
+    SECRET_KEY = os.environ.get('SESSION_SECRET') or 'a_very_secret_key_that_should_be_changed'
     SESSION_COOKIE_DOMAIN = os.environ.get('SESSION_COOKIE_DOMAIN')
     SESSION_COOKIE_SAMESITE = 'None'
     SESSION_COOKIE_SECURE = True
