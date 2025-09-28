@@ -207,6 +207,78 @@ def save_admin_settings():
         current_app.logger.error(f"Failed to save admin settings: {e}", exc_info=True)
         return jsonify({"error": "Failed to save settings", "details": str(e)}), 500
 
+@api_bp.route('/api/admin/analytics', methods=['GET'])
+@require_auth
+def get_admin_analytics():
+    if not session.get('user', {}).get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        total_visits_res = supabase.from_('page_visits').select('id', count='exact').execute()
+        total_clearances_res = supabase.from_('clearance_generations').select('id', count='exact').execute()
+        total_flight_plans_res = supabase.from_('flight_plans_received').select('id', count='exact').execute()
+
+        analytics_data = {
+            "totalVisits": total_visits_res.count or 0,
+            "clearancesGenerated": total_clearances_res.count or 0,
+            "flightPlansReceived": total_flight_plans_res.count or 0,
+        }
+        return jsonify(analytics_data)
+    except Exception as e:
+        current_app.logger.error(f"Failed to fetch admin analytics: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch analytics data", "details": str(e)}), 500
+
+@api_bp.route('/api/admin/charts', methods=['GET'])
+@require_auth
+def get_chart_data():
+    if not session.get('user', {}).get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        # This is a simplified example. A real implementation would likely involve more complex SQL queries.
+        daily_visits_res = supabase.from_('page_visits').select('created_at').execute()
+        daily_clearances_res = supabase.from_('clearance_generations').select('created_at').execute()
+
+        def aggregate_by_day(data):
+            from collections import Counter
+            from datetime import datetime
+            dates = [datetime.fromisoformat(item['created_at']).strftime('%Y-%m-%d') for item in data]
+            counts = Counter(dates)
+            return [{"date": k, "count": v} for k, v in counts.items()]
+
+        chart_data = {
+            "daily_visits": aggregate_by_day(daily_visits_res.data or []),
+            "daily_clearances": aggregate_by_day(daily_clearances_res.data or [])
+        }
+        return jsonify(chart_data)
+    except Exception as e:
+        current_app.logger.error(f"Failed to fetch chart data: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch chart data", "details": str(e)}), 500
+
+@api_bp.route('/api/admin/logs', methods=['GET'])
+@require_auth
+def get_debug_logs():
+    if not session.get('user', {}).get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
+    # Dummy implementation for demonstration
+    from datetime import datetime, timedelta
+    dummy_logs = [
+        {"timestamp": datetime.utcnow().isoformat(), "level": "info", "message": "Admin panel loaded successfully.", "id": "backend-info"},
+        {"timestamp": (datetime.utcnow() - timedelta(minutes=1)).isoformat(), "level": "warn", "message": "High memory usage detected.", "id": "backend-warn"},
+    ]
+    return jsonify({"logs": dummy_logs})
+
+@api_bp.route('/api/admin/analytics/reset', methods=['POST'])
+@require_auth
+def reset_analytics_data():
+    if not session.get('user', {}).get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        supabase.from_('page_visits').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+        supabase.from_('clearance_generations').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+        return jsonify({"success": True, "message": "Analytics data has been reset."})
+    except Exception as e:
+        current_app.logger.error(f"Failed to reset analytics data: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @api_bp.route('/api/admin/tables/<string:table_name>', methods=['GET'])
 @require_auth
 def get_table_data(table_name):

@@ -57,6 +57,54 @@ export async function loadControllers() {
     }
 }
 
+// Implemented missing functions
+export async function loadAdminAnalytics() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/analytics`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Network response was not ok');
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to load admin analytics:', error);
+        throw error;
+    }
+}
+
+export async function loadChartData() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/charts`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Network response was not ok');
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to load chart data:', error);
+        throw error;
+    }
+}
+
+export async function loadDebugLogs(level = 'all') {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/logs?level=${level}`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Network response was not ok');
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to load debug logs:', error);
+        // Returning dummy data on failure as per original code's intention
+        return { logs: [{ timestamp: new Date().toISOString(), level: 'error', message: `Failed to load logs: ${error.message}`, id: 'frontend-error' }] };
+    }
+}
+
+export async function resetAnalytics() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/analytics/reset`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to reset analytics:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 export async function loadAtis() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/atis`, { credentials: 'include' });
