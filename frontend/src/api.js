@@ -106,6 +106,8 @@ export async function resetAnalytics() {
     }
 }
 
+// The duplicate placeholder function that was here has been removed.
+
 export async function loadAtis() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/atis`, { credentials: 'include' });
@@ -275,16 +277,6 @@ export async function loadTable(tableName, limit, offset) {
         console.error(`Failed to load table ${tableName}:`, error);
         throw error;
     }
-}
-
-export async function loadCurrentUsers() {
-    console.warn("loadCurrentUsers is not fully implemented yet. Returning dummy data.");
-    return {
-        activeCount: 0,
-        memorySessionsCount: 0,
-        supabaseSessionsCount: 0,
-        users: []
-    };
 }
 
 export async function resetAnalytics() {
