@@ -18,7 +18,6 @@ import {
     getSystemHealth
 } from './src/api.js';
 import { showNotification, showAuthError } from './src/notifications.js';
-import { getSessionId } from './src/utils.js';
 
 let analytics = {};
 let settings = {};
@@ -100,10 +99,7 @@ async function loadAdminData() {
 async function loadAnalytics() {
   try {
     const response = await fetch(`${API_BASE_URL}/api/admin/analytics`, {
-      headers: {
-        'X-Session-ID': getSessionId(),
-        'Authorization': `Bearer ${getSessionId()}`
-      }
+      credentials: 'include'
     });
     analytics = await response.json();
     const today = new Date().toISOString().split('T')[0];
@@ -123,10 +119,7 @@ async function loadAnalytics() {
 async function loadChartData() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/charts`, {
-            headers: {
-                'X-Session-ID': getSessionId(),
-                'Authorization': `Bearer ${getSessionId()}`
-            }
+            credentials: 'include'
         });
         const chartData = await response.json();
         document.getElementById('chartLoading').style.display = 'none';
