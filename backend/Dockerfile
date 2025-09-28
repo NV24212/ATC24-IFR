@@ -8,6 +8,9 @@ WORKDIR /app
 # Copy the entire project context into the /app directory
 COPY . .
 
+# --- DEBUGGING: List all files in the /app directory ---
+RUN ls -laR /app
+
 # Install dependencies from the requirements file now located at /app/backend/
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
