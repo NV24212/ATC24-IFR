@@ -289,7 +289,13 @@ async function generateClearance() {
     .replace('{INITIAL_ALT}', ifl)
     .replace('{FLIGHT_LEVEL}', flightLevel.replace('FL', '').padStart(3, '0'))
     .replace('{SQUAWK}', squawk);
-  document.getElementById("clearanceOutput").textContent = clearance;
+  const outputElement = document.getElementById("clearanceOutput");
+  outputElement.textContent = clearance;
+
+  // Scroll to the output and show the 'Back to Top' button
+  const backToTopBtn = document.getElementById('backToTopBtn');
+  outputElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  backToTopBtn.classList.remove('hidden');
 
   const currentUser = getCurrentUser();
   const clearanceData = {
@@ -693,8 +699,26 @@ function handleSimpleRouting() {
     }
 }
 
+function backToTop() {
+  const formTop = document.querySelector('.main-grid');
+  const backToTopBtn = document.getElementById('backToTopBtn');
+  if (formTop) {
+    formTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  // Hide the button after a short delay to allow scroll to start
+  setTimeout(() => {
+    if(backToTopBtn) backToTopBtn.classList.add('hidden');
+  }, 300);
+}
+
 async function initializeApp() {
   try {
+    const backToTopBtn = document.getElementById('backToTopBtn');
+    if (backToTopBtn) {
+        backToTopBtn.addEventListener('click', backToTop);
+    }
     handleSimpleRouting();
   } catch (e) {
     console.error(e.message);

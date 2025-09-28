@@ -2599,3 +2599,44 @@ details.section {
     gap: 15px;
     flex-wrap: wrap;
 }
+
+/* Back to Top Button */
+.back-to-top-btn {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--primary-color), #ffd700);
+  border: none;
+  border-radius: 12px;
+  color: #000;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 5px 20px rgba(245, 222, 64, 0.3);
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.back-to-top-btn.hidden {
+  opacity: 0;
+  transform: translate(-50%, -150%);
+  pointer-events: none;
+}
+
+.back-to-top-btn:hover {
+  transform: translate(-50%, -2px) scale(1.05);
+  box-shadow: 0 10px 30px rgba(245, 222, 64, 0.4);
+}
+
+.back-to-top-btn:active {
+  transform: translate(-50%, 0) scale(1);
+}
