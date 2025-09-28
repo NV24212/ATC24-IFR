@@ -114,6 +114,18 @@ CREATE TABLE IF NOT EXISTS public.admin_activities (
 );
 CREATE INDEX IF NOT EXISTS idx_admin_activities_admin_user_id ON public.admin_activities(admin_user_id);
 
+CREATE TABLE IF NOT EXISTS public.debug_logs (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    timestamp TIMESTAMPTZ DEFAULT NOW(),
+    level TEXT NOT NULL,
+    message TEXT NOT NULL,
+    source TEXT, -- e.g., 'backend', 'frontend'
+    data JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_debug_logs_timestamp ON public.debug_logs(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_debug_logs_level ON public.debug_logs(level);
+
 -- =============================================================================
 -- Functions
 -- =============================================================================
@@ -207,6 +219,7 @@ ALTER TABLE public.flight_plans_received ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.page_visits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.debug_logs ENABLE ROW LEVEL SECURITY;
 
 -- Force RLS on all tables
 ALTER TABLE public.discord_users FORCE ROW LEVEL SECURITY;
@@ -216,6 +229,7 @@ ALTER TABLE public.flight_plans_received FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.page_visits FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.user_sessions FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_activities FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.debug_logs FORCE ROW LEVEL SECURITY;
 
 -- Policies
 DROP POLICY IF EXISTS "Allow admin full access" ON public.discord_users;
@@ -224,8 +238,11 @@ CREATE POLICY "Allow admin full access" ON public.discord_users FOR ALL TO authe
 DROP POLICY IF EXISTS "Allow user to view their own data" ON public.discord_users;
 CREATE POLICY "Allow user to view their own data" ON public.discord_users FOR SELECT TO authenticated USING (id = auth.uid());
 
-DROP POLICY IF EXISTS "Allow public insert on clearance_generations" ON public.clearance_generations;
-CREATE POLICY "Allow public insert on clearance_generations" ON public.clearance_generations FOR INSERT TO anon, authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anonymous users to insert clearances" ON public.clearance_generations;
+CREATE POLICY "Allow anonymous users to insert clearances" ON public.clearance_generations FOR INSERT TO anon WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow authenticated users to insert clearances" ON public.clearance_generations;
+CREATE POLICY "Allow authenticated users to insert clearances" ON public.clearance_generations FOR INSERT TO authenticated WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Allow admin select on clearance_generations" ON public.clearance_generations;
 CREATE POLICY "Allow admin select on clearance_generations" ON public.clearance_generations FOR SELECT TO authenticated USING (is_admin());
@@ -250,6 +267,12 @@ CREATE POLICY "Allow admin full access" ON public.user_sessions FOR ALL TO authe
 
 DROP POLICY IF EXISTS "Allow admin full access" ON public.admin_activities;
 CREATE POLICY "Allow admin full access" ON public.admin_activities FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+
+DROP POLICY IF EXISTS "Allow admin select on debug_logs" ON public.debug_logs;
+CREATE POLICY "Allow admin select on debug_logs" ON public.debug_logs FOR SELECT TO authenticated USING (is_admin());
+
+DROP POLICY IF EXISTS "Allow service_role to insert into debug_logs" ON public.debug_logs;
+CREATE POLICY "Allow service_role to insert into debug_logs" ON public.debug_logs FOR INSERT TO service_role WITH CHECK (true);
 
 -- =============================================================================
 -- Permissions
