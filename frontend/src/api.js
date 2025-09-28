@@ -1,4 +1,4 @@
-import { API_BASE_URL, getSessionId } from './utils.js';
+import { API_BASE_URL } from './utils.js';
 
 export async function loadFlightPlans() {
   try {
@@ -27,18 +27,13 @@ export async function loadPublicSettings() {
   }
 }
 
-export async function saveUserSettings(settings, currentUser) {
+export async function saveUserSettings(settings) {
     try {
-        const headers = {
-            'Content-Type': 'application/json',
-            'X-Session-ID': getSessionId()
-        };
-        if (currentUser) {
-            headers['Authorization'] = `Bearer ${getSessionId()}`;
-        }
         const response = await fetch(`${API_BASE_URL}/api/user/settings`, {
             method: 'POST',
-            headers,
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify({ settings }),
             credentials: 'include'
         });
@@ -75,20 +70,13 @@ export async function loadAtis() {
     }
 }
 
-export async function trackClearanceGeneration(clearanceData, currentUser) {
+export async function trackClearanceGeneration(clearanceData) {
     try {
-        const headers = {
-            'Content-Type': 'application/json',
-            'X-Session-ID': getSessionId()
-        };
-
-        if (currentUser) {
-            headers['Authorization'] = `Bearer ${getSessionId()}`;
-        }
-
         const response = await fetch(`${API_BASE_URL}/api/clearance-generated`, {
             method: 'POST',
-            headers: headers,
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify(clearanceData),
             credentials: 'include'
         });
@@ -102,7 +90,6 @@ export async function trackClearanceGeneration(clearanceData, currentUser) {
     } catch (error) {
         console.error('Failed to track clearance generation:', {
             error: error.message,
-            sessionId: getSessionId().slice(0, 8) + '...',
             callsign: clearanceData?.callsign,
             destination: clearanceData?.destination,
             timestamp: new Date().toISOString(),
@@ -128,7 +115,6 @@ export async function loadLeaderboard() {
 export async function loadUserClearances() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/user/clearances`, {
-            headers: { 'X-Session-ID': getSessionId() },
             credentials: 'include'
         });
         if (!response.ok) throw new Error('Failed to fetch clearances');
@@ -154,7 +140,6 @@ export async function getSystemHealth() {
 export async function loadAdminUsers() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
-            headers: { 'Authorization': `Bearer ${getSessionId()}` },
             credentials: 'include'
         });
         if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
@@ -171,7 +156,6 @@ export async function addAdminUser(username, roles) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getSessionId()}`
             },
             body: JSON.stringify({ username, roles }),
             credentials: 'include'
@@ -187,7 +171,6 @@ export async function removeAdminUser(userId) {
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
             method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${getSessionId()}` },
             credentials: 'include'
         });
         return await response.json();
@@ -200,7 +183,6 @@ export async function removeAdminUser(userId) {
 export async function loadAdminSettings() {
   try {
     const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
-        headers: { 'Authorization': `Bearer ${getSessionId()}` },
         credentials: 'include'
     });
     if (response.ok) {
@@ -222,7 +204,6 @@ export async function saveAdminSettings(settings) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getSessionId()}`
             },
             body: JSON.stringify(settings),
             credentials: 'include'
@@ -237,7 +218,6 @@ export async function saveAdminSettings(settings) {
 export async function loadTable(tableName, limit, offset) {
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/tables/${tableName}?limit=${limit}&offset=${offset}`, {
-            headers: { 'Authorization': `Bearer ${getSessionId()}` },
             credentials: 'include'
         });
         if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
