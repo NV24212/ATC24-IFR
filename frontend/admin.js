@@ -354,12 +354,21 @@ async function fetchTableData() {
 
 function generateTableHtml(data) {
   if (!data || data.length === 0) {
-    return '<div class="table-loading">No data available</div>';
+    const noData = document.createElement('div');
+    noData.className = 'table-loading';
+    noData.textContent = 'No data available';
+    return noData;
   }
+
   const allColumns = Object.keys(data[0]);
   const sensitiveColumns = ['ip_address', 'user_agent', 'raw_data'];
   const columns = allColumns.filter(col => !sensitiveColumns.includes(col));
-  let html = '<table class="data-table"><thead><tr>';
+
+  const table = document.createElement('table');
+  table.className = 'data-table';
+
+  const thead = table.createTHead();
+  const headerRow = thead.insertRow();
   columns.forEach(col => {
     let displayName = col.replace(/_/g, ' ').toUpperCase();
     if (col === 'session_id') displayName = 'SESSION';
@@ -368,34 +377,44 @@ function generateTableHtml(data) {
     if (col === 'callsign') displayName = 'CALLSIGN';
     if (col === 'destination') displayName = 'DEST';
     if (col === 'flight_level') displayName = 'FL';
-    html += `<th>${displayName}</th>`;
+    const th = document.createElement('th');
+    th.textContent = displayName;
+    headerRow.appendChild(th);
   });
-  html += '</tr></thead><tbody>';
-  data.forEach(row => {
-    html += '<tr>';
+
+  const tbody = table.createTBody();
+  data.forEach(rowData => {
+    const row = tbody.insertRow();
     columns.forEach(col => {
-      let value = row[col];
+      const cell = row.insertCell();
+      let value = rowData[col];
+
       if (value === null || value === undefined) {
-        value = '-';
+        cell.textContent = '-';
       } else if (typeof value === 'object') {
-        value = JSON.stringify(value);
+        cell.textContent = JSON.stringify(value);
       } else if (typeof value === 'string' && value.length > 50) {
+        const span = document.createElement('span');
+        span.className = 'table-cell-truncated';
         const escapedValue = escapeHtml(value);
-        value = `<span class="table-cell-truncated" onclick='showInfoPopup(${JSON.stringify(value)})'>${escapedValue}<i class="info-icon">i</i></span>`;
+        span.innerHTML = `${escapedValue}<i class="info-icon">i</i>`;
+        span.addEventListener('click', () => showInfoPopup(value));
+        cell.appendChild(span);
       } else if (col.includes('_at') || col.includes('timestamp')) {
         try {
-          const date = new Date(value);
-          value = date.toLocaleString();
-        } catch (e) {}
+          cell.textContent = new Date(value).toLocaleString();
+        } catch (e) {
+          cell.textContent = value;
+        }
       } else if (col === 'session_id' && typeof value === 'string') {
-        value = value.substring(0, 8) + '...';
+        cell.textContent = value.substring(0, 8) + '...';
+      } else {
+        cell.textContent = String(value);
       }
-      html += `<td>${value}</td>`;
     });
-    html += '</tr>';
   });
-  html += '</tbody></table>';
-  return html;
+
+  return table;
 }
 
 function generateCardLayoutHtml(data) {
@@ -594,27 +613,36 @@ function displayAdminUsers(users) {
     container.innerHTML = `<div class="loading-message">No admin users found</div>`;
     return;
   }
-  let html = '<div class="user-list-container">';
+
+  const userListContainer = document.createElement('div');
+  userListContainer.className = 'user-list-container';
+
   users.forEach(user => {
-    html += `
-      <div class="user-list-item">
-        <img src="${user.avatar || 'logo.png'}" alt="Avatar" class="user-list-avatar">
-        <div class="user-list-info">
-          <div class="user-list-name">${user.username}</div>
-          <div class="user-list-details">
-            <span>ID: ${user.discord_id}</span> | <span>Roles: ${user.roles ? user.roles.join(', ') : 'admin'}</span>
-          </div>
-        </div>
-        <div class="user-list-actions">
-          ${user.discord_id !== currentUser.discord_id
-            ? `<button class="danger-btn small-btn" onclick="removeAdminUser('${user.id}')">Remove</button>`
-            : `<span class="current-user-tag">YOU</span>`}
+    const userItem = document.createElement('div');
+    userItem.className = 'user-list-item';
+    userItem.innerHTML = `
+      <img src="${user.avatar || 'logo.png'}" alt="Avatar" class="user-list-avatar">
+      <div class="user-list-info">
+        <div class="user-list-name">${user.username}</div>
+        <div class="user-list-details">
+          <span>ID: ${user.discord_id}</span> | <span>Roles: ${user.roles ? user.roles.join(', ') : 'admin'}</span>
         </div>
       </div>
+      <div class="user-list-actions">
+        ${user.discord_id !== currentUser.discord_id
+          ? `<button class="danger-btn small-btn" data-user-id="${user.id}">Remove</button>`
+          : `<span class="current-user-tag">YOU</span>`}
+      </div>
     `;
+    if (user.discord_id !== currentUser.discord_id) {
+      const removeBtn = userItem.querySelector('.danger-btn');
+      removeBtn.addEventListener('click', () => removeAdminUser(removeBtn.dataset.userId));
+    }
+    userListContainer.appendChild(userItem);
   });
-  html += '</div>';
-  container.innerHTML = html;
+
+  container.innerHTML = '';
+  container.appendChild(userListContainer);
 }
 
 async function addAdminUser() {
@@ -749,40 +777,58 @@ function hideInfoPopup() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const authHandled = checkAuthParams(updateAuthUI);
-  if (!authHandled) {
-    checkAuthStatus(updateAuthUI);
-  }
+function initializeAdminPanel() {
+    // Auth
+    const authHandled = checkAuthParams(updateAuthUI);
+    if (!authHandled) {
+        checkAuthStatus(updateAuthUI);
+    }
+    document.querySelector('.discord-login-btn')?.addEventListener('click', loginWithDiscord);
+    document.querySelector('.nav-btn[onclick*="goToMainSite"]')?.addEventListener('click', goToMainSite);
+    document.querySelectorAll('.logout-btn').forEach(btn => btn.addEventListener('click', () => logout(updateAuthUI)));
 
-  // Sidebar collapse functionality
-  const collapseBtn = document.getElementById('collapseBtn');
-  const mainContainer = document.querySelector('.admin-container');
-
-  if (collapseBtn && mainContainer) {
-    collapseBtn.addEventListener('click', () => {
-      mainContainer.classList.toggle('sidebar-collapsed');
+    // Sidebar
+    document.getElementById('collapseBtn')?.addEventListener('click', () => {
+        document.querySelector('.admin-container')?.classList.toggle('sidebar-collapsed');
     });
-  }
-});
 
-window.logout = () => logout(updateAuthUI);
-window.loginWithDiscord = loginWithDiscord;
-window.goToMainSite = goToMainSite;
-window.showSection = showSection;
-window.loadTable = loadTable;
-window.refreshCurrentTable = refreshCurrentTable;
-window.previousPage = previousPage;
-window.nextPage = nextPage;
-window.saveSettings = saveSettings;
-window.resetAnalytics = resetAnalytics;
-window.loadDebugLogs = loadDebugLogs;
-window.clearLogDisplay = clearLogDisplay;
-window.loadCurrentUsers = loadCurrentUsers;
-window.loadAdminUsers = loadAdminUsers;
-window.addAdminUser = addAdminUser;
-window.removeAdminUser = removeAdminUser;
-window.clearAddUserForm = clearAddUserForm;
-window.showRemoveAdminDialog = showRemoveAdminDialog;
-window.showInfoPopup = showInfoPopup;
-window.hideInfoPopup = hideInfoPopup;
+    // Main Navigation
+    document.querySelectorAll('.admin-nav .nav-btn').forEach(btn => {
+        if (btn.id !== 'collapseBtn') {
+            const section = btn.textContent.trim().toLowerCase().replace(' ', '-');
+            btn.addEventListener('click', () => showSection(section));
+        }
+    });
+
+    // Analytics
+    document.querySelector('.danger-btn[onclick*="resetAnalytics"]')?.addEventListener('click', resetAnalytics);
+
+    // Tables
+    document.querySelectorAll('.table-nav-btn').forEach(btn => {
+        const tableName = btn.textContent.trim().toLowerCase().replace(' ', '_');
+        btn.addEventListener('click', () => loadTable(tableName));
+    });
+    document.querySelector('.nav-btn[onclick*="loadCurrentUsers"]')?.addEventListener('click', loadCurrentUsers);
+    document.querySelector('.nav-btn[onclick*="refreshCurrentTable"]')?.addEventListener('click', refreshCurrentTable);
+    document.getElementById('prevBtn')?.addEventListener('click', previousPage);
+    document.getElementById('nextBtn')?.addEventListener('click', nextPage);
+
+    // Settings
+    document.querySelector('.save-settings-btn')?.addEventListener('click', saveSettings);
+
+    // System
+    document.querySelector('.nav-btn[onclick*="loadDebugLogs"]')?.addEventListener('click', loadDebugLogs);
+    document.querySelector('.nav-btn[onclick*="clearLogDisplay"]')?.addEventListener('click', clearLogDisplay);
+
+    // User Management
+    document.querySelector('.nav-btn[onclick*="loadAdminUsers"]')?.addEventListener('click', loadAdminUsers);
+    document.querySelector('.generate-btn[onclick*="addAdminUser"]')?.addEventListener('click', addAdminUser);
+    document.querySelector('.nav-btn[onclick*="clearAddUserForm"]')?.addEventListener('click', clearAddUserForm);
+    document.querySelector('.danger-btn[onclick*="showRemoveAdminDialog"]')?.addEventListener('click', showRemoveAdminDialog);
+
+    // Modals
+    document.querySelectorAll('.notification-close-x, .notification-close-btn').forEach(btn => btn.addEventListener('click', hideNotification));
+    document.querySelectorAll('.info-close-x, .info-close-btn').forEach(btn => btn.addEventListener('click', hideInfoPopup));
+}
+
+document.addEventListener('DOMContentLoaded', initializeAdminPanel);
