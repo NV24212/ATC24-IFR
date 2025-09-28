@@ -1,4 +1,4 @@
-import { API_BASE_URL, getSessionId } from './utils.js';
+import { API_BASE_URL } from './utils.js';
 import { showNotification, showAuthError } from './notifications.js';
 
 let currentUser = null;
@@ -6,9 +6,7 @@ let currentUser = null;
 export async function checkAuthStatus(updateUI) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/auth/user`, {
-      headers: {
-        'X-Session-ID': getSessionId()
-      }
+      credentials: 'include',
     });
 
     if (response.ok) {
@@ -41,9 +39,9 @@ export async function logout(updateUI) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        'X-Session-ID': getSessionId()
       }
     });
 
