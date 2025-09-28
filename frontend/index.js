@@ -644,24 +644,53 @@ function showContactNotification() {
 }
 
 function handleSimpleRouting() {
-    // Only allow the root path. Other paths will show a 404.
-    // This assumes the backend is correctly configured to serve index.html for all SPA routes.
-    if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
+    const currentPath = window.location.pathname;
+
+    // The main app SPA lives at the root. Any other path that serves this HTML is a 404.
+    if (currentPath !== '/' && currentPath !== '/index.html') {
         document.body.innerHTML = `
             <style>
-                body { background-color: #1a1a1a; color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-                .container { text-align: center; padding-top: 100px; }
-                h1 { font-size: 3em; }
-                a { color: #5865F2; }
+                :root {
+                    --background-primary: #1a1c1e;
+                    --surface-primary: #242628;
+                    --primary-color: #f5de40;
+                    --text-normal: #e0e0e0;
+                    --text-muted: #a0a0a0;
+                    --font-primary: 'Funnel Display', sans-serif;
+                }
+                body {
+                    background-color: var(--background-primary);
+                    color: var(--text-normal);
+                    font-family: var(--font-primary);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                    text-align: center;
+                }
+                .container404 { padding: 20px; }
+                .container404 h1 { font-size: 6em; color: var(--primary-color); margin-bottom: 0.1em; font-weight: 700; }
+                .container404 p { font-size: 1.5em; color: var(--text-muted); margin-bottom: 2.5em; }
+                .container404 a {
+                    color: var(--background-primary);
+                    background-color: var(--primary-color);
+                    text-decoration: none;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    transition: opacity 0.3s;
+                    font-weight: 600;
+                }
+                .container404 a:hover { opacity: 0.9; }
             </style>
-            <div class="container">
-                <h1>404 - Page Not Found</h1>
-                <p>The page you are looking for does not exist.</p>
-                <a href="/">Return to ATC24</a>
+            <div class="container404">
+                <h1>404</h1>
+                <p>Page Not Found</p>
+                <a href="/">RETURN TO ATC24 CLEARANCE GENERATOR</a>
             </div>
         `;
         // Stop the rest of the app from initializing
-        throw new Error(`Path not found: ${window.location.pathname}`);
+        throw new Error(`Path not found: ${currentPath}`);
     }
 }
 

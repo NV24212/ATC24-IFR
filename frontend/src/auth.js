@@ -65,28 +65,26 @@ export function checkAuthParams(updateUI) {
 
   // Handle the case where the redirect lands on /auth
   if (window.location.pathname === '/auth') {
-    // Reconstruct the URL to be on the root path
     const newUrl = window.location.origin + '/?' + urlParams.toString();
     window.location.href = newUrl;
     return true; // Stop execution to allow for redirect
   }
 
-  if (authResult === 'success') {
-    console.log('Discord authentication successful');
-    const redirectPath = sessionStorage.getItem('authRedirectPath') || '/';
-    sessionStorage.removeItem('authRedirectPath');
-    // Remove the param from URL and set path to the stored path
-    window.history.replaceState({}, document.title, redirectPath);
-    // Check auth status to update UI
-    setTimeout(() => checkAuthStatus(updateUI), 500);
-    return true;
-  } else if (authError) {
-    console.error('Discord authentication error:', authError);
-    showAuthError(authError);
-    const redirectPath = sessionStorage.getItem('authRedirectPath') || '/';
-    sessionStorage.removeItem('authRedirectPath');
-    // Remove the param from URL and set path to the stored path
-    window.history.replaceState({}, document.title, redirectPath);
+  if (authResult || authError) {
+    // Clean the URL by removing auth parameters.
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.delete('auth');
+    newUrl.searchParams.delete('error');
+    window.history.replaceState({}, '', newUrl.toString());
+
+    if (authResult === 'success') {
+        console.log('Discord authentication successful');
+        // Check auth status to update UI
+        setTimeout(() => checkAuthStatus(updateUI), 100);
+    } else if (authError) {
+        console.error('Discord authentication error:', authError);
+        showAuthError(authError);
+    }
     return true;
   }
 
