@@ -279,7 +279,4 @@ export async function loadTable(tableName, limit, offset) {
     }
 }
 
-export async function resetAnalytics() {
-    console.warn("resetAnalytics is not implemented yet. Returning dummy data.");
-    return { success: true, message: "Analytics reset (dummy response)." };
-}
+// This duplicate placeholder function has been removed.
