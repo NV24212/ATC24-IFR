@@ -719,14 +719,20 @@ async function initializeApp() {
 
     // Attach all event listeners programmatically to avoid scope issues
     document.getElementById('backToTopBtn')?.addEventListener('click', backToTop);
+    document.querySelector('.auth-logged-out .leaderboard-btn')?.addEventListener('click', showLeaderboard);
+    document.querySelector('.discord-login-main')?.addEventListener('click', loginWithDiscord);
+    document.querySelector('.auth-logged-in .leaderboard-btn')?.addEventListener('click', showLeaderboard);
+    document.getElementById('profileBtn')?.addEventListener('click', showProfile);
+    document.querySelector('.logout-btn')?.addEventListener('click', () => logout(updateAuthUI));
     document.getElementById('refreshPlansBtn')?.addEventListener('click', loadFlightPlans);
     document.getElementById('generateBtn')?.addEventListener('click', generateClearance);
     document.getElementById('refreshControllersBtn')?.addEventListener('click', loadControllers);
     document.getElementById('groundCallsignSelect')?.addEventListener('change', onControllerSelect);
     document.getElementById('routingType')?.addEventListener('change', handleRoutingTypeChange);
-    document.getElementById('saveUserSettingsBtn')?.addEventListener('click', saveUserSettings);
-    document.getElementById('leaderboardBtn')?.addEventListener('click', showLeaderboard);
-    document.getElementById('profileBtn')?.addEventListener('click', showProfile);
+    document.querySelector('.advanced-save-btn')?.addEventListener('click', saveUserSettings);
+    document.querySelector('#leaderboardModal .modal-close')?.addEventListener('click', hideLeaderboard);
+    document.querySelector('#leaderboardModal .refresh-btn')?.addEventListener('click', loadLeaderboard);
+    document.querySelector('#profileModal .modal-close')?.addEventListener('click', hideProfile);
 
     const authHandled = checkAuthParams(updateAuthUI);
     if (!authHandled) {
