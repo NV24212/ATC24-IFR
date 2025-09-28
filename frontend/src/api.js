@@ -80,6 +80,7 @@ export async function loadChartData() {
     }
 }
 
+// This function is the correct, final version.
 export async function loadDebugLogs(level = 'all') {
     try {
         const response = await fetch(`${API_BASE_URL}/api/admin/logs?level=${level}`, { credentials: 'include' });
@@ -284,13 +285,6 @@ export async function loadCurrentUsers() {
         supabaseSessionsCount: 0,
         users: []
     };
-}
-
-export async function loadDebugLogs(level) {
-    console.warn("loadDebugLogs is not implemented yet. Returning dummy data.");
-    return { logs: [
-        {timestamp: new Date().toISOString(), level: 'warn', message: 'Log fetching is not implemented. This is a placeholder.'}
-    ] };
 }
 
 export async function resetAnalytics() {
