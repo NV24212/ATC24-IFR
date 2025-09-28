@@ -31,26 +31,37 @@ CREATE TABLE IF NOT EXISTS public.discord_users (
 CREATE INDEX IF NOT EXISTS idx_discord_users_discord_id ON public.discord_users(discord_id);
 CREATE INDEX IF NOT EXISTS idx_discord_users_is_admin ON public.discord_users(is_admin);
 
+-- Updated clearance_generations table with additional fields for better tracking
 CREATE TABLE IF NOT EXISTS public.clearance_generations (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     session_id TEXT,
     ip_address TEXT,
     user_agent TEXT,
-    callsign TEXT,
-    destination TEXT,
-    route TEXT,
-    runway TEXT,
-    squawk_code TEXT,
-    flight_level TEXT,
-    atis_letter TEXT,
-    atis_info JSONB,
-    clearance_text TEXT,
     user_id UUID REFERENCES public.discord_users(id) ON DELETE SET NULL,
     discord_username TEXT,
+    -- Flight Plan Details
+    callsign TEXT,
+    destination TEXT,
+    departure_airport TEXT,
+    flight_plan JSONB, -- For storing structured flight plan data
+    route TEXT,
+    -- Clearance Details
+    initial_altitude TEXT,
+    flight_level TEXT,
+    runway TEXT,
+    sid TEXT,
+    sid_transition TEXT,
+    transponder_code TEXT, -- Changed from squawk_code for clarity
+    atis_letter TEXT,
+    atis_info JSONB,
+    -- Metadata
+    clearance_text TEXT,
+    remarks TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_clearance_generations_user_id ON public.clearance_generations(user_id);
 CREATE INDEX IF NOT EXISTS idx_clearance_generations_callsign ON public.clearance_generations(callsign);
+CREATE INDEX IF NOT EXISTS idx_clearance_generations_created_at ON public.clearance_generations(created_at DESC);
 
 CREATE TABLE IF NOT EXISTS public.admin_settings (
     id INT PRIMARY KEY DEFAULT 1,

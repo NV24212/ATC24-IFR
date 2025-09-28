@@ -67,10 +67,16 @@ def track_clearance_generation():
     if not supabase: return jsonify({"success": False, "error": "Supabase not configured"}), 503
     try:
         data = request.json
+
+        # Map frontend 'squawk_code' to backend 'transponder_code' to match new schema
+        if 'squawk_code' in data:
+            data['transponder_code'] = data.pop('squawk_code')
+
         clearance_data = {
             "ip_address": request.remote_addr,
             "user_agent": request.user_agent.string,
             "user_id": session.get('user', {}).get('id'),
+            "discord_username": session.get('user', {}).get('username'),
             **data
         }
         supabase.table('clearance_generations').insert(clearance_data).execute()
@@ -107,12 +113,14 @@ def add_admin_user():
         if not username:
             return jsonify({"error": "Username is required"}), 400
 
-        user_response = supabase.from_('discord_users').select('id').eq('username', username).single().execute()
+        # The .single() method can raise an error if no user is found.
+        # Instead, we fetch the user and check if the data list is empty.
+        user_response = supabase.from_('discord_users').select('id').eq('username', username).execute()
 
         if not user_response.data:
             return jsonify({"error": "User not found"}), 404
 
-        user_id = user_response.data['id']
+        user_id = user_response.data[0]['id']
 
         supabase.from_('discord_users').update({
             'is_admin': True,
@@ -150,9 +158,10 @@ def remove_admin_user(user_id):
 def get_public_settings():
     try:
         # Use the admin client to read the single row of settings
-        response = supabase_admin.from_('admin_settings').select('settings').eq('id', 1).single().execute()
+        response = supabase_admin.from_('admin_settings').select('settings').eq('id', 1).execute()
         if response.data:
-            return jsonify(response.data.get('settings', {}))
+            # response.data is a list, so we access the first item
+            return jsonify(response.data[0].get('settings', {}))
         else:
             # Return default settings if none are found in the DB
             return jsonify({})
@@ -167,9 +176,10 @@ def get_admin_settings():
     if not session.get('user', {}).get('is_admin'):
         return jsonify({"error": "Unauthorized"}), 403
     try:
-        response = supabase.from_('admin_settings').select('settings').eq('id', 1).single().execute()
+        response = supabase.from_('admin_settings').select('settings').eq('id', 1).execute()
         if response.data:
-            return jsonify(response.data.get('settings', {}))
+            # response.data is a list, so we access the first item
+            return jsonify(response.data[0].get('settings', {}))
         else:
             # Return default settings if none are found in the DB
             return jsonify({})
