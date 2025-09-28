@@ -82,6 +82,38 @@ CREATE TABLE IF NOT EXISTS public.flight_plans_received (
 );
 CREATE INDEX IF NOT EXISTS idx_flight_plans_received_callsign ON public.flight_plans_received(callsign);
 
+CREATE TABLE IF NOT EXISTS public.page_visits (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.discord_users(id) ON DELETE SET NULL,
+    session_id TEXT,
+    path TEXT NOT NULL,
+    ip_address TEXT,
+    user_agent TEXT,
+    visited_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_page_visits_user_id ON public.page_visits(user_id);
+CREATE INDEX IF NOT EXISTS idx_page_visits_path ON public.page_visits(path);
+
+CREATE TABLE IF NOT EXISTS public.user_sessions (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.discord_users(id) ON DELETE CASCADE NOT NULL,
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON public.user_sessions(user_id);
+
+CREATE TABLE IF NOT EXISTS public.admin_activities (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    admin_user_id UUID REFERENCES public.discord_users(id) ON DELETE SET NULL,
+    action TEXT NOT NULL,
+    target_resource TEXT,
+    details JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_admin_activities_admin_user_id ON public.admin_activities(admin_user_id);
+
 -- =============================================================================
 -- Functions
 -- =============================================================================
@@ -227,6 +259,9 @@ ALTER TABLE public.discord_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clearance_generations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.flight_plans_received ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.page_visits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_activities ENABLE ROW LEVEL SECURITY;
 
 -- Policies
 -- service_role has full access
@@ -238,6 +273,12 @@ DROP POLICY IF EXISTS "Service role full access" ON public.admin_settings;
 CREATE POLICY "Service role full access" ON public.admin_settings FOR ALL TO service_role USING (true) WITH CHECK (true);
 DROP POLICY IF EXISTS "Service role full access" ON public.flight_plans_received;
 CREATE POLICY "Service role full access" ON public.flight_plans_received FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Service role full access" ON public.page_visits;
+CREATE POLICY "Service role full access" ON public.page_visits FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Service role full access" ON public.user_sessions;
+CREATE POLICY "Service role full access" ON public.user_sessions FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Service role full access" ON public.admin_activities;
+CREATE POLICY "Service role full access" ON public.admin_activities FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- Admins can manage users and settings
 DROP POLICY IF EXISTS "Admins can manage discord_users" ON public.discord_users;
