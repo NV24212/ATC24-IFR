@@ -234,30 +234,6 @@
               </div>
             </div>
 
-            <div class="checkbox-item">
-              <input type="checkbox" id="includeAtis">
-              <label for="includeAtis">Include ATIS Information</label>
-            </div>
-
-            <div class="checkbox-item">
-              <input type="checkbox" id="includeSquawk">
-              <label for="includeSquawk">Include Squawk Code</label>
-            </div>
-
-            <div class="checkbox-item">
-              <input type="checkbox" id="includeFlightLevel">
-              <label for="includeFlightLevel">Include Expected Flight Level</label>
-            </div>
-
-            <div class="checkbox-item">
-              <input type="checkbox" id="includeStartupApproval">
-              <label for="includeStartupApproval">Include Startup Approval</label>
-            </div>
-
-            <div class="checkbox-item">
-              <input type="checkbox" id="includeInitialClimb">
-              <label for="includeInitialClimb">Include Initial Climb Instruction</label>
-            </div>
           </div>
 
           <div class="settings-group">
@@ -268,25 +244,6 @@
               <input type="text" id="defaultAltitudes" placeholder="1000,2000,3000,4000,5000">
             </div>
 
-            <div class="setting-item">
-              <label class="config-label">Squawk Code Range (Min)</label>
-              <input type="number" id="squawkMin" placeholder="1000" min="1000" max="7777">
-            </div>
-
-            <div class="setting-item">
-              <label class="config-label">Squawk Code Range (Max)</label>
-              <input type="number" id="squawkMax" placeholder="7777" min="1000" max="7777">
-            </div>
-
-            <div class="checkbox-item">
-              <input type="checkbox" id="enableRunwayValidation">
-              <label for="enableRunwayValidation">Enable Runway Format Validation</label>
-            </div>
-
-            <div class="checkbox-item">
-              <input type="checkbox" id="enableSIDValidation">
-              <label for="enableSIDValidation">Enable SID/STAR Validation</label>
-            </div>
           </div>
 
           <div class="settings-group">
@@ -307,19 +264,9 @@
             <input type="number" id="controllerPollInterval" placeholder="5" min="1" max="15" step="1">
             </div>
 
-            <div class="checkbox-item">
-              <input type="checkbox" id="enableDetailedLogging">
-              <label for="enableDetailedLogging">Enable Detailed Console Logging</label>
-            </div>
-
             <div class="setting-item">
             <label class="config-label">ATIS Data Poll Interval (minutes)</label>
             <input type="number" id="atisPollInterval" placeholder="5" min="1" max="15" step="1">
-            </div>
-
-            <div class="checkbox-item">
-              <input type="checkbox" id="enableFlightPlanFiltering">
-              <label for="enableFlightPlanFiltering">Enable Flight Plan Filtering</label>
             </div>
           </div>
         </div>
@@ -384,7 +331,7 @@
     </div>
 
     <!-- User Management Section -->
-    <div class="admin-section" id="users">
+    <div class="admin-section" id="user-management">
       <div class="section">
         <h2 class="section-title">User Management</h2>
 

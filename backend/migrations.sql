@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS public.clearance_generations (
     session_id TEXT, ip_address TEXT, user_agent TEXT, user_id UUID REFERENCES public.discord_users(id) ON DELETE SET NULL,
     discord_username TEXT, callsign TEXT, destination TEXT, departure_airport TEXT, flight_plan JSONB, route TEXT,
     routing_type TEXT, initial_altitude TEXT, flight_level TEXT, runway TEXT, sid TEXT, sid_transition TEXT,
-    transponder_code TEXT, atis_letter TEXT, atis_info JSONB, station TEXT, clearance_text TEXT, remarks TEXT,
+    transponder_code TEXT, atis_letter TEXT, atis_info TEXT, station TEXT, clearance_text TEXT, remarks TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -96,6 +96,53 @@ BEGIN
   ELSE
     RETURN FALSE;
   END IF;
+END;
+$$;
+
+-- Function to get the leaderboard data
+CREATE OR REPLACE FUNCTION get_clearance_leaderboard()
+RETURNS TABLE(rank BIGINT, discord_id TEXT, username TEXT, avatar TEXT, clearance_count BIGINT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        RANK() OVER (ORDER BY COUNT(c.id) DESC),
+        u.discord_id,
+        u.username,
+        u.avatar,
+        COUNT(c.id) AS clearance_count
+    FROM
+        public.clearance_generations c
+    JOIN
+        public.discord_users u ON c.user_id = u.id
+    GROUP BY
+        u.discord_id, u.username, u.avatar
+    ORDER BY
+        clearance_count DESC
+    LIMIT 20;
+END;
+$$;
+
+-- Function to get clearances for a specific user
+CREATE OR REPLACE FUNCTION get_user_clearances(p_user_id UUID)
+RETURNS TABLE(id UUID, callsign TEXT, destination TEXT, clearance_text TEXT, created_at TIMESTAMPTZ)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        c.id,
+        c.callsign,
+        c.destination,
+        c.clearance_text,
+        c.created_at
+    FROM
+        public.clearance_generations c
+    WHERE
+        c.user_id = p_user_id
+    ORDER BY
+        c.created_at DESC;
 END;
 $$;
 

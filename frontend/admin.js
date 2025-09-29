@@ -106,8 +106,6 @@ async function loadAnalytics() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('totalVisits').textContent = analytics.totalVisits || 0;
     document.getElementById('todayVisits').textContent = analytics.dailyVisits?.[today] || 0;
-    document.getElementById('last7Days').textContent = analytics.last7Days || 0;
-    document.getElementById('last30Days').textContent = analytics.last30Days || 0;
     document.getElementById('clearancesGenerated').textContent = analytics.clearancesGenerated || 0;
     document.getElementById('flightPlansReceived').textContent = analytics.flightPlansReceived || 0;
     loadChartData();
@@ -206,21 +204,10 @@ async function loadSettings() {
     settings = await apiLoadAdminSettings();
     if (settings) {
         document.getElementById('phraseologyTemplate').value = settings.clearanceFormat?.customTemplate || '{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}.';
-        document.getElementById('includeAtis').checked = settings.clearanceFormat?.includeAtis !== false;
-        document.getElementById('includeSquawk').checked = settings.clearanceFormat?.includeSquawk !== false;
-        document.getElementById('includeFlightLevel').checked = settings.clearanceFormat?.includeFlightLevel !== false;
-        document.getElementById('includeStartupApproval').checked = settings.clearanceFormat?.includeStartupApproval !== false;
-        document.getElementById('includeInitialClimb').checked = settings.clearanceFormat?.includeInitialClimb !== false;
         document.getElementById('defaultAltitudes').value = settings.aviation?.defaultAltitudes?.join(',') || '1000,2000,3000,4000,5000';
-        document.getElementById('squawkMin').value = settings.aviation?.squawkRanges?.min || 1000;
-        document.getElementById('squawkMax').value = settings.aviation?.squawkRanges?.max || 7777;
-        document.getElementById('enableRunwayValidation').checked = settings.aviation?.enableRunwayValidation || false;
-        document.getElementById('enableSIDValidation').checked = settings.aviation?.enableSIDValidation || false;
         document.getElementById('maxFlightPlansStored').value = settings.system?.maxFlightPlansStored || 20;
         document.getElementById('autoRefreshInterval').value = (settings.system?.autoRefreshInterval || 30000) / 1000;
         document.getElementById('controllerPollInterval').value = (settings.system?.controllerPollInterval || 300000) / 60000;
-        document.getElementById('enableDetailedLogging').checked = settings.system?.enableDetailedLogging || false;
-        document.getElementById('enableFlightPlanFiltering').checked = settings.system?.enableFlightPlanFiltering || false;
         document.getElementById('atisPollInterval').value = (settings.system?.atisPollInterval || 300000) / 60000;
     }
 }
@@ -228,29 +215,15 @@ async function loadSettings() {
 async function saveSettings() {
     const newSettings = {
         clearanceFormat: {
-            customTemplate: document.getElementById('phraseologyTemplate').value,
-            includeAtis: document.getElementById('includeAtis').checked,
-            includeSquawk: document.getElementById('includeSquawk').checked,
-            includeFlightLevel: document.getElementById('includeFlightLevel').checked,
-            includeStartupApproval: document.getElementById('includeStartupApproval').checked,
-            includeInitialClimb: document.getElementById('includeInitialClimb').checked
+            customTemplate: document.getElementById('phraseologyTemplate').value
         },
         aviation: {
-            defaultAltitudes: document.getElementById('defaultAltitudes').value.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n)),
-            squawkRanges: {
-                min: parseInt(document.getElementById('squawkMin').value) || 1000,
-                max: parseInt(document.getElementById('squawkMax').value) || 7777,
-                exclude: [7500, 7600, 7700]
-            },
-            enableRunwayValidation: document.getElementById('enableRunwayValidation').checked,
-            enableSIDValidation: document.getElementById('enableSIDValidation').checked
+            defaultAltitudes: document.getElementById('defaultAltitudes').value.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n))
         },
         system: {
             maxFlightPlansStored: parseInt(document.getElementById('maxFlightPlansStored').value) || 20,
             autoRefreshInterval: (parseInt(document.getElementById('autoRefreshInterval').value) || 30) * 1000,
             controllerPollInterval: (parseInt(document.getElementById('controllerPollInterval').value) || 5) * 60000,
-            enableDetailedLogging: document.getElementById('enableDetailedLogging').checked,
-            enableFlightPlanFiltering: document.getElementById('enableFlightPlanFiltering').checked,
             atisPollInterval: (parseInt(document.getElementById('atisPollInterval').value) || 5) * 60000
         }
     };
