@@ -104,10 +104,18 @@ async function loadAnalytics() {
     });
     analytics = await response.json();
     const today = new Date().toISOString().split('T')[0];
-    document.getElementById('totalVisits').textContent = analytics.totalVisits || 0;
-    document.getElementById('todayVisits').textContent = analytics.dailyVisits?.[today] || 0;
-    document.getElementById('clearancesGenerated').textContent = analytics.clearancesGenerated || 0;
-    document.getElementById('flightPlansReceived').textContent = analytics.flightPlansReceived || 0;
+    if (document.getElementById('totalVisits')) {
+        document.getElementById('totalVisits').textContent = analytics.totalVisits || 0;
+    }
+    if (document.getElementById('todayVisits')) {
+        document.getElementById('todayVisits').textContent = analytics.dailyVisits?.[today] || 0;
+    }
+    if (document.getElementById('clearancesGenerated')) {
+        document.getElementById('clearancesGenerated').textContent = analytics.clearancesGenerated || 0;
+    }
+    if (document.getElementById('flightPlansReceived')) {
+        document.getElementById('flightPlansReceived').textContent = analytics.flightPlansReceived || 0;
+    }
     loadChartData();
   } catch (error) {
     console.error('Failed to load analytics:', error);
@@ -653,27 +661,35 @@ function showRemoveAdminDialog() {
   }
 }
 
-function showSection(sectionName) {
-  document.querySelectorAll('.admin-section').forEach(section => {
-    section.classList.remove('active');
-  });
-  document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.classList.remove('active');
-  });
-  document.getElementById(sectionName).classList.add('active');
-  event.target.classList.add('active');
-  if (sectionName === 'analytics') {
-    loadAnalytics();
-  } else if (sectionName === 'tables') {
-    loadCurrentUsers();
-    loadTable('page_visits');
-  } else if (sectionName === 'users') {
-    loadCurrentAdminInfo();
-    loadAdminUsers();
-  } else if (sectionName === 'system') {
-    loadSystemInfo();
-    apiLoadDebugLogs(); // Correctly call the imported function
-  }
+function showSection(sectionName, buttonElement) {
+    document.querySelectorAll('.admin-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const sectionElement = document.getElementById(sectionName);
+    if (sectionElement) {
+        sectionElement.classList.add('active');
+    } else {
+        console.error(`Section with ID '${sectionName}' not found.`);
+        return;
+    }
+    if (buttonElement) {
+        buttonElement.classList.add('active');
+    }
+    if (sectionName === 'analytics') {
+        loadAnalytics();
+    } else if (sectionName === 'tables') {
+        loadCurrentUsers();
+        loadTable('page_visits');
+    } else if (sectionName === 'users') {
+        loadCurrentAdminInfo();
+        loadAdminUsers();
+    } else if (sectionName === 'system') {
+        loadSystemInfo();
+        apiLoadDebugLogs();
+    }
 }
 
 function escapeHtml(unsafe) {
@@ -771,8 +787,8 @@ function initializeAdminPanel() {
     // Main Navigation
     document.querySelectorAll('.admin-nav .nav-btn').forEach(btn => {
         if (btn.id !== 'collapseBtn') {
-            const section = btn.textContent.trim().toLowerCase().replace(' ', '-');
-            btn.addEventListener('click', () => showSection(section));
+            const sectionName = btn.textContent.trim().toLowerCase().replace(/\s+/g, '-');
+            btn.addEventListener('click', (event) => showSection(sectionName, event.currentTarget));
         }
     });
 

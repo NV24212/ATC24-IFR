@@ -73,19 +73,19 @@ async function saveUserSettings() {
     }
     localStorage.setItem('atc24_user_settings', JSON.stringify(userSettings));
     updateUIFromSettings();
-    showNotification('Configuration saved locally!', 'success');
+    showNotification('success', 'Configuration Saved', 'Your settings have been saved to your local browser storage.');
     const currentUser = getCurrentUser();
     if (currentUser) {
         const success = await apiSaveUserSettings(userSettings, currentUser);
         if (success) {
-            showNotification('Configuration saved to your profile!', 'success');
+            showNotification('success', 'Profile Updated', 'Your settings have also been saved to your user profile.');
         } else {
-            showNotification('Failed to save settings to profile.', 'error');
+            showNotification('error', 'Profile Save Failed', 'Could not save settings to your profile.');
         }
     }
   } catch (error) {
     console.error('Failed to save user settings:', error);
-    showNotification('Failed to save configuration', 'error');
+    showNotification('error', 'Save Failed', 'An unexpected error occurred while saving your configuration.');
   }
 }
 
@@ -322,9 +322,9 @@ async function generateClearance() {
     const result = await apiTrackClearance(clearanceData, currentUser);
     if (currentUser) {
         if (result.success) {
-            showNotification('Clearance generated and saved to your profile!', 'success');
+            showNotification('success', 'Clearance Saved', 'Your clearance has been generated and saved to your profile.');
         } else {
-            showNotification('Could not save clearance to your profile. It is still available here.', 'warning');
+            showNotification('warning', 'Profile Save Failed', 'Clearance was generated but could not be saved to your profile.');
         }
     }
   } catch (error) {
@@ -597,19 +597,28 @@ function displayLeaderboard(data) {
 async function showProfile() {
   const currentUser = getCurrentUser();
   if (!currentUser) return;
+
   const modal = document.getElementById('profileModal');
   modal.style.display = 'flex';
   setTimeout(() => modal.classList.add('show'), 10);
+
   document.getElementById('profile-avatar').src = currentUser.avatar || 'https://via.placeholder.com/80';
   document.getElementById('profile-username').textContent = currentUser.username;
+
+  const list = document.getElementById('profile-clearances-list');
+  const countEl = document.getElementById('profile-clearance-count');
+  list.innerHTML = '<p>Loading clearances...</p>';
+  countEl.textContent = '...';
+
   try {
     const clearances = await apiLoadUserClearances();
-    document.getElementById('profile-clearance-count').textContent = clearances.length;
-    const list = document.getElementById('profile-clearances-list');
+    countEl.textContent = clearances.length;
+
     if (clearances.length === 0) {
       list.innerHTML = '<p>You have not generated any clearances yet.</p>';
       return;
     }
+
     list.innerHTML = clearances.map(c => `
       <div class="clearance-item">
         <div class="clearance-item-header">
@@ -624,7 +633,8 @@ async function showProfile() {
       </div>
     `).join('');
   } catch (error) {
-    document.getElementById('profile-clearances-list').innerHTML = '<p>Could not load clearances.</p>';
+    list.innerHTML = '<p>Could not load your clearances at this time.</p>';
+    countEl.textContent = 'Error';
   }
 }
 
@@ -638,6 +648,7 @@ function showLeaderboard() {
   const modal = document.getElementById('leaderboardModal');
   modal.style.display = 'flex';
   setTimeout(() => modal.classList.add('show'), 10);
+  loadLeaderboard();
 }
 
 function hideLeaderboard() {
@@ -649,7 +660,7 @@ function hideLeaderboard() {
 function showContactNotification() {
   if (!sessionStorage.getItem('contactNotificationShown')) {
     setTimeout(() => {
-      showNotification('For bugs or suggestions, contact me on Discord: h.a.s2', 'info', 10000);
+      showNotification('info', 'Contact & Support', 'For bugs or suggestions, contact me on Discord: h.a.s2');
       sessionStorage.setItem('contactNotificationShown', 'true');
     }, 5000);
   }
@@ -769,7 +780,7 @@ async function initializeApp() {
 
   } catch (error) {
     console.error("Initialization failed:", error);
-    showNotification('error', 'Initialization Failed', 'The application could not start correctly. Please refresh the page.');
+    showNotification('error', 'Application Error', 'The application could not start correctly. Please refresh the page.');
   }
 }
 

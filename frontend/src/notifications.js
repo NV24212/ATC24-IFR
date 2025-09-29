@@ -1,52 +1,60 @@
-export function showNotification(messageOrOptions, type = 'info', duration = 4000) {
-  const notification = document.createElement('div');
-  notification.className = `notification ${type}`;
+export function showNotification(type, title, message) {
+  const overlay = document.getElementById('notificationOverlay');
+  const popup = document.getElementById('notificationPopup');
+  const icon = document.getElementById('notificationIcon');
+  const titleEl = document.getElementById('notificationTitle');
+  const messageEl = document.getElementById('notificationMessage');
 
-  if (typeof messageOrOptions === 'object' && messageOrOptions !== null) {
-    const { title, message } = messageOrOptions;
-    notification.innerHTML = `
-      <strong>${title}</strong><br>
-      <span style="color: var(--text-muted); font-size: 12px;">
-        ${message}
-      </span>
-    `;
-  } else {
-    notification.textContent = messageOrOptions;
+  if (!overlay || !popup || !icon || !titleEl || !messageEl) {
+    console.error('Notification elements not found in the DOM.');
+    alert(`${title}: ${message}`);
+    return;
   }
 
-  document.body.appendChild(notification);
+  // Reset classes and styles
+  popup.className = 'notification-popup';
+  icon.className = 'notification-icon';
+  overlay.classList.remove('show');
 
-  // Trigger animation
-  setTimeout(() => notification.classList.add('show'), 100);
+  // Set content
+  titleEl.textContent = title;
+  messageEl.textContent = message;
 
-  // Auto-remove after the specified duration
+  // Set type-specific styles
+  popup.classList.add(type); // 'success', 'error', 'warning', 'info'
+  if (type === 'success') {
+    icon.textContent = '✓';
+  } else if (type === 'error') {
+    icon.textContent = '❌';
+  } else if (type === 'warning') {
+    icon.textContent = '⚠️';
+  } else { // info
+    icon.textContent = 'ℹ️';
+  }
+
   setTimeout(() => {
-    notification.classList.remove('show');
-    setTimeout(() => {
-      if (notification.parentNode) {
-        notification.parentNode.removeChild(notification);
-      }
-    }, 400); // Wait for fade-out animation
-  }, duration);
+      overlay.classList.add('show');
+  }, 10);
 }
 
 export function showAuthError(error) {
   let errorMessage = 'Authentication failed';
+  let errorTitle = 'Authentication Error';
   switch (error) {
     case 'oauth_cancelled':
-      errorMessage = 'Discord login was cancelled';
+      errorMessage = 'Discord login was cancelled by the user.';
       break;
     case 'missing_code':
-      errorMessage = 'Authentication code missing';
+      errorMessage = 'The authentication code from Discord was missing. Please try again.';
       break;
     case 'invalid_state':
-      errorMessage = 'Invalid authentication state';
+      errorMessage = 'There was a problem with the authentication session. Please try again.';
       break;
     case 'auth_failed':
-      errorMessage = 'Authentication failed - please try again';
+      errorMessage = 'The server was unable to authenticate you with Discord. Please try again.';
       break;
   }
-  showNotification({ title: 'Authentication Error', message: errorMessage }, 'error');
+  showNotification('error', errorTitle, errorMessage);
 }
 
 export function hideNotification() {
