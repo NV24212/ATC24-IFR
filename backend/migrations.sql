@@ -169,6 +169,14 @@ END;
 $$;
 
 -- =============================================================================
+-- Permissions
+-- =============================================================================
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_clearance_leaderboard() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_clearances(p_user_id UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_daily_counts(table_name TEXT) TO authenticated;
+
+-- =============================================================================
 -- Row Level Security (RLS) -- THE DEFINITIVE FIX
 -- =============================================================================
 

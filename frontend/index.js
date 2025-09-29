@@ -757,7 +757,6 @@ async function initializeApp() {
       checkAuthStatus(updateAuthUI);
     }
 
-    showContactNotification();
     loadControllers();
     loadFlightPlans();
     loadAtis();
