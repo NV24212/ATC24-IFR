@@ -17,7 +17,7 @@ import {
     resetAnalytics as apiResetAnalytics,
     getSystemHealth
 } from './src/api.js';
-import { showNotification, showAuthError } from './src/notifications.js';
+import { showNotification, showAuthError, hideNotification } from './src/notifications.js';
 import { API_BASE_URL } from './src/utils.js';
 
 let analytics = {};
@@ -85,7 +85,7 @@ async function loadAdminData() {
     loadAnalytics(),
     loadSettings(),
     loadSystemInfo(),
-    loadDebugLogs()
+    apiLoadDebugLogs() // Correctly call the imported function
   ]);
 
   results.forEach((result, i) => {
@@ -699,7 +699,7 @@ function showSection(sectionName) {
     loadAdminUsers();
   } else if (sectionName === 'system') {
     loadSystemInfo();
-    loadDebugLogs();
+    apiLoadDebugLogs(); // Correctly call the imported function
   }
 }
 
