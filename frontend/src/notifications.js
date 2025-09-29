@@ -48,3 +48,10 @@ export function showAuthError(error) {
   }
   showNotification({ title: 'Authentication Error', message: errorMessage }, 'error');
 }
+
+export function hideNotification() {
+  const overlay = document.getElementById('notificationOverlay');
+  if (overlay) {
+    overlay.classList.remove('show');
+  }
+}
