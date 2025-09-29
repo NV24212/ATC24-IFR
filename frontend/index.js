@@ -100,35 +100,42 @@ function updateUserSettingsUI() {
 }
 
 function getEffectiveSettings() {
-  const effective = JSON.parse(JSON.stringify(adminSettings)); // Deep clone
-  if (userSettings.clearanceFormat && userSettings.clearanceFormat.customTemplate) {
-    effective.clearanceFormat.customTemplate = userSettings.clearanceFormat.customTemplate;
-  }
-  if (userSettings.clearanceFormat && userSettings.clearanceFormat.hasOwnProperty('includeAtis')) {
-    effective.clearanceFormat.includeAtis = userSettings.clearanceFormat.includeAtis;
-  }
-  if (userSettings.clearanceFormat && userSettings.clearanceFormat.hasOwnProperty('includeSquawk')) {
-    effective.clearanceFormat.includeSquawk = userSettings.clearanceFormat.includeSquawk;
-  }
-  if (userSettings.clearanceFormat && userSettings.clearanceFormat.hasOwnProperty('includeFlightLevel')) {
-    effective.clearanceFormat.includeFlightLevel = userSettings.clearanceFormat.includeFlightLevel;
-  }
-  if (userSettings.clearanceFormat && userSettings.clearanceFormat.hasOwnProperty('includeStartupApproval')) {
-    effective.clearanceFormat.includeStartupApproval = userSettings.clearanceFormat.includeStartupApproval;
-  }
-  if (userSettings.clearanceFormat && userSettings.clearanceFormat.hasOwnProperty('includeInitialClimb')) {
-    effective.clearanceFormat.includeInitialClimb = userSettings.clearanceFormat.includeInitialClimb;
-  }
-  if (userSettings.aviation && userSettings.aviation.defaultAltitudes && userSettings.aviation.defaultAltitudes.length > 0) {
-    effective.aviation.defaultAltitudes = userSettings.aviation.defaultAltitudes;
-  }
-  if (userSettings.aviation && userSettings.aviation.squawkRanges && userSettings.aviation.squawkRanges.min) {
-    effective.aviation.squawkRanges.min = userSettings.aviation.squawkRanges.min;
-  }
-  if (userSettings.aviation && userSettings.aviation.squawkRanges && userSettings.aviation.squawkRanges.max) {
-    effective.aviation.squawkRanges.max = userSettings.aviation.squawkRanges.max;
-  }
-  return effective;
+    const effective = JSON.parse(JSON.stringify(adminSettings)); // Deep clone
+
+    // Ensure nested objects exist before assignment to prevent errors
+    if (!effective.clearanceFormat) effective.clearanceFormat = {};
+    if (!effective.aviation) effective.aviation = {};
+    if (!effective.aviation.squawkRanges) effective.aviation.squawkRanges = {};
+
+    if (userSettings.clearanceFormat?.customTemplate) {
+        effective.clearanceFormat.customTemplate = userSettings.clearanceFormat.customTemplate;
+    }
+    if (userSettings.clearanceFormat?.hasOwnProperty('includeAtis')) {
+        effective.clearanceFormat.includeAtis = userSettings.clearanceFormat.includeAtis;
+    }
+    if (userSettings.clearanceFormat?.hasOwnProperty('includeSquawk')) {
+        effective.clearanceFormat.includeSquawk = userSettings.clearanceFormat.includeSquawk;
+    }
+    if (userSettings.clearanceFormat?.hasOwnProperty('includeFlightLevel')) {
+        effective.clearanceFormat.includeFlightLevel = userSettings.clearanceFormat.includeFlightLevel;
+    }
+    if (userSettings.clearanceFormat?.hasOwnProperty('includeStartupApproval')) {
+        effective.clearanceFormat.includeStartupApproval = userSettings.clearanceFormat.includeStartupApproval;
+    }
+    if (userSettings.clearanceFormat?.hasOwnProperty('includeInitialClimb')) {
+        effective.clearanceFormat.includeInitialClimb = userSettings.clearanceFormat.includeInitialClimb;
+    }
+    if (userSettings.aviation?.defaultAltitudes?.length > 0) {
+        effective.aviation.defaultAltitudes = userSettings.aviation.defaultAltitudes;
+    }
+    if (userSettings.aviation?.squawkRanges?.min) {
+        effective.aviation.squawkRanges.min = userSettings.aviation.squawkRanges.min;
+    }
+    if (userSettings.aviation?.squawkRanges?.max) {
+        effective.aviation.squawkRanges.max = userSettings.aviation.squawkRanges.max;
+    }
+
+    return effective;
 }
 
 function handleRoutingTypeChange() {

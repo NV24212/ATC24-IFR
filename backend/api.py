@@ -295,19 +295,46 @@ def get_current_users():
         from datetime import datetime, timedelta
         time_threshold = datetime.utcnow() - timedelta(minutes=5)
 
-        active_users_res = supabase.from_('page_visits').select('session_id, created_at').gt('created_at', time_threshold.isoformat()).execute()
-
-        if not active_users_res.data:
-            return jsonify({"activeCount": 0, "users": [], "memorySessionsCount": 0, "supabaseSessionsCount": 0})
+        # Get active sessions from page visits
+        active_visits_res = supabase.from_('page_visits').select('session_id, created_at').gt('created_at', time_threshold.isoformat()).execute()
 
         sessions = {}
-        for visit in active_users_res.data:
-            sid = visit['session_id']
-            if sid not in sessions:
-                sessions[sid] = {"session_id": sid, "page_views": 0, "last_activity": "1970-01-01T00:00:00Z", "source": "db"}
-            sessions[sid]["page_views"] += 1
-            if visit['created_at'] > sessions[sid]['last_activity']:
-                sessions[sid]['last_activity'] = visit['created_at']
+        if active_visits_res.data:
+            for visit in active_visits_res.data:
+                sid = visit['session_id']
+                if sid not in sessions:
+                    sessions[sid] = {
+                        "session_id": sid,
+                        "page_views": 0,
+                        "clearances_generated": 0, # Initialize
+                        "last_activity": "1970-01-01T00:00:00Z",
+                        "source": "db"
+                    }
+                sessions[sid]["page_views"] += 1
+                if visit['created_at'] > sessions[sid]['last_activity']:
+                    sessions[sid]['last_activity'] = visit['created_at']
+
+        # Get recent clearances
+        recent_clearances_res = supabase.from_('clearance_generations').select('session_id, created_at').gt('created_at', time_threshold.isoformat()).execute()
+
+        if recent_clearances_res.data:
+            for clearance in recent_clearances_res.data:
+                sid = clearance['session_id']
+                if sid not in sessions:
+                     sessions[sid] = {
+                        "session_id": sid,
+                        "page_views": 0,
+                        "clearances_generated": 0,
+                        "last_activity": "1970-01-01T00:00:00Z",
+                        "source": "db"
+                    }
+                sessions[sid]['clearances_generated'] += 1
+                if clearance['created_at'] > sessions[sid]['last_activity']:
+                    sessions[sid]['last_activity'] = clearance['created_at']
+
+
+        if not sessions:
+            return jsonify({"activeCount": 0, "users": [], "memorySessionsCount": 0, "supabaseSessionsCount": 0})
 
         return jsonify({
             "activeCount": len(sessions),
@@ -333,9 +360,8 @@ def get_table_data(table_name):
         return jsonify({"error": "Table not found or access denied"}), 404
 
     try:
-        page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 25))
-        offset = (page - 1) * limit
+        offset = int(request.args.get('offset', 0))
 
         # Get total count
         count_res = supabase.from_(table_name).select('id', count='exact').execute()
