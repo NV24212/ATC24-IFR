@@ -657,14 +657,6 @@ function hideLeaderboard() {
   setTimeout(() => modal.style.display = 'none', 300);
 }
 
-function showContactNotification() {
-  if (!sessionStorage.getItem('contactNotificationShown')) {
-    setTimeout(() => {
-      showNotification('info', 'Contact & Support', 'For bugs or suggestions, contact me on Discord: h.a.s2');
-      sessionStorage.setItem('contactNotificationShown', 'true');
-    }, 5000);
-  }
-}
 
 function handleSimpleRouting() {
     const currentPath = window.location.pathname;
