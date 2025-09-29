@@ -71,9 +71,14 @@ def track_clearance_generation():
         if 'squawk_code' in data:
             data['transponder_code'] = data.pop('squawk_code')
 
+        # Ensure atis_info is in a JSONB-compatible format
+        if 'atis_info' in data and isinstance(data['atis_info'], str):
+            data['atis_info'] = {'letter': data['atis_info']}
+
         clearance_data = {
             "ip_address": request.remote_addr,
             "user_agent": request.user_agent.string,
+            "session_id": session.get('session_id'),
             "user_id": session.get('user', {}).get('id'),
             "discord_username": session.get('user', {}).get('username'),
             **data
@@ -214,14 +219,22 @@ def get_admin_analytics():
     if not session.get('user', {}).get('is_admin'):
         return jsonify({"error": "Unauthorized"}), 403
     try:
+        # Fetch total counts
         total_visits_res = supabase.from_('page_visits').select('id', count='exact').execute()
         total_clearances_res = supabase.from_('clearance_generations').select('id', count='exact').execute()
         total_flight_plans_res = supabase.from_('flight_plans_received').select('id', count='exact').execute()
+
+        # Use the optimized SQL function for daily visits
+        daily_visits_res = supabase.rpc('get_daily_counts', {'table_name': 'page_visits'}).execute()
+
+        # Format daily visits data for the frontend
+        daily_visits_dict = {item['date']: item['count'] for item in daily_visits_res.data} if daily_visits_res.data else {}
 
         analytics_data = {
             "totalVisits": total_visits_res.count or 0,
             "clearancesGenerated": total_clearances_res.count or 0,
             "flightPlansReceived": total_flight_plans_res.count or 0,
+            "dailyVisits": daily_visits_dict,
         }
         return jsonify(analytics_data)
     except Exception as e:
@@ -234,20 +247,13 @@ def get_chart_data():
     if not session.get('user', {}).get('is_admin'):
         return jsonify({"error": "Unauthorized"}), 403
     try:
-        # This is a simplified example. A real implementation would likely involve more complex SQL queries.
-        daily_visits_res = supabase.from_('page_visits').select('created_at').execute()
-        daily_clearances_res = supabase.from_('clearance_generations').select('created_at').execute()
-
-        def aggregate_by_day(data):
-            from collections import Counter
-            from datetime import datetime
-            dates = [datetime.fromisoformat(item['created_at']).strftime('%Y-%m-%d') for item in data]
-            counts = Counter(dates)
-            return [{"date": k, "count": v} for k, v in counts.items()]
+        # Use the new SQL function for efficient data aggregation
+        daily_visits_res = supabase.rpc('get_daily_counts', {'table_name': 'page_visits'}).execute()
+        daily_clearances_res = supabase.rpc('get_daily_counts', {'table_name': 'clearance_generations'}).execute()
 
         chart_data = {
-            "daily_visits": aggregate_by_day(daily_visits_res.data or []),
-            "daily_clearances": aggregate_by_day(daily_clearances_res.data or [])
+            "daily_visits": daily_visits_res.data or [],
+            "daily_clearances": daily_clearances_res.data or []
         }
         return jsonify(chart_data)
     except Exception as e:

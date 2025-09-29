@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS public.clearance_generations (
     session_id TEXT, ip_address TEXT, user_agent TEXT, user_id UUID REFERENCES public.discord_users(id) ON DELETE SET NULL,
     discord_username TEXT, callsign TEXT, destination TEXT, departure_airport TEXT, flight_plan JSONB, route TEXT,
     routing_type TEXT, initial_altitude TEXT, flight_level TEXT, runway TEXT, sid TEXT, sid_transition TEXT,
-    transponder_code TEXT, atis_letter TEXT, atis_info TEXT, station TEXT, clearance_text TEXT, remarks TEXT,
+    transponder_code TEXT, atis_letter TEXT, atis_info JSONB, station TEXT, clearance_text TEXT, remarks TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -143,6 +143,28 @@ BEGIN
         c.user_id = p_user_id
     ORDER BY
         c.created_at DESC;
+END;
+$$;
+
+-- Function to get daily counts for a given table
+CREATE OR REPLACE FUNCTION get_daily_counts(table_name TEXT)
+RETURNS TABLE(date DATE, count BIGINT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY EXECUTE format('
+        SELECT
+            DATE(created_at),
+            COUNT(*)
+        FROM
+            public.%I
+        WHERE
+            created_at >= NOW() - INTERVAL ''30 days''
+        GROUP BY
+            DATE(created_at)
+        ORDER BY
+            DATE(created_at)
+    ', table_name);
 END;
 $$;
 
