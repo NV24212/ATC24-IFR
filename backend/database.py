@@ -23,20 +23,3 @@ def init_db():
             print(f"WARNING: Supabase client failed to initialize: {e}. Supabase-dependent features will be disabled.")
     else:
         print("WARNING: SUPABASE_URL is not set or is a placeholder. Supabase-dependent features will be disabled.")
-
-def log_to_db(level, message, source='backend', data=None):
-    """Inserts a log entry into the debug_logs table."""
-    if not supabase_admin:
-        print(f"[{level.upper()}] DB_LOG_FAIL: {message}")
-        return
-
-    try:
-        log_entry = {
-            "level": level,
-            "message": message,
-            "source": source,
-            "data": data
-        }
-        supabase_admin.from_('debug_logs').insert(log_entry).execute()
-    except Exception as e:
-        print(f"CRITICAL: Failed to write log to database: {e}")

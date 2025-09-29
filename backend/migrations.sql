@@ -1,5 +1,5 @@
 -- =============================================================================
--- ATC24 Simplified Database Migrations (Definitive Final Version)
+-- ATC24 Database Migrations (Complete Rewrite)
 -- =============================================================================
 
 -- Enable UUID extension
@@ -9,85 +9,45 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Tables
 -- =============================================================================
 
+-- Stores site-wide configuration, including the new admin password
+CREATE TABLE IF NOT EXISTS public.site_config (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Stores user data from Discord
 CREATE TABLE IF NOT EXISTS public.discord_users (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     discord_id TEXT UNIQUE NOT NULL,
     username TEXT NOT NULL,
-    discriminator TEXT,
-    email TEXT,
-    avatar TEXT,
-    access_token TEXT,
-    refresh_token TEXT,
-    token_expires_at TIMESTAMPTZ,
     is_admin BOOLEAN DEFAULT FALSE,
     roles JSONB DEFAULT '[]'::JSONB,
-    vatsim_cid TEXT,
-    is_controller BOOLEAN DEFAULT FALSE,
-    user_settings JSONB,
-    last_login TIMESTAMPTZ DEFAULT NOW(),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.clearance_generations (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    session_id TEXT, ip_address TEXT, user_agent TEXT, user_id UUID REFERENCES public.discord_users(id) ON DELETE SET NULL,
-    discord_username TEXT, callsign TEXT, destination TEXT, departure_airport TEXT, flight_plan JSONB, route TEXT,
-    routing_type TEXT, initial_altitude TEXT, flight_level TEXT, runway TEXT, sid TEXT, sid_transition TEXT,
-    transponder_code TEXT, atis_letter TEXT, atis_info JSONB, station TEXT, clearance_text TEXT, remarks TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.admin_settings (
-    id INT PRIMARY KEY DEFAULT 1,
-    settings JSONB NOT NULL,
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT single_row_constraint CHECK (id = 1)
-);
-
-CREATE TABLE IF NOT EXISTS public.flight_plans_received (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    callsign TEXT NOT NULL, destination TEXT, route TEXT, flight_level TEXT,
-    source TEXT DEFAULT 'Main', raw_data JSONB, created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.page_visits (
+-- Stores generated clearances
+CREATE TABLE IF NOT EXISTS public.clearance_generations (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     user_id UUID REFERENCES public.discord_users(id) ON DELETE SET NULL,
-    session_id TEXT, path TEXT NOT NULL, ip_address TEXT, user_agent TEXT,
-    visited_at TIMESTAMPTZ DEFAULT NOW(), created_at TIMESTAMPTZ DEFAULT NOW()
+    callsign TEXT,
+    clearance_text TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.user_sessions (
+-- Stores page visit analytics
+CREATE TABLE IF NOT EXISTS public.page_visits (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id UUID REFERENCES public.discord_users(id) ON DELETE CASCADE NOT NULL,
-    ip_address TEXT, user_agent TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), expires_at TIMESTAMPTZ
+    session_id TEXT,
+    path TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
-CREATE TABLE IF NOT EXISTS public.admin_activities (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    admin_user_id UUID REFERENCES public.discord_users(id) ON DELETE SET NULL,
-    action TEXT NOT NULL, target_resource TEXT, details JSONB, created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.debug_logs (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    timestamp TIMESTAMPTZ DEFAULT NOW(), level TEXT NOT NULL, message TEXT NOT NULL,
-    source TEXT, data JSONB, created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- =============================================================================
--- Indexes
--- =============================================================================
-CREATE INDEX IF NOT EXISTS idx_discord_users_discord_id ON public.discord_users(discord_id);
-CREATE INDEX IF NOT EXISTS idx_clearance_generations_created_at ON public.clearance_generations(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_page_visits_created_at ON public.page_visits(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_debug_logs_timestamp ON public.debug_logs(timestamp DESC);
 
 -- =============================================================================
 -- Functions
 -- =============================================================================
 
+-- Checks if a user is an admin based on their authenticated ID
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
@@ -100,86 +60,77 @@ END;
 $$;
 
 -- =============================================================================
--- Row Level Security (RLS) -- THE DEFINITIVE FIX
+-- Row Level Security (RLS) -- Simplified and Corrected
 -- =============================================================================
 
 -- Enable RLS on all tables
+ALTER TABLE public.site_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.discord_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clearance_generations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.flight_plans_received ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.page_visits ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.admin_activities ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.debug_logs ENABLE ROW LEVEL SECURITY;
 
 -- Force RLS on all tables
+ALTER TABLE public.site_config FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.discord_users FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.clearance_generations FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.admin_settings FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.flight_plans_received FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.page_visits FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.user_sessions FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.admin_activities FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.debug_logs FORCE ROW LEVEL SECURITY;
 
--- Drop existing policies to prevent conflicts
-DROP POLICY IF EXISTS "Allow public insert on clearance_generations" ON public.clearance_generations;
-DROP POLICY IF EXISTS "Allow anonymous users to insert clearances" ON public.clearance_generations;
-DROP POLICY IF EXISTS "Allow authenticated users to insert clearances" ON public.clearance_generations;
-DROP POLICY IF EXISTS "Allow admin select on clearance_generations" ON public.clearance_generations;
-DROP POLICY IF EXISTS "Allow user to see their own clearances" ON public.clearance_generations;
+-- Drop all existing policies to ensure a clean slate
+DROP POLICY IF EXISTS "Allow admin read access to site_config" ON public.site_config;
 DROP POLICY IF EXISTS "Allow admin full access" ON public.discord_users;
 DROP POLICY IF EXISTS "Allow user to view their own data" ON public.discord_users;
-DROP POLICY IF EXISTS "Allow admin full access" ON public.admin_settings;
-DROP POLICY IF EXISTS "Allow public read access on flight_plans" ON public.flight_plans_received;
+DROP POLICY IF EXISTS "Allow public insert on clearance_generations" ON public.clearance_generations;
+DROP POLICY IF EXISTS "Allow users to see their own clearances" ON public.clearance_generations;
+DROP POLICY IF EXISTS "Allow admin full select access" ON public.clearance_generations;
 DROP POLICY IF EXISTS "Allow public insert on page_visits" ON public.page_visits;
 DROP POLICY IF EXISTS "Allow admin select on page_visits" ON public.page_visits;
-DROP POLICY IF EXISTS "Allow admin full access" ON public.user_sessions;
-DROP POLICY IF EXISTS "Allow admin full access" ON public.admin_activities;
-DROP POLICY IF EXISTS "Allow admin select on debug_logs" ON public.debug_logs;
-DROP POLICY IF EXISTS "Allow service_role to insert into debug_logs" ON public.debug_logs;
 
--- Create correct policies
--- discord_users
+-- Create new, correct policies
+-- site_config: Only admins can read it. Service role can do anything.
+CREATE POLICY "Allow admin read access to site_config" ON public.site_config FOR SELECT TO authenticated USING (is_admin());
+
+-- discord_users: Admins can manage, users can see themselves.
 CREATE POLICY "Allow admin full access" ON public.discord_users FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
 CREATE POLICY "Allow user to view their own data" ON public.discord_users FOR SELECT TO authenticated USING (id = auth.uid());
 
--- clearance_generations (FIX: Explicitly allow INSERT for anon and authenticated roles)
-CREATE POLICY "Allow insert for all users" ON public.clearance_generations FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow admin full select access" ON public.clearance_generations FOR SELECT TO authenticated USING (is_admin());
+-- clearance_generations: Anyone can insert, users can see their own, admins can see all.
+CREATE POLICY "Allow public insert on clearance_generations" ON public.clearance_generations FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow users to see their own clearances" ON public.clearance_generations FOR SELECT TO authenticated USING (user_id = auth.uid());
+CREATE POLICY "Allow admin full select access" ON public.clearance_generations FOR SELECT TO authenticated USING (is_admin());
 
--- admin_settings
-CREATE POLICY "Allow admin full access" ON public.admin_settings FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+-- page_visits: Anyone can insert, admins can see all.
+CREATE POLICY "Allow public insert on page_visits" ON public.page_visits FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow admin select on page_visits" ON public.page_visits FOR SELECT TO authenticated USING (is_admin());
 
--- flight_plans_received
-CREATE POLICY "Allow public read access" ON public.flight_plans_received FOR SELECT USING (true);
 
--- page_visits
-CREATE POLICY "Allow public insert" ON public.page_visits FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow admin select" ON public.page_visits FOR SELECT TO authenticated USING (is_admin());
+-- =============================================================================
+-- Permissions
+-- =============================================================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
 
--- user_sessions & admin_activities
-CREATE POLICY "Allow admin full access on user_sessions" ON public.user_sessions FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
-CREATE POLICY "Allow admin full access on admin_activities" ON public.admin_activities FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+-- Grant specific permissions for anonymous and authenticated roles
+GRANT SELECT ON public.clearance_generations TO authenticated;
+GRANT INSERT ON public.clearance_generations, public.page_visits TO anon, authenticated;
 
--- debug_logs (FIX: Allow service_role to insert, admins to read)
-CREATE POLICY "Allow service_role to insert logs" ON public.debug_logs FOR INSERT TO service_role WITH CHECK (true);
-CREATE POLICY "Allow admins to read logs" ON public.debug_logs FOR SELECT TO authenticated USING (is_admin());
 
 -- =============================================================================
 -- Initial Data
 -- =============================================================================
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM admin_settings WHERE id = 1) THEN
-    INSERT INTO admin_settings (id, settings) VALUES (1, '{
-      "clearanceFormat": { "customTemplate": "{CALLSIGN}, cleared to {DESTINATION}..." },
-      "aviation": { "defaultAltitudes": [5000, 6000, 7000] }
-    }');
-  END IF;
+  -- Insert the hashed admin password. The hash is for "hasan2311".
+  -- This uses pgsodium, which is available in Supabase.
+  -- Make sure the pgsodium extension is enabled in your Supabase project.
+  CREATE EXTENSION IF NOT EXISTS pgsodium;
 
+  INSERT INTO public.site_config (key, value)
+  VALUES ('admin_password', jsonb_build_object('hash', crypt('hasan2311', gen_salt('bf'))))
+  ON CONFLICT (key) DO UPDATE SET value = jsonb_build_object('hash', crypt('hasan2311', gen_salt('bf')));
+
+  -- Insert the default admin user for Discord login
   INSERT INTO public.discord_users (discord_id, username, is_admin, roles)
   VALUES ('1200035083550208042', 'h.a.s2', true, '["admin", "super_admin"]')
   ON CONFLICT (discord_id) DO NOTHING;
@@ -188,6 +139,6 @@ END $$;
 -- =============================================================================
 DO $$
 BEGIN
-    RAISE NOTICE 'ATC24 Database Migration Fully Complete and Corrected!';
+    RAISE NOTICE 'ATC24 Database Migration (Rewrite) Fully Complete!';
 END $$;
 -- =============================================================================
