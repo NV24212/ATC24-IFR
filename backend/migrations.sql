@@ -252,7 +252,7 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM admin_settings WHERE id = 1) THEN
     INSERT INTO admin_settings (id, settings) VALUES (1, '{
-      "clearanceFormat": { "customTemplate": "{CALLSIGN}, cleared to {DESTINATION}..." },
+      "clearanceFormat": { "customTemplate": "{CALLSIGN}, {ATC_STATION}, good day. Startup approved. Information {ATIS} is correct. Cleared to {DESTINATION} via {ROUTE}, runway {RUNWAY}. Initial climb {INITIAL_ALT}FT, expect further climb to Flight Level {FLIGHT_LEVEL}. Squawk {SQUAWK}." },
       "aviation": { "defaultAltitudes": [5000, 6000, 7000] }
     }');
   END IF;
