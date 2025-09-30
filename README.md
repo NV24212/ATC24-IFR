@@ -4,7 +4,7 @@ This project has been migrated from a monolithic Node.js application to a separa
 
 ## Project Structure
 
-- `/frontend`: Contains all the static frontend files (HTML, CSS, JavaScript). This is a standalone application that can be deployed to any static hosting provider (e.g., Cloudflare Pages, Vercel, Netlify).
+- `/frontend`: Contains all the static frontend files (HTML, CSS, JavaScript). This is a standalone application that can be deployed to any static hosting provider (e.g., Cloudflare Pages, Vercel, Netlify).fads
 - `/backend`: Contains the Python Flask backend application and its `Dockerfile`. This is a self-contained application designed to be run as a Docker container.
 
 ## How to Run with Docker
@@ -17,7 +17,7 @@ This project is set up to run the backend in a Docker container.
  dsf
 ### Building and Running the Backend
 
-1.  **From the project's root directory**, build the Docker image. The build context **must** be the root for the `COPY` commands to work correctly.
+1.  **From the project's root directory**, build the Docker image. The build context **must** be the root for the `COPY` commands to work correctly.df
     ```bash
     docker build -t atc24-backend -f backend/Dockerfile .
     ```
