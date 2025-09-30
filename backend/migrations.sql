@@ -100,6 +100,7 @@ END;
 $$;
 
 -- Function to get the leaderboard data
+DROP FUNCTION IF EXISTS public.get_clearance_leaderboard();
 CREATE OR REPLACE FUNCTION get_clearance_leaderboard(p_limit INT)
 RETURNS TABLE(rank BIGINT, discord_id TEXT, username TEXT, avatar TEXT, clearance_count BIGINT)
 LANGUAGE plpgsql
@@ -147,7 +148,7 @@ END;
 $$;
 
 -- Function to get daily counts for a given table
-CREATE OR REPLACE FUNCTION get_daily_counts(p_table_name TEXT)
+CREATE OR REPLACE FUNCTION get_daily_counts(table_name TEXT)
 RETURNS TABLE(date DATE, count BIGINT)
 LANGUAGE plpgsql
 AS $$
@@ -164,7 +165,7 @@ BEGIN
             DATE(created_at)
         ORDER BY
             DATE(created_at)
-    ', p_table_name);
+    ', table_name);
 END;
 $$;
 
@@ -223,7 +224,9 @@ CREATE POLICY "Allow admin full access" ON public.discord_users FOR ALL TO authe
 CREATE POLICY "Allow user to view their own data" ON public.discord_users FOR SELECT TO authenticated USING (id = auth.uid());
 
 -- clearance_generations (FIX: Explicitly allow INSERT for anon and authenticated roles)
-CREATE POLICY "Allow insert for all users" ON public.clearance_generations FOR INSERT WITH CHECK (true);
+-- clearance_generations
+CREATE POLICY "Allow anon insert on clearance_generations" ON public.clearance_generations FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert on clearance_generations" ON public.clearance_generations FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Allow admin full select access" ON public.clearance_generations FOR SELECT TO authenticated USING (is_admin());
 CREATE POLICY "Allow users to see their own clearances" ON public.clearance_generations FOR SELECT TO authenticated USING (user_id = auth.uid());
 
@@ -235,8 +238,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.admin_settings TO authentic
 CREATE POLICY "Allow public read access" ON public.flight_plans_received FOR SELECT USING (true);
 
 -- page_visits
-CREATE POLICY "Allow public insert" ON public.page_visits FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow admin select" ON public.page_visits FOR SELECT TO authenticated USING (is_admin());
+CREATE POLICY "Allow anon insert on page_visits" ON public.page_visits FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert on page_visits" ON public.page_visits FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow admin select on page_visits" ON public.page_visits FOR SELECT TO authenticated USING (is_admin());
 
 -- user_sessions & admin_activities
 CREATE POLICY "Allow admin full access on user_sessions" ON public.user_sessions FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());

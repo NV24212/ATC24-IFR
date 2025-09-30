@@ -45,7 +45,7 @@ def get_leaderboard():
     if not supabase: return jsonify({"error": "Supabase not configured"}), 503
     try:
         response = supabase.rpc('get_clearance_leaderboard', {'p_limit': 20}).execute()
-        return jsonify(response.data)
+        return jsonify(response.data or [])
     except Exception as e:
         current_app.logger.error(f"Failed to fetch leaderboard from Supabase: {e}", exc_info=True)
         return jsonify({"error": "Failed to fetch leaderboard", "details": str(e)}), 500
@@ -225,7 +225,7 @@ def get_admin_analytics():
         total_flight_plans_res = supabase.from_('flight_plans_received').select('id', count='exact').execute()
 
         # Use the optimized SQL function for daily visits
-        daily_visits_res = supabase.rpc('get_daily_counts', {'p_table_name': 'page_visits'}).execute()
+        daily_visits_res = supabase.rpc('get_daily_counts', {'table_name': 'page_visits'}).execute()
 
         # Format daily visits data for the frontend
         daily_visits_dict = {item['date']: item['count'] for item in daily_visits_res.data} if daily_visits_res.data else {}
@@ -248,8 +248,8 @@ def get_chart_data():
         return jsonify({"error": "Unauthorized"}), 403
     try:
         # Use the new SQL function for efficient data aggregation
-        daily_visits_res = supabase.rpc('get_daily_counts', {'p_table_name': 'page_visits'}).execute()
-        daily_clearances_res = supabase.rpc('get_daily_counts', {'p_table_name': 'clearance_generations'}).execute()
+        daily_visits_res = supabase.rpc('get_daily_counts', {'table_name': 'page_visits'}).execute()
+        daily_clearances_res = supabase.rpc('get_daily_counts', {'table_name': 'clearance_generations'}).execute()
 
         chart_data = {
             "daily_visits": daily_visits_res.data or [],
