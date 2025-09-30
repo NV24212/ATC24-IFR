@@ -183,7 +183,7 @@ function displayFlightPlans() {
     return;
   }
   container.innerHTML = flightPlans.map((plan, index) => `
-    <div class="flight-plan ${selectedFlightPlan === plan ? 'selected' : ''}" onclick="selectFlightPlan(${index})">
+    <div class="flight-plan ${selectedFlightPlan === plan ? 'selected' : ''}" data-plan-index="${index}">
       <div class="flight-plan-header">
         <span class="flight-plan-callsign">${plan.callsign || 'Unknown'}</span>
         <span class="flight-plan-aircraft">${plan.aircraft || 'N/A'}</span>
@@ -735,6 +735,18 @@ async function initializeApp() {
     document.getElementById('profileBtn')?.addEventListener('click', showProfile);
     document.querySelector('.logout-btn')?.addEventListener('click', () => logout(updateAuthUI));
     document.getElementById('refreshPlansBtn')?.addEventListener('click', loadFlightPlans);
+
+    // Delegated event listener for flight plans
+    document.getElementById('flightPlans')?.addEventListener('click', (event) => {
+        const flightPlanElement = event.target.closest('.flight-plan');
+        if (flightPlanElement) {
+            const planIndex = flightPlanElement.dataset.planIndex;
+            if (planIndex !== null && planIndex !== undefined) {
+                selectFlightPlan(parseInt(planIndex, 10));
+            }
+        }
+    });
+
     document.getElementById('generateBtn')?.addEventListener('click', generateClearance);
     document.getElementById('refreshControllersBtn')?.addEventListener('click', loadControllers);
     document.getElementById('groundCallsignSelect')?.addEventListener('change', onControllerSelect);

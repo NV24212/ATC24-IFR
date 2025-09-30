@@ -89,7 +89,9 @@ CREATE INDEX IF NOT EXISTS idx_debug_logs_timestamp ON public.debug_logs(timesta
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
   IF auth.role() = 'authenticated' THEN
     RETURN (SELECT is_admin FROM public.discord_users WHERE id = auth.uid());
@@ -124,6 +126,7 @@ RETURNS TABLE(
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
     INSERT INTO public.discord_users (
@@ -160,9 +163,10 @@ $$;
 
 -- Function to get the leaderboard data
 DROP FUNCTION IF EXISTS public.get_clearance_leaderboard(INT);
-CREATE OR REPLACE FUNCTION public.get_clearance_leaderboard(p_limit INT)
+CREATE OR REPLACE FUNCTION public.get_clearance_leaderboard(p_limit INT DEFAULT 25)
 RETURNS TABLE(rank BIGINT, discord_id TEXT, username TEXT, avatar TEXT, clearance_count BIGINT)
 LANGUAGE plpgsql
+SET search_path = public
 AS $$
 BEGIN
     RETURN QUERY
@@ -189,6 +193,7 @@ DROP FUNCTION IF EXISTS public.get_user_clearances(UUID);
 CREATE OR REPLACE FUNCTION public.get_user_clearances(p_user_id UUID)
 RETURNS TABLE(id UUID, callsign TEXT, destination TEXT, clearance_text TEXT, created_at TIMESTAMPTZ)
 LANGUAGE plpgsql
+SET search_path = public
 AS $$
 BEGIN
     RETURN QUERY
@@ -211,6 +216,7 @@ $$;
 CREATE OR REPLACE FUNCTION public.get_daily_counts(table_name TEXT)
 RETURNS TABLE(date DATE, count BIGINT)
 LANGUAGE plpgsql
+SET search_path = public
 AS $$
 BEGIN
     RETURN QUERY EXECUTE format('
@@ -246,7 +252,8 @@ GRANT EXECUTE ON FUNCTION public.get_daily_counts(TEXT) TO authenticated;
 ALTER TABLE public.discord_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clearance_generations ENABLE ROW LEVEL SECURITY;
 -- RLS on admin_settings is disabled in favor of direct grants, as the API endpoint is admin-protected.
-ALTER TABLE public.admin_settings DISABLE ROW LEVEL SECURITY;
+-- RLS on admin_settings is enabled and controlled by policy.
+ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.flight_plans_received ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.page_visits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
@@ -256,6 +263,7 @@ ALTER TABLE public.debug_logs ENABLE ROW LEVEL SECURITY;
 -- Force RLS on all tables
 ALTER TABLE public.discord_users FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.clearance_generations FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_settings FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.flight_plans_received FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.page_visits FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.user_sessions FORCE ROW LEVEL SECURITY;
@@ -292,8 +300,7 @@ CREATE POLICY "Allow admin full select access" ON public.clearance_generations F
 CREATE POLICY "Allow users to see their own clearances" ON public.clearance_generations FOR SELECT TO authenticated USING (user_id = auth.uid());
 
 -- admin_settings
--- admin_settings (RLS is disabled, using direct grants instead)
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.admin_settings TO authenticated;
+CREATE POLICY "Allow admin full access on admin_settings" ON public.admin_settings FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
 
 -- flight_plans_received
 CREATE POLICY "Allow public read access" ON public.flight_plans_received FOR SELECT USING (true);
