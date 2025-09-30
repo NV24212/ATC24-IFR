@@ -775,21 +775,39 @@ async function initializeApp() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', initializeApp);
+function setupModalEventlisteners() {
+    const modals = document.querySelectorAll('.modal-overlay');
+    modals.forEach(modal => {
+        const closeButton = modal.querySelector('.modal-close');
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                modal.classList.remove('show');
+                setTimeout(() => modal.style.display = 'none', 300);
+            });
+        }
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                modal.classList.remove('show');
+                setTimeout(() => modal.style.display = 'none', 300);
+            }
+        });
+    });
 
-// Make functions available in the global scope for onclick handlers
-window.showLeaderboard = showLeaderboard;
-window.hideLeaderboard = hideLeaderboard;
-window.showProfile = showProfile;
-window.hideProfile = hideProfile;
-window.loginWithDiscord = loginWithDiscord;
-window.logout = () => logout(updateAuthUI);
-window.loadFlightPlans = loadFlightPlans;
-window.selectFlightPlan = selectFlightPlan;
-window.generateClearance = generateClearance;
-window.loadControllers = loadControllers;
-window.onControllerSelect = onControllerSelect;
-window.handleRoutingTypeChange = handleRoutingTypeChange;
-window.saveUserSettings = saveUserSettings;
-window.loadLeaderboard = loadLeaderboard;
-window.backToTop = backToTop;
+    const notificationOverlay = document.getElementById('notificationOverlay');
+    if(notificationOverlay) {
+        const closeButton = notificationOverlay.querySelector('.notification-close-x');
+        const closeBtn = notificationOverlay.querySelector('.notification-close-btn');
+        if(closeButton) closeButton.addEventListener('click', hideNotification);
+        if(closeBtn) closeBtn.addEventListener('click', hideNotification);
+        notificationOverlay.addEventListener('click', (event) => {
+            if(event.target === notificationOverlay) {
+                hideNotification();
+            }
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initializeApp();
+    setupModalEventlisteners();
+});

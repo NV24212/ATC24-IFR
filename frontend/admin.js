@@ -769,6 +769,34 @@ async function handleResetAnalyticsClick() {
     }
 }
 
+function setupModalEventListeners() {
+    const notificationOverlay = document.getElementById('notificationOverlay');
+    if (notificationOverlay) {
+        const closeButton = notificationOverlay.querySelector('.notification-close-x');
+        const closeBtn = notificationOverlay.querySelector('.notification-close-btn');
+        if (closeButton) closeButton.addEventListener('click', hideNotification);
+        if (closeBtn) closeBtn.addEventListener('click', hideNotification);
+        notificationOverlay.addEventListener('click', (event) => {
+            if (event.target === notificationOverlay) {
+                hideNotification();
+            }
+        });
+    }
+
+    const infoOverlay = document.getElementById('infoOverlay');
+    if (infoOverlay) {
+        const closeButton = infoOverlay.querySelector('.info-close-x');
+        const closeBtn = infoOverlay.querySelector('.info-close-btn');
+        if (closeButton) closeButton.addEventListener('click', hideInfoPopup);
+        if (closeBtn) closeBtn.addEventListener('click', hideInfoPopup);
+        infoOverlay.addEventListener('click', (event) => {
+            if (event.target === infoOverlay) {
+                hideInfoPopup();
+            }
+        });
+    }
+}
+
 function initializeAdminPanel() {
     // Auth
     const authHandled = checkAuthParams(updateAuthUI);
@@ -817,10 +845,9 @@ function initializeAdminPanel() {
     document.querySelector('.generate-btn[onclick*="addAdminUser"]')?.addEventListener('click', addAdminUser);
     document.querySelector('.nav-btn[onclick*="clearAddUserForm"]')?.addEventListener('click', clearAddUserForm);
     document.querySelector('.danger-btn[onclick*="showRemoveAdminDialog"]')?.addEventListener('click', showRemoveAdminDialog);
-
-    // Modals
-    document.querySelectorAll('.notification-close-x, .notification-close-btn').forEach(btn => btn.addEventListener('click', hideNotification));
-    document.querySelectorAll('.info-close-x, .info-close-btn').forEach(btn => btn.addEventListener('click', hideInfoPopup));
 }
 
-document.addEventListener('DOMContentLoaded', initializeAdminPanel);
+document.addEventListener('DOMContentLoaded', () => {
+    initializeAdminPanel();
+    setupModalEventListeners();
+});
