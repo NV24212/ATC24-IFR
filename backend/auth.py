@@ -53,7 +53,8 @@ def discord_callback():
             'p_avatar': avatar_url,
             'p_access_token': token['access_token'],
             'p_refresh_token': token.get('refresh_token'),
-            'p_token_expires_at': expires_at
+            'p_token_expires_at': expires_at,
+            'p_vatsim_cid': None  # Not available in this flow
         }).execute()
 
         if response.error:
