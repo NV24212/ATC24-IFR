@@ -62,6 +62,28 @@ def get_user_clearances():
         current_app.logger.error(f"Failed to fetch user clearances from Supabase: {e}", exc_info=True)
         return jsonify({"error": "Failed to fetch user clearances", "details": str(e)}), 500
 
+@api_bp.route('/api/user/settings', methods=['POST'])
+@require_auth
+def save_user_settings():
+    if not supabase:
+        return jsonify({"error": "Supabase not configured"}), 503
+    try:
+        user_id = session['user']['id']
+        settings = request.json.get('settings')
+
+        if not settings or not isinstance(settings, dict):
+            return jsonify({"error": "Invalid settings payload"}), 400
+
+        supabase.from_('discord_users').update({
+            'user_settings': settings
+        }).eq('id', user_id).execute()
+
+        log_to_db('info', 'User settings updated', data={'user_id': user_id})
+        return jsonify({"success": True})
+    except Exception as e:
+        current_app.logger.error(f"Failed to save user settings: {e}", exc_info=True)
+        return jsonify({"error": "Failed to save user settings", "details": str(e)}), 500
+
 @api_bp.route('/api/clearance-generated', methods=['POST'])
 def track_clearance_generation():
     if not supabase: return jsonify({"success": False, "error": "Supabase not configured"}), 503
@@ -102,7 +124,9 @@ def get_admin_users():
     if not session.get('user', {}).get('is_admin'):
         return jsonify({"error": "Unauthorized"}), 403
     try:
-        response = supabase.from_('discord_users').select('id, discord_id, username, avatar, roles, last_login').eq('is_admin', True).execute()
+        response = supabase.rpc('get_admin_users').execute()
+        if response.error:
+            raise Exception(f"RPC get_admin_users failed: {response.error.message}")
         return jsonify({"users": response.data or []})
     except Exception as e:
         current_app.logger.error(f"Failed to fetch admin users: {e}", exc_info=True)
@@ -120,20 +144,17 @@ def add_admin_user():
         if not username:
             return jsonify({"error": "Username is required"}), 400
 
-        user_response = supabase.from_('discord_users').select('id').eq('username', username).execute()
+        response = supabase.rpc('add_admin_user_by_username', {
+            'p_username': username,
+            'p_roles': roles
+        }).execute()
 
-        if not user_response.data:
-            return jsonify({"error": "User not found"}), 404
+        if response.error:
+            raise Exception(f"RPC add_admin_user_by_username failed: {response.error.message}")
 
-        user_id = user_response.data[0]['id']
-
-        supabase.from_('discord_users').update({
-            'is_admin': True,
-            'roles': roles
-        }).eq('id', user_id).execute()
-
-        log_to_db('info', f"Admin access granted to {username}", data={'granted_by': session.get('user', {}).get('username')})
-        return jsonify({"success": True})
+        result = response.data[0]
+        log_to_db('info', f"Admin access granted to {username}", data={'granted_by': session.get('user', {}).get('username'), 'result': result['message']})
+        return jsonify(result)
 
     except Exception as e:
         log_to_db('error', f"Failed to add admin user {username}", data={'error': str(e)})
@@ -150,13 +171,13 @@ def remove_admin_user(user_id):
         return jsonify({"error": "You cannot remove yourself as an admin."}), 400
 
     try:
-        supabase.from_('discord_users').update({
-            'is_admin': False,
-            'roles': []
-        }).eq('id', user_id).execute()
+        response = supabase.rpc('remove_admin_user', {'p_user_id': str(user_id)}).execute()
+        if response.error:
+            raise Exception(f"RPC remove_admin_user failed: {response.error.message}")
 
+        result = response.data[0]
         log_to_db('warn', f"Admin access removed for user ID {user_id}", data={'removed_by': session.get('user', {}).get('username')})
-        return jsonify({"success": True})
+        return jsonify(result)
 
     except Exception as e:
         log_to_db('error', f"Failed to remove admin for user ID {user_id}", data={'error': str(e)})
