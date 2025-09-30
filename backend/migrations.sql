@@ -100,7 +100,7 @@ END;
 $$;
 
 -- Function to get the leaderboard data
-DROP FUNCTION IF EXISTS public.get_clearance_leaderboard();
+DROP FUNCTION IF EXISTS public.get_clearance_leaderboard(INT);
 CREATE OR REPLACE FUNCTION get_clearance_leaderboard(p_limit INT)
 RETURNS TABLE(rank BIGINT, discord_id TEXT, username TEXT, avatar TEXT, clearance_count BIGINT)
 LANGUAGE plpgsql
@@ -126,6 +126,7 @@ END;
 $$;
 
 -- Function to get clearances for a specific user
+DROP FUNCTION IF EXISTS public.get_user_clearances(UUID);
 CREATE OR REPLACE FUNCTION get_user_clearances(p_user_id UUID)
 RETURNS TABLE(id UUID, callsign TEXT, destination TEXT, clearance_text TEXT, created_at TIMESTAMPTZ)
 LANGUAGE plpgsql
