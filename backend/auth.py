@@ -41,36 +41,35 @@ def discord_callback():
         return redirect(f"{auth_origin}/?error=admin_not_configured")
 
     try:
-        expires_at = datetime.fromtimestamp(int(time.time() + token['expires_in']), tz=timezone.utc)
+        expires_at = datetime.fromtimestamp(int(time.time() + token['expires_in']), tz=timezone.utc).isoformat()
+        avatar_url = f"https://cdn.discordapp.com/avatars/{user_json['id']}/{user_json['avatar']}.png" if user_json.get('avatar') else None
 
-        user_data = {
-            'discord_id': user_json['id'],
-            'username': user_json['username'],
-            'discriminator': user_json.get('discriminator'),
-            'email': user_json.get('email'),
-            'avatar': f"https://cdn.discordapp.com/avatars/{user_json['id']}/{user_json['avatar']}.png" if user_json.get('avatar') else None,
-            'access_token': token['access_token'],
-            'refresh_token': token.get('refresh_token'),
-            'token_expires_at': expires_at.isoformat(),
-            'last_login': datetime.now(timezone.utc).isoformat()
-        }
+        # Call the RPC function to handle the user upsert
+        response = supabase_admin.rpc('upsert_discord_user', {
+            'p_discord_id': user_json['id'],
+            'p_username': user_json['username'],
+            'p_discriminator': user_json.get('discriminator'),
+            'p_email': user_json.get('email'),
+            'p_avatar': avatar_url,
+            'p_access_token': token['access_token'],
+            'p_refresh_token': token.get('refresh_token'),
+            'p_token_expires_at': expires_at,
+            'p_vatsim_cid': None  # Not available in this flow
+        }).execute()
 
-        supabase_admin.table('discord_users').upsert(user_data, on_conflict='discord_id').execute()
+        if response.error:
+            raise Exception(f"RPC upsert_discord_user failed: {response.error.message}")
 
-        db_user = supabase_admin.table('discord_users').select('*').eq('discord_id', user_json['id']).single().execute().data
+        db_user = response.data[0]
         if not db_user:
-            raise Exception("Failed to retrieve user from DB after upsert.")
-
-        # Check if the user is a super admin
-        is_super_admin = (db_user['discord_id'] == Config.SUPER_ADMIN_DISCORD_ID or
-                          db_user['username'] == Config.SUPER_ADMIN_USERNAME)
-
-        db_user['is_admin'] = db_user.get('is_admin', False) or is_super_admin
+            raise Exception("Failed to retrieve user from DB after upsert via RPC.")
 
         session['user'] = {
-            'id': db_user['id'], 'discord_id': db_user['discord_id'],
-            'username': db_user['username'], 'avatar': db_user['avatar'],
-            'is_admin': db_user['is_admin'],
+            'id': db_user['id'],
+            'discord_id': db_user['discord_id'],
+            'username': db_user['username'],
+            'avatar': db_user['avatar'],
+            'is_admin': db_user.get('is_admin', False),
             'roles': db_user.get('roles', [])
         }
     except Exception as e:

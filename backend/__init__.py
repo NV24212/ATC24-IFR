@@ -5,8 +5,10 @@ from flask_cors import CORS
 from whitenoise import WhiteNoise
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+import threading
 from .config import Config
 from .database import init_db
+from .services import run_websocket_in_background
 
 def create_app(config_class=Config):
     """Create and configure an instance of the Flask application."""
@@ -42,6 +44,11 @@ def create_app(config_class=Config):
     app.register_blueprint(api_bp)
     app.register_blueprint(status_bp)
     app.register_blueprint(admin_bp)
+
+    # --- Background Services ---
+    if app.config.get("ENV") != "development":
+        websocket_thread = threading.Thread(target=run_websocket_in_background, daemon=True)
+        websocket_thread.start()
 
     # --- Error Handlers ---
     @app.errorhandler(404)
