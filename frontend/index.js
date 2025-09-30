@@ -15,7 +15,7 @@ import {
     loadUserClearances as apiLoadUserClearances,
     getSystemHealth
 } from './src/api.js';
-import { showNotification, showAuthError } from './src/notifications.js';
+import { showNotification, showAuthError, hideNotification } from './src/notifications.js';
 
 let selectedFlightPlan = null;
 let flightPlans = [];
