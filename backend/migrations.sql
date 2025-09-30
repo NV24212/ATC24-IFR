@@ -99,6 +99,65 @@ BEGIN
 END;
 $$;
 
+-- Function to upsert Discord user data and fix auth errors
+DROP FUNCTION IF EXISTS public.upsert_discord_user(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TIMESTAMPTZ, TEXT);
+CREATE OR REPLACE FUNCTION public.upsert_discord_user(
+    p_discord_id TEXT,
+    p_username TEXT,
+    p_discriminator TEXT,
+    p_email TEXT,
+    p_avatar TEXT,
+    p_access_token TEXT,
+    p_refresh_token TEXT,
+    p_token_expires_at TIMESTAMPTZ,
+    p_vatsim_cid TEXT
+)
+RETURNS TABLE(
+    id UUID,
+    discord_id TEXT,
+    username TEXT,
+    email TEXT,
+    avatar TEXT,
+    is_admin BOOLEAN,
+    roles JSONB,
+    is_controller BOOLEAN
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    INSERT INTO public.discord_users (
+        discord_id, username, discriminator, email, avatar, access_token, refresh_token, token_expires_at, vatsim_cid, last_login, created_at, updated_at
+    ) VALUES (
+        p_discord_id, p_username, p_discriminator, p_email, p_avatar, p_access_token, p_refresh_token, p_token_expires_at, p_vatsim_cid, NOW(), NOW(), NOW()
+    )
+    ON CONFLICT (discord_id) DO UPDATE SET
+        username = EXCLUDED.username,
+        discriminator = EXCLUDED.discriminator,
+        email = EXCLUDED.email,
+        avatar = EXCLUDED.avatar,
+        access_token = EXCLUDED.access_token,
+        refresh_token = EXCLUDED.refresh_token,
+        token_expires_at = EXCLUDED.token_expires_at,
+        vatsim_cid = COALESCE(p_vatsim_cid, public.discord_users.vatsim_cid),
+        last_login = NOW(),
+        updated_at = NOW();
+
+    RETURN QUERY
+    SELECT
+        du.id,
+        du.discord_id,
+        du.username,
+        du.email,
+        du.avatar,
+        du.is_admin,
+        du.roles,
+        du.is_controller
+    FROM public.discord_users du WHERE du.discord_id = p_discord_id;
+END;
+$$;
+
+
 -- Function to get the leaderboard data
 DROP FUNCTION IF EXISTS public.get_clearance_leaderboard(INT);
 CREATE OR REPLACE FUNCTION public.get_clearance_leaderboard(p_limit INT)
@@ -174,6 +233,7 @@ $$;
 -- Permissions
 -- =============================================================================
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.upsert_discord_user(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TIMESTAMPTZ, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_clearance_leaderboard(INT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_clearances(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_daily_counts(TEXT) TO authenticated;
