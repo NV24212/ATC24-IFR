@@ -1851,135 +1851,185 @@ details.section {
   min-height: 140px;
 }
 
-/* Notification Toast System */
+/* Notification Popup System */
 .notification-overlay {
   position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 10000;
-  pointer-events: none;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.notification-overlay.show {
+  opacity: 1;
+  visibility: visible;
 }
 
 .notification-popup {
   background: var(--surface-color);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 16px 20px;
-  max-width: 450px;
-  box-shadow: var(--shadow-hover);
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  pointer-events: auto;
-  transform: translateY(150%);
+  border: 2px solid var(--border-color);
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  box-shadow: var(--shadow);
+  transform: scale(0.95); /* Modern, subtle scale */
   opacity: 0;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  overflow: hidden;
 }
 
 .notification-overlay.show .notification-popup {
-  transform: translateY(0);
+  transform: scale(1);
   opacity: 1;
 }
 
 .notification-popup::before {
   content: '';
   position: absolute;
-  bottom: 0;
+  top: 0;
   left: 0;
-  width: 100%;
+  right: 0;
   height: 3px;
-  transform: scaleX(0);
-  transition: transform 0.4s 0.2s ease;
-}
-
-.notification-overlay.show .notification-popup::before {
-    transform: scaleX(1);
+  background: linear-gradient(90deg, var(--primary-color), #ffd700);
 }
 
 .notification-icon {
-  width: 24px;
-  height: 24px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
+  margin: 0 auto 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 28px;
   font-weight: bold;
   color: #fff;
-  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
 }
 
 .notification-icon.success {
   background: linear-gradient(135deg, #4CAF50, #45a049);
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
 }
 
 .notification-icon.error {
   background: linear-gradient(135deg, #f44336, #d32f2f);
+  box-shadow: 0 4px 15px rgba(244, 67, 54, 0.3);
 }
 
 .notification-icon.warning {
   background: linear-gradient(135deg, #ff9800, #f57c00);
+  box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
 }
 
 .notification-icon.info {
   background: linear-gradient(135deg, var(--primary-color), #ffd700);
-}
-
-.notification-content {
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
+  box-shadow: 0 4px 15px rgba(245, 222, 64, 0.3);
 }
 
 .notification-title {
   color: var(--text-color);
-  font-size: 15px;
+  font-size: 22px;
   font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: -0.02em;
 }
 
 .notification-message {
   color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.5;
-  margin-top: 2px;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 30px;
 }
 
 .notification-close-btn {
-  display: none;
+  background: linear-gradient(135deg, var(--primary-color), #ffd700);
+  border: none;
+  border-radius: 12px; /* Standardized rounding */
+  padding: 14px 32px;
+  color: #000;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+}
+
+.notification-close-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.notification-close-btn:hover::before {
+  left: 100%;
+}
+
+.notification-close-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(245, 222, 64, 0.4);
+}
+
+.notification-close-btn:active {
+  transform: translateY(0);
+}
+
+/* Success specific styling */
+.notification-popup.success {
+  border-color: rgba(76, 175, 80, 0.3);
 }
 
 .notification-popup.success::before {
   background: linear-gradient(90deg, #4CAF50, #45a049);
 }
 
+/* Error specific styling */
+.notification-popup.error {
+  border-color: rgba(244, 67, 54, 0.3);
+}
+
 .notification-popup.error::before {
   background: linear-gradient(90deg, #f44336, #d32f2f);
 }
 
-.notification-popup.warning::before, .notification-popup.info::before {
-    background: linear-gradient(90deg, var(--primary-color), #ffd700);
-}
-
+/* Close button on top right */
 .notification-close-x {
+  position: absolute;
+  top: 15px;
+  right: 15px;
   background: none;
   border: none;
   color: var(--text-muted);
-  font-size: 16px;
+  font-size: 18px;
   cursor: pointer;
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-  margin-left: auto;
-  padding-left: 15px;
-  flex-shrink: 0;
 }
 
 .notification-close-x:hover {
@@ -2731,4 +2781,58 @@ details.section {
 
 .back-to-top-btn:active {
   transform: translate(-50%, 0) scale(1);
+}
+
+/* Loading Screen Styles */
+#loadingScreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--background-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+#loadingScreen.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loading-logo {
+  animation: pulse 2s infinite ease-in-out;
+}
+
+.loading-logo img {
+  width: 200px;
+  height: auto;
+}
+
+.loading-status {
+  margin-top: 20px;
+  color: var(--text-muted);
+  font-size: 16px;
+  letter-spacing: 1px;
+  animation: fadeIn 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }

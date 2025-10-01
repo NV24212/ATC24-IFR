@@ -46,11 +46,9 @@ def create_app(config_class=Config):
     app.register_blueprint(admin_bp)
 
     # --- Background Services ---
-    # Start the WebSocket client in a background thread to fetch flight plans.
-    # This runs in all environments to ensure data is always available.
-    websocket_thread = threading.Thread(target=run_websocket_in_background, daemon=True)
-    websocket_thread.start()
-    app.logger.info("Successfully started WebSocket client thread.")
+    if app.config.get("ENV") != "development":
+        websocket_thread = threading.Thread(target=run_websocket_in_background, daemon=True)
+        websocket_thread.start()
 
     # --- Error Handlers ---
     @app.errorhandler(404)
