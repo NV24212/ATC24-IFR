@@ -57,9 +57,6 @@ def discord_callback():
             'p_vatsim_cid': None  # Not available in this flow
         }).execute()
 
-        if response.error:
-            raise Exception(f"RPC upsert_discord_user failed: {response.error.message}")
-
         db_user = response.data[0]
         if not db_user:
             raise Exception("Failed to retrieve user from DB after upsert via RPC.")

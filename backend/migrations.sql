@@ -128,24 +128,37 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+    v_user_id UUID;
 BEGIN
-    INSERT INTO public.discord_users (
-        discord_id, username, discriminator, email, avatar, access_token, refresh_token, token_expires_at, vatsim_cid, last_login, created_at, updated_at
-    ) VALUES (
-        p_discord_id, p_username, p_discriminator, p_email, p_avatar, p_access_token, p_refresh_token, p_token_expires_at, p_vatsim_cid, NOW(), NOW(), NOW()
-    )
-    ON CONFLICT (discord_id) DO UPDATE SET
-        username = EXCLUDED.username,
-        discriminator = EXCLUDED.discriminator,
-        email = EXCLUDED.email,
-        avatar = EXCLUDED.avatar,
-        access_token = EXCLUDED.access_token,
-        refresh_token = EXCLUDED.refresh_token,
-        token_expires_at = EXCLUDED.token_expires_at,
-        vatsim_cid = COALESCE(p_vatsim_cid, public.discord_users.vatsim_cid),
-        last_login = NOW(),
-        updated_at = NOW();
+    -- Check if user exists by discord_id
+    SELECT discord_users.id INTO v_user_id FROM public.discord_users WHERE discord_users.discord_id = p_discord_id;
 
+    IF FOUND THEN
+        -- User exists, update their information
+        UPDATE public.discord_users
+        SET
+            username = p_username,
+            discriminator = p_discriminator,
+            email = p_email,
+            avatar = p_avatar,
+            access_token = p_access_token,
+            refresh_token = p_refresh_token,
+            token_expires_at = p_token_expires_at,
+            vatsim_cid = COALESCE(p_vatsim_cid, discord_users.vatsim_cid),
+            last_login = NOW(),
+            updated_at = NOW()
+        WHERE public.discord_users.id = v_user_id;
+    ELSE
+        -- User does not exist, insert a new record
+        INSERT INTO public.discord_users (
+            discord_id, username, discriminator, email, avatar, access_token, refresh_token, token_expires_at, vatsim_cid, last_login, created_at, updated_at
+        ) VALUES (
+            p_discord_id, p_username, p_discriminator, p_email, p_avatar, p_access_token, p_refresh_token, p_token_expires_at, p_vatsim_cid, NOW(), NOW(), NOW()
+        );
+    END IF;
+
+    -- Return the user's data
     RETURN QUERY
     SELECT
         du.id,
