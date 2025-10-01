@@ -86,7 +86,7 @@ def save_user_settings():
 
 @api_bp.route('/api/clearance-generated', methods=['POST'])
 def track_clearance_generation():
-    if not supabase: return jsonify({"success": False, "error": "Supabase not configured"}), 503
+    if not supabase_admin: return jsonify({"success": False, "error": "Supabase not configured"}), 503
     try:
         data = request.json
 
@@ -105,7 +105,13 @@ def track_clearance_generation():
             "discord_username": session.get('user', {}).get('username'),
             **data
         }
-        supabase.table('clearance_generations').insert(clearance_data).execute()
+        # Use the admin client to bypass RLS for system-level logging
+        response = supabase_admin.table('clearance_generations').insert(clearance_data).execute()
+
+        # The 'execute' method raises an exception on error, so this check is not needed
+        # and causes an AttributeError.
+        # if response.error:
+        #     raise Exception(response.error.message)
 
         log_to_db('info', f"Clearance generated for {clearance_data.get('callsign')}", data={'user': clearance_data.get('discord_username')})
         return jsonify({"success": True})
