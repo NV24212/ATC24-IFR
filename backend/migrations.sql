@@ -89,9 +89,7 @@ CREATE INDEX IF NOT EXISTS idx_debug_logs_timestamp ON public.debug_logs(timesta
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public
-AS $$
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
   IF auth.role() = 'authenticated' THEN
     RETURN (SELECT is_admin FROM public.discord_users WHERE id = auth.uid());
@@ -101,85 +99,11 @@ BEGIN
 END;
 $$;
 
--- Function to upsert Discord user data and fix auth errors
-DROP FUNCTION IF EXISTS public.upsert_discord_user(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TIMESTAMPTZ, TEXT);
-CREATE OR REPLACE FUNCTION public.upsert_discord_user(
-    p_discord_id TEXT,
-    p_username TEXT,
-    p_discriminator TEXT,
-    p_email TEXT,
-    p_avatar TEXT,
-    p_access_token TEXT,
-    p_refresh_token TEXT,
-    p_token_expires_at TIMESTAMPTZ,
-    p_vatsim_cid TEXT
-)
-RETURNS TABLE(
-    id UUID,
-    discord_id TEXT,
-    username TEXT,
-    email TEXT,
-    avatar TEXT,
-    is_admin BOOLEAN,
-    roles JSONB,
-    is_controller BOOLEAN
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-    v_user_id UUID;
-BEGIN
-    -- Check if user exists by discord_id
-    SELECT discord_users.id INTO v_user_id FROM public.discord_users WHERE discord_users.discord_id = p_discord_id;
-
-    IF FOUND THEN
-        -- User exists, update their information
-        UPDATE public.discord_users
-        SET
-            username = p_username,
-            discriminator = p_discriminator,
-            email = p_email,
-            avatar = p_avatar,
-            access_token = p_access_token,
-            refresh_token = p_refresh_token,
-            token_expires_at = p_token_expires_at,
-            vatsim_cid = COALESCE(p_vatsim_cid, discord_users.vatsim_cid),
-            last_login = NOW(),
-            updated_at = NOW()
-        WHERE public.discord_users.id = v_user_id;
-    ELSE
-        -- User does not exist, insert a new record
-        INSERT INTO public.discord_users (
-            discord_id, username, discriminator, email, avatar, access_token, refresh_token, token_expires_at, vatsim_cid, last_login, created_at, updated_at
-        ) VALUES (
-            p_discord_id, p_username, p_discriminator, p_email, p_avatar, p_access_token, p_refresh_token, p_token_expires_at, p_vatsim_cid, NOW(), NOW(), NOW()
-        );
-    END IF;
-
-    -- Return the user's data
-    RETURN QUERY
-    SELECT
-        du.id,
-        du.discord_id,
-        du.username,
-        du.email,
-        du.avatar,
-        du.is_admin,
-        du.roles,
-        du.is_controller
-    FROM public.discord_users du WHERE du.discord_id = p_discord_id;
-END;
-$$;
-
-
 -- Function to get the leaderboard data
 DROP FUNCTION IF EXISTS public.get_clearance_leaderboard(INT);
-CREATE OR REPLACE FUNCTION public.get_clearance_leaderboard(p_limit INT DEFAULT 25)
+CREATE OR REPLACE FUNCTION get_clearance_leaderboard(p_limit INT)
 RETURNS TABLE(rank BIGINT, discord_id TEXT, username TEXT, avatar TEXT, clearance_count BIGINT)
 LANGUAGE plpgsql
-SET search_path = public
 AS $$
 BEGIN
     RETURN QUERY
@@ -203,10 +127,9 @@ $$;
 
 -- Function to get clearances for a specific user
 DROP FUNCTION IF EXISTS public.get_user_clearances(UUID);
-CREATE OR REPLACE FUNCTION public.get_user_clearances(p_user_id UUID)
+CREATE OR REPLACE FUNCTION get_user_clearances(p_user_id UUID)
 RETURNS TABLE(id UUID, callsign TEXT, destination TEXT, clearance_text TEXT, created_at TIMESTAMPTZ)
 LANGUAGE plpgsql
-SET search_path = public
 AS $$
 BEGIN
     RETURN QUERY
@@ -226,10 +149,9 @@ END;
 $$;
 
 -- Function to get daily counts for a given table
-CREATE OR REPLACE FUNCTION public.get_daily_counts(table_name TEXT)
+CREATE OR REPLACE FUNCTION get_daily_counts(table_name TEXT)
 RETURNS TABLE(date DATE, count BIGINT)
 LANGUAGE plpgsql
-SET search_path = public
 AS $$
 BEGIN
     RETURN QUERY EXECUTE format('
@@ -252,10 +174,9 @@ $$;
 -- Permissions
 -- =============================================================================
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.upsert_discord_user(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TIMESTAMPTZ, TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_clearance_leaderboard(INT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_user_clearances(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_daily_counts(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_clearance_leaderboard() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_clearances(p_user_id UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_daily_counts(table_name TEXT) TO authenticated;
 
 -- =============================================================================
 -- Row Level Security (RLS) -- THE DEFINITIVE FIX
@@ -265,8 +186,7 @@ GRANT EXECUTE ON FUNCTION public.get_daily_counts(TEXT) TO authenticated;
 ALTER TABLE public.discord_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clearance_generations ENABLE ROW LEVEL SECURITY;
 -- RLS on admin_settings is disabled in favor of direct grants, as the API endpoint is admin-protected.
--- RLS on admin_settings is enabled and controlled by policy.
-ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_settings DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.flight_plans_received ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.page_visits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
@@ -276,7 +196,6 @@ ALTER TABLE public.debug_logs ENABLE ROW LEVEL SECURITY;
 -- Force RLS on all tables
 ALTER TABLE public.discord_users FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.clearance_generations FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.admin_settings FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.flight_plans_received FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.page_visits FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.user_sessions FORCE ROW LEVEL SECURITY;
@@ -313,7 +232,8 @@ CREATE POLICY "Allow admin full select access" ON public.clearance_generations F
 CREATE POLICY "Allow users to see their own clearances" ON public.clearance_generations FOR SELECT TO authenticated USING (user_id = auth.uid());
 
 -- admin_settings
-CREATE POLICY "Allow admin full access on admin_settings" ON public.admin_settings FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+-- admin_settings (RLS is disabled, using direct grants instead)
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.admin_settings TO authenticated;
 
 -- flight_plans_received
 CREATE POLICY "Allow public read access" ON public.flight_plans_received FOR SELECT USING (true);

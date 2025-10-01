@@ -6,6 +6,15 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <div id="loadingScreen">
+    <div class="loading-logo">
+      <img src="/logo.png" alt="Loading..." />
+    </div>
+    <div class="loading-status" id="loadingStatus">
+      Initializing...
+    </div>
+  </div>
+
   <button id="backToTopBtn" class="back-to-top-btn hidden">
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="24" height="24">
       <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
@@ -251,12 +260,10 @@
 <!-- Notification Popup -->
 <div class="notification-overlay" id="notificationOverlay">
   <div class="notification-popup" id="notificationPopup">
-    <div class="notification-icon" id="notificationIcon">✓</div>
-    <div class="notification-content">
-      <div class="notification-title" id="notificationTitle">Operation Successful</div>
-      <div class="notification-message" id="notificationMessage">Your request has been completed successfully.</div>
-    </div>
     <button class="notification-close-x">×</button>
+    <div class="notification-icon" id="notificationIcon">✓</div>
+    <div class="notification-title" id="notificationTitle">Operation Successful</div>
+    <div class="notification-message" id="notificationMessage">Your request has been completed successfully.</div>
     <button class="notification-close-btn">Close</button>
   </div>
 </div>

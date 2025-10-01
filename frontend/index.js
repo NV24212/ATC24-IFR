@@ -15,10 +15,13 @@ import {
     loadUserClearances as apiLoadUserClearances,
     getSystemHealth
 } from './src/api.js';
-import { showNotification, showAuthError, hideNotification } from './src/notifications.js';
+import { showNotification, showAuthError } from './src/notifications.js';
 
 let selectedFlightPlan = null;
+let selectedFlightPlanCallsign = null;
 let flightPlans = [];
+let selectedAtcCallsign = null;
+
 let adminSettings = {
   clearanceFormat: {
     includeAtis: true,
@@ -182,8 +185,14 @@ function displayFlightPlans() {
     container.innerHTML = '<div class="no-plans">No flight plans received yet...</div>';
     return;
   }
+
+  if (selectedFlightPlanCallsign) {
+    const newSelectedPlan = flightPlans.find(p => p.callsign === selectedFlightPlanCallsign);
+    selectedFlightPlan = newSelectedPlan || null;
+  }
+
   container.innerHTML = flightPlans.map((plan, index) => `
-    <div class="flight-plan ${selectedFlightPlan === plan ? 'selected' : ''}" data-plan-index="${index}">
+    <div class="flight-plan ${selectedFlightPlan && selectedFlightPlan.callsign === plan.callsign ? 'selected' : ''}" data-plan-index="${index}">
       <div class="flight-plan-header">
         <span class="flight-plan-callsign">${plan.callsign || 'Unknown'}</span>
         <span class="flight-plan-aircraft">${plan.aircraft || 'N/A'}</span>
@@ -204,10 +213,13 @@ function displayFlightPlans() {
 
 function selectFlightPlan(index) {
   selectedFlightPlan = flightPlans[index];
+  selectedFlightPlanCallsign = selectedFlightPlan ? selectedFlightPlan.callsign : null;
+
   document.querySelectorAll('.flight-plan').forEach((el, i) => {
     el.classList.toggle('selected', i === index);
   });
-  document.getElementById('generateBtn').disabled = false;
+
+  document.getElementById('generateBtn').disabled = !selectedFlightPlan;
 }
 
 async function generateClearance() {
@@ -518,6 +530,13 @@ async function loadControllers() {
       select.appendChild(option);
     });
     select.innerHTML += '<option value="manual">-- Enter Manually --</option>';
+
+    if (selectedAtcCallsign) {
+      if ([...select.options].some(opt => opt.value === selectedAtcCallsign)) {
+        select.value = selectedAtcCallsign;
+      }
+    }
+
     if (cache.source === 'live') {
       statusText.textContent = `${onlineControllers.length} online | Live`;
       statusLight.className = 'status-light online';
@@ -541,6 +560,7 @@ async function loadControllers() {
 
 function onControllerSelect() {
   const select = document.getElementById('groundCallsignSelect');
+  selectedAtcCallsign = select.value;
   const manualInput = document.getElementById('groundCallsignManual');
   const airportSelect = document.getElementById('departureAirportSelect');
   if (select.value === 'manual') {
@@ -724,10 +744,15 @@ function backToTop() {
 }
 
 async function initializeApp() {
+  const loadingScreen = document.getElementById('loadingScreen');
+  const loadingStatus = document.getElementById('loadingStatus');
+  const mainContainer = document.querySelector('.container');
+
+  mainContainer.style.opacity = '0'; // Hide main content initially
+
   try {
     handleSimpleRouting();
 
-    // Attach all event listeners programmatically to avoid scope issues
     document.getElementById('backToTopBtn')?.addEventListener('click', backToTop);
     document.querySelector('.auth-logged-out .leaderboard-btn')?.addEventListener('click', showLeaderboard);
     document.querySelector('.discord-login-main')?.addEventListener('click', loginWithDiscord);
@@ -735,8 +760,6 @@ async function initializeApp() {
     document.getElementById('profileBtn')?.addEventListener('click', showProfile);
     document.querySelector('.logout-btn')?.addEventListener('click', () => logout(updateAuthUI));
     document.getElementById('refreshPlansBtn')?.addEventListener('click', loadFlightPlans);
-
-    // Delegated event listener for flight plans
     document.getElementById('flightPlans')?.addEventListener('click', (event) => {
         const flightPlanElement = event.target.closest('.flight-plan');
         if (flightPlanElement) {
@@ -746,7 +769,6 @@ async function initializeApp() {
             }
         }
     });
-
     document.getElementById('generateBtn')?.addEventListener('click', generateClearance);
     document.getElementById('refreshControllersBtn')?.addEventListener('click', loadControllers);
     document.getElementById('groundCallsignSelect')?.addEventListener('change', onControllerSelect);
@@ -756,19 +778,29 @@ async function initializeApp() {
     document.querySelector('#leaderboardModal .refresh-btn')?.addEventListener('click', loadLeaderboard);
     document.querySelector('#profileModal .modal-close')?.addEventListener('click', hideProfile);
 
+    loadingStatus.textContent = 'Authenticating...';
     const authHandled = checkAuthParams(updateAuthUI);
     if (!authHandled) {
-      checkAuthStatus(updateAuthUI);
+      await checkAuthStatus(updateAuthUI);
     }
 
-    loadControllers();
-    loadFlightPlans();
-    loadAtis();
+    loadingStatus.textContent = 'Loading ATC Data...';
+    await Promise.all([
+        loadControllers(),
+        loadFlightPlans(),
+        loadAtis(),
+        loadPublicSettings()
+    ]);
+
+    loadingStatus.textContent = 'Finalizing...';
+
     loadLeaderboard();
     loadUserSettings();
-
-    await loadPublicSettings();
     updateUIFromSettings();
+
+    // Hide loading screen and show app
+    loadingScreen.classList.add('hidden');
+    mainContainer.style.opacity = '1';
 
     const healthData = await getSystemHealth();
     if (healthData.environment === 'serverless') {
@@ -783,7 +815,8 @@ async function initializeApp() {
 
   } catch (error) {
     console.error("Initialization failed:", error);
-    showNotification('error', 'Application Error', 'The application could not start correctly. Please refresh the page.');
+    loadingStatus.innerHTML = `Error: Could not connect to the server.<br>Please try refreshing the page.`;
+    loadingScreen.querySelector('.loading-logo').style.animation = 'none';
   }
 }
 
