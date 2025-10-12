@@ -197,7 +197,7 @@ CREATE OR REPLACE FUNCTION public.update_user_from_discord_login(
     in_avatar TEXT,
     in_vatsim_cid TEXT
 )
-RETURNS TABLE(id UUID, discord_id TEXT, username TEXT, email TEXT, avatar TEXT, is_admin BOOLEAN, roles JSONB, vatsim_cid TEXT, is_controller BOOLEAN)
+RETURNS TABLE(id UUID, out_discord_id TEXT, username TEXT, email TEXT, avatar TEXT, is_admin BOOLEAN, roles JSONB, vatsim_cid TEXT, is_controller BOOLEAN)
 LANGUAGE plpgsql AS $$
 BEGIN
     -- Use ON CONFLICT to handle both INSERT and UPDATE in one atomic operation.
@@ -225,7 +225,7 @@ BEGIN
 
     -- Return the final state of the user.
     RETURN QUERY
-    SELECT du.id, du.discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles, du.vatsim_cid, du.is_controller
+    SELECT du.id, du.discord_id as out_discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles, du.vatsim_cid, du.is_controller
     FROM public.discord_users AS du
     WHERE du.discord_id = in_discord_id;
 END;
