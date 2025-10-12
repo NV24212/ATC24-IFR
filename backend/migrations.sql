@@ -1,43 +1,44 @@
 -- =============================================================================
 -- ATC24 Database Migration Script (Rewritten for Clarity and Idempotency)
--- Version: 2.1
+-- Version: 2.2
 -- Description: This script sets up the entire database schema from scratch.
--- It is designed to be run on a clean database or to safely reset an
--- existing one by dropping objects before creating them.
+-- It follows the correct dependency order: drop tables (which drops dependent
+-- policies), then drop functions, then recreate everything.
 -- =============================================================================
 
 -- Preliminaries
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- =============================================================================
--- Section 1: Function Drops
--- Drop all functions first to avoid signature/return type conflicts.
+-- Section 1: Table Drops
+-- Drop all tables with CASCADE. This removes the tables and any dependent
+-- objects, such as Row Level Security (RLS) policies, which solves the
+-- function dependency issue.
 -- =============================================================================
-DROP FUNCTION IF EXISTS get_clearance_leaderboard(integer);
-DROP FUNCTION IF EXISTS update_user_from_discord_login(text,text,text,text,text);
-DROP FUNCTION IF EXISTS upsert_discord_user(text,text,text,text,text,text,text,timestamp with time zone,text);
-DROP FUNCTION IF EXISTS is_admin();
-DROP FUNCTION IF EXISTS upsert_user_session(text, uuid, text, integer, integer);
-DROP FUNCTION IF EXISTS get_daily_counts(text);
-DROP FUNCTION IF EXISTS get_user_clearances(uuid);
+DROP TABLE IF EXISTS public.admin_settings CASCADE;
+DROP TABLE IF EXISTS public.debug_logs CASCADE;
+DROP TABLE IF EXISTS public.admin_activities CASCADE;
+DROP TABLE IF EXISTS public.flight_plans_received CASCADE;
+DROP TABLE IF EXISTS public.clearance_generations CASCADE;
+DROP TABLE IF EXISTS public.page_visits CASCADE;
+DROP TABLE IF EXISTS public.user_sessions CASCADE;
+DROP TABLE IF EXISTS public.discord_users CASCADE;
 
-
 -- =============================================================================
--- Section 2: Table Drops
--- Drop all tables in reverse order of dependency to ensure a clean slate.
+-- Section 2: Function Drops
+-- Now that tables and their dependent RLS policies are gone, we can safely
+-- drop the functions without "depends on" errors.
 -- =============================================================================
-DROP TABLE IF EXISTS admin_settings CASCADE;
-DROP TABLE IF EXISTS debug_logs CASCADE;
-DROP TABLE IF EXISTS admin_activities CASCADE;
-DROP TABLE IF EXISTS flight_plans_received CASCADE;
-DROP TABLE IF EXISTS clearance_generations CASCADE;
-DROP TABLE IF EXISTS page_visits CASCADE;
-DROP TABLE IF EXISTS user_sessions CASCADE;
-DROP TABLE IF EXISTS discord_users CASCADE;
+DROP FUNCTION IF EXISTS public.get_clearance_leaderboard(integer);
+DROP FUNCTION IF EXISTS public.update_user_from_discord_login(text,text,text,text,text);
+DROP FUNCTION IF EXISTS public.is_admin();
+DROP FUNCTION IF EXISTS public.upsert_user_session(text, uuid, text, integer, integer);
+DROP FUNCTION IF EXISTS public.get_daily_counts(text);
+DROP FUNCTION IF EXISTS public.get_user_clearances(uuid);
 
 -- =============================================================================
 -- Section 3: Table Creations
--- Define the schema for all tables and their corresponding indexes.
+-- Recreate the schema for all tables and their corresponding indexes.
 -- =============================================================================
 
 -- Table: discord_users
@@ -166,7 +167,7 @@ CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
   IF auth.role() = 'authenticated' THEN
-    RETURN (SELECT is_admin FROM public.discord_users WHERE id = auth.uid());
+    RETURN (SELECT du.is_admin FROM public.discord_users du WHERE du.id = auth.uid());
   ELSE
     RETURN FALSE;
   END IF;
@@ -193,7 +194,6 @@ CREATE OR REPLACE FUNCTION public.update_user_from_discord_login(p_discord_id TE
 RETURNS TABLE(id UUID, discord_id TEXT, username TEXT, email TEXT, avatar TEXT, is_admin BOOLEAN, roles JSONB, vatsim_cid TEXT, is_controller BOOLEAN)
 LANGUAGE plpgsql AS $$
 BEGIN
-    -- This logic handles both new users and existing users, including activating pending admin accounts.
     INSERT INTO public.discord_users (discord_id, username, email, avatar, vatsim_cid)
     VALUES (p_discord_id, p_username, p_email, p_avatar, p_vatsim_cid)
     ON CONFLICT (discord_id) DO UPDATE SET
@@ -205,13 +205,11 @@ BEGIN
         updated_at = NOW()
     WHERE public.discord_users.discord_id = p_discord_id;
 
-    -- Handle pending admin activation by checking for a placeholder user
     UPDATE public.discord_users
     SET is_admin = TRUE, roles = '["admin"]'::jsonb
     WHERE public.discord_users.discord_id = p_discord_id AND EXISTS (
         SELECT 1 FROM public.discord_users pending WHERE pending.username = p_username AND pending.discord_id LIKE 'pending_%' AND pending.is_admin = TRUE
     );
-    -- Clean up the placeholder user
     DELETE FROM public.discord_users WHERE public.discord_users.username = p_username AND public.discord_users.discord_id LIKE 'pending_%';
 
     RETURN QUERY SELECT du.id, du.discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles, du.vatsim_cid, du.is_controller FROM public.discord_users AS du WHERE du.discord_id = p_discord_id;
@@ -265,7 +263,7 @@ $$;
 
 -- =============================================================================
 -- Section 5: Row Level Security (RLS)
--- Secure tables by default.
+-- Re-apply all RLS policies now that tables and functions are recreated.
 -- =============================================================================
 
 ALTER TABLE public.discord_users ENABLE ROW LEVEL SECURITY;
@@ -325,5 +323,5 @@ ON CONFLICT (discord_id) DO UPDATE SET is_admin = TRUE, roles = '["admin", "supe
 -- =============================================================================
 DO $$
 BEGIN
-    RAISE NOTICE 'ATC24 Database Migration Script (v2.1) completed successfully!';
+    RAISE NOTICE 'ATC24 Database Migration Script (v2.2) completed successfully!';
 END $$;
