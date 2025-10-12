@@ -927,6 +927,7 @@ DELETE FROM user_sessions WHERE session_id = 'test-session-123';
 -- FUNCTION: get_clearance_leaderboard
 -- Gets the top users by clearance count
 -- =============================================================================
+DROP FUNCTION IF EXISTS get_clearance_leaderboard(integer);
 CREATE OR REPLACE FUNCTION get_clearance_leaderboard(
     p_limit INT DEFAULT 25
 )
