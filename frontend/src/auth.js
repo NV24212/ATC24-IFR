@@ -3,7 +3,7 @@ import { showNotification, showAuthError } from './notifications.js';
 
 let currentUser = null;
 
-export async function checkAuthStatus(updateUI) {
+export async function checkAuthStatus(updateUI, options = { requireAuth: false }) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/auth/user`, {
       credentials: 'include',
@@ -17,15 +17,24 @@ export async function checkAuthStatus(updateUI) {
       } else {
         currentUser = null;
         updateUI(false);
+        if (options.requireAuth) {
+          loginWithDiscord();
+        }
       }
     } else {
       currentUser = null;
       updateUI(false);
+      if (options.requireAuth) {
+        loginWithDiscord();
+      }
     }
   } catch (error) {
     console.error('Failed to check auth status:', error);
     currentUser = null;
     updateUI(false);
+    if (options.requireAuth) {
+      loginWithDiscord();
+    }
   }
 }
 

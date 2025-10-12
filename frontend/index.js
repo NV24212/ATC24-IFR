@@ -781,7 +781,7 @@ async function initializeApp() {
     loadingStatus.textContent = 'Authenticating...';
     const authHandled = checkAuthParams(updateAuthUI);
     if (!authHandled) {
-      await checkAuthStatus(updateAuthUI);
+      await checkAuthStatus(updateAuthUI, { requireAuth: true });
     }
 
     loadingStatus.textContent = 'Loading ATC Data...';
