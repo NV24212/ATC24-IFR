@@ -315,6 +315,7 @@ $$;
 -- FUNCTION: upsert_discord_user (FIXED to avoid ambiguous columns)
 -- Creates or updates Discord user data with admin check
 -- =============================================================================
+DROP FUNCTION IF EXISTS upsert_discord_user(text,text,text,text,text,text,text,timestamp with time zone,text);
 CREATE OR REPLACE FUNCTION upsert_discord_user(
     p_discord_id TEXT,
     p_username TEXT,
