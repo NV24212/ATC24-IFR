@@ -2,6 +2,7 @@ import time
 from datetime import datetime, timezone
 from flask import Blueprint, session, redirect, request, jsonify, current_app
 from requests_oauthlib import OAuth2Session
+from postgrest import APIError
 
 from .config import Config
 from .database import supabase_admin
@@ -57,9 +58,6 @@ def discord_callback():
             'p_vatsim_cid': None  # Not available in this flow
         }).execute()
 
-        if response.error:
-            raise Exception(f"RPC upsert_discord_user failed: {response.error.message}")
-
         db_user = response.data[0]
         if not db_user:
             raise Exception("Failed to retrieve user from DB after upsert via RPC.")
@@ -72,6 +70,9 @@ def discord_callback():
             'is_admin': db_user.get('is_admin', False),
             'roles': db_user.get('roles', [])
         }
+    except APIError as e:
+        current_app.logger.error(f"Supabase API Error: {e.message}", exc_info=True)
+        return redirect(f"{auth_origin}/?error=db_error")
     except Exception as e:
         current_app.logger.error(f"Supabase user upsert error: {e}", exc_info=True)
         return redirect(f"{auth_origin}/?error=db_error")
