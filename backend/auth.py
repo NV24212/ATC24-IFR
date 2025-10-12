@@ -46,11 +46,11 @@ def discord_callback():
 
         # Call the correct RPC function to handle pending admin users and user updates
         response = supabase_admin.rpc('update_user_from_discord_login', {
-            'p_discord_id': user_json['id'],
-            'p_username': user_json['username'],
-            'p_email': user_json.get('email'),
-            'p_avatar': avatar_url,
-            'p_vatsim_cid': None
+            'in_discord_id': user_json['id'],
+            'in_username': user_json['username'],
+            'in_email': user_json.get('email'),
+            'in_avatar': avatar_url,
+            'in_vatsim_cid': None
         }).execute()
 
         db_user = response.data[0]
