@@ -162,6 +162,25 @@ CREATE INDEX IF NOT EXISTS idx_admin_activities_created_at ON admin_activities(c
 CREATE INDEX IF NOT EXISTS idx_admin_activities_action ON admin_activities(action);
 
 -- =============================================================================
+-- TABLE: debug_logs
+-- Stores debug logs from the application for diagnostics
+-- =============================================================================
+CREATE TABLE debug_logs (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    level TEXT NOT NULL,
+    message TEXT NOT NULL,
+    source TEXT,
+    data JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create indexes for debug_logs
+CREATE INDEX IF NOT EXISTS idx_debug_logs_timestamp ON debug_logs(timestamp);
+CREATE INDEX IF NOT EXISTS idx_debug_logs_level ON debug_logs(level);
+CREATE INDEX IF NOT EXISTS idx_debug_logs_source ON debug_logs(source);
+
+-- =============================================================================
 -- TABLE: admin_settings
 -- Stores persistent admin panel settings
 -- =============================================================================
