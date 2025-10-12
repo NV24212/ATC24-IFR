@@ -59,7 +59,7 @@ def discord_callback():
 
         session['user'] = {
             'id': db_user['id'],
-            'discord_id': db_user['discord_id'],
+            'discord_id': db_user['out_discord_id'],
             'username': db_user['username'],
             'avatar': db_user['avatar'],
             'is_admin': db_user.get('is_admin', False),
