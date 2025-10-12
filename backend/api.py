@@ -124,9 +124,7 @@ def get_admin_users():
     if not session.get('user', {}).get('is_admin'):
         return jsonify({"error": "Unauthorized"}), 403
     try:
-        response = supabase.rpc('get_admin_users').execute()
-        if response.error:
-            raise Exception(f"RPC get_admin_users failed: {response.error.message}")
+        response = supabase_admin.rpc('get_admin_users').execute()
         return jsonify({"users": response.data or []})
     except Exception as e:
         current_app.logger.error(f"Failed to fetch admin users: {e}", exc_info=True)
@@ -144,13 +142,10 @@ def add_admin_user():
         if not username:
             return jsonify({"error": "Username is required"}), 400
 
-        response = supabase.rpc('add_admin_user_by_username', {
+        response = supabase_admin.rpc('add_admin_user_by_username', {
             'p_username': username,
             'p_roles': roles
         }).execute()
-
-        if response.error:
-            raise Exception(f"RPC add_admin_user_by_username failed: {response.error.message}")
 
         result = response.data[0]
         log_to_db('info', f"Admin access granted to {username}", data={'granted_by': session.get('user', {}).get('username'), 'result': result['message']})
@@ -171,9 +166,7 @@ def remove_admin_user(user_id):
         return jsonify({"error": "You cannot remove yourself as an admin."}), 400
 
     try:
-        response = supabase.rpc('remove_admin_user', {'p_user_id': str(user_id)}).execute()
-        if response.error:
-            raise Exception(f"RPC remove_admin_user failed: {response.error.message}")
+        response = supabase_admin.rpc('remove_admin_user', {'p_user_id': str(user_id)}).execute()
 
         result = response.data[0]
         log_to_db('warn', f"Admin access removed for user ID {user_id}", data={'removed_by': session.get('user', {}).get('username')})
@@ -202,7 +195,7 @@ def get_admin_settings():
     if not session.get('user', {}).get('is_admin'):
         return jsonify({"error": "Unauthorized"}), 403
     try:
-        response = supabase.from_('admin_settings').select('settings').eq('id', 1).execute()
+        response = supabase_admin.from_('admin_settings').select('settings').eq('id', 1).execute()
         if response.data:
             return jsonify(response.data[0].get('settings', {}))
         else:
@@ -218,10 +211,9 @@ def save_admin_settings():
         return jsonify({"error": "Unauthorized"}), 403
     try:
         new_settings = request.json
-        response = supabase.from_('admin_settings').upsert({
+        response = supabase_admin.from_('admin_settings').upsert({
             'id': 1,
             'settings': new_settings,
-            'updated_at': 'now()'
         }).execute()
 
         log_to_db('info', "Admin settings saved", data={'saved_by': session.get('user', {}).get('username')})
@@ -241,12 +233,12 @@ def get_admin_analytics():
         return jsonify({"error": "Unauthorized"}), 403
     try:
         # Fetch total counts
-        total_visits_res = supabase.from_('page_visits').select('id', count='exact').execute()
-        total_clearances_res = supabase.from_('clearance_generations').select('id', count='exact').execute()
-        total_flight_plans_res = supabase.from_('flight_plans_received').select('id', count='exact').execute()
+        total_visits_res = supabase_admin.from_('page_visits').select('id', count='exact').execute()
+        total_clearances_res = supabase_admin.from_('clearance_generations').select('id', count='exact').execute()
+        total_flight_plans_res = supabase_admin.from_('flight_plans_received').select('id', count='exact').execute()
 
         # Use the optimized SQL function for daily visits
-        daily_visits_res = supabase.rpc('get_daily_counts', {'table_name': 'page_visits'}).execute()
+        daily_visits_res = supabase_admin.rpc('get_daily_counts', {'table_name': 'page_visits'}).execute()
 
         # Format daily visits data for the frontend
         daily_visits_dict = {item['date']: item['count'] for item in daily_visits_res.data} if daily_visits_res.data else {}
@@ -269,8 +261,8 @@ def get_chart_data():
         return jsonify({"error": "Unauthorized"}), 403
     try:
         # Use the new SQL function for efficient data aggregation
-        daily_visits_res = supabase.rpc('get_daily_counts', {'table_name': 'page_visits'}).execute()
-        daily_clearances_res = supabase.rpc('get_daily_counts', {'table_name': 'clearance_generations'}).execute()
+        daily_visits_res = supabase_admin.rpc('get_daily_counts', {'table_name': 'page_visits'}).execute()
+        daily_clearances_res = supabase_admin.rpc('get_daily_counts', {'table_name': 'clearance_generations'}).execute()
 
         chart_data = {
             "daily_visits": daily_visits_res.data or [],
@@ -288,7 +280,7 @@ def get_debug_logs():
         return jsonify({"error": "Unauthorized"}), 403
     try:
         level = request.args.get('level', 'all')
-        query = supabase.from_('debug_logs').select('*').order('timestamp', desc=True).limit(100)
+        query = supabase_admin.from_('debug_logs').select('*').order('timestamp', desc=True).limit(100)
 
         if level != 'all':
             query = query.eq('level', level)
@@ -306,8 +298,8 @@ def reset_analytics_data():
     if not session.get('user', {}).get('is_admin'):
         return jsonify({"error": "Unauthorized"}), 403
     try:
-        supabase.from_('page_visits').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
-        supabase.from_('clearance_generations').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+        supabase_admin.from_('page_visits').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+        supabase_admin.from_('clearance_generations').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
         return jsonify({"success": True, "message": "Analytics data has been reset."})
     except Exception as e:
         current_app.logger.error(f"Failed to reset analytics data: {e}", exc_info=True)
@@ -323,7 +315,7 @@ def get_current_users():
         time_threshold = datetime.utcnow() - timedelta(minutes=5)
 
         # Get active sessions from page visits
-        active_visits_res = supabase.from_('page_visits').select('session_id, created_at').gt('created_at', time_threshold.isoformat()).execute()
+        active_visits_res = supabase_admin.from_('page_visits').select('session_id, created_at').gt('created_at', time_threshold.isoformat()).execute()
 
         sessions = {}
         if active_visits_res.data:
@@ -342,7 +334,7 @@ def get_current_users():
                     sessions[sid]['last_activity'] = visit['created_at']
 
         # Get recent clearances
-        recent_clearances_res = supabase.from_('clearance_generations').select('session_id, created_at').gt('created_at', time_threshold.isoformat()).execute()
+        recent_clearances_res = supabase_admin.from_('clearance_generations').select('session_id, created_at').gt('created_at', time_threshold.isoformat()).execute()
 
         if recent_clearances_res.data:
             for clearance in recent_clearances_res.data:
@@ -391,11 +383,11 @@ def get_table_data(table_name):
         offset = int(request.args.get('offset', 0))
 
         # Get total count
-        count_res = supabase.from_(table_name).select('id', count='exact').execute()
+        count_res = supabase_admin.from_(table_name).select('id', count='exact').execute()
         total_count = count_res.count if count_res.count is not None else 0
 
         # Get paginated data
-        data_res = supabase.from_(table_name).select('*').order('created_at', desc=True).range(offset, offset + limit - 1).execute()
+        data_res = supabase_admin.from_(table_name).select('*').order('created_at', desc=True).range(offset, offset + limit - 1).execute()
 
         return jsonify({
             "data": data_res.data or [],

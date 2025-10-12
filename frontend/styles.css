@@ -2451,6 +2451,10 @@ details.section {
   margin-bottom: 30px;
 }
 
+.login-container .discord-login-btn {
+  display: inline-flex;
+}
+
 .auth-loading-message {
     color: var(--text-muted);
     margin-bottom: 30px;
