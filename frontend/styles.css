@@ -38,24 +38,14 @@ body {
 }
 
 .header {
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 40px;
   padding-bottom: 30px;
   border-bottom: 2px solid var(--border-color);
   position: relative;
   overflow: hidden;
-}
-
-.header::before {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 0;
-  height: 2px;
-  background: var(--primary-color);
-  transform: translateX(-50%);
-  animation: expandLine 0.5s ease-out forwards;
 }
 
 @keyframes expandLine {
@@ -90,7 +80,7 @@ body {
 .section {
   background: var(--surface-color);
   border-radius: 16px;
-  padding: 40px; /* Increased whitespace */
+  padding: 20px;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -212,7 +202,7 @@ body {
 }
 
 .config-group {
-  margin-bottom: 25px;
+  margin-bottom: 15px;
   animation: slideInUp 0.3s ease-out;
   animation-fill-mode: both;
   position: relative;
@@ -841,7 +831,6 @@ input[type="text"]::placeholder {
 .discord-login-btn.discord-login-main {
   color: white;
   border-color: var(--primary-color);
-  animation: glowing-border 2.5s ease-in-out infinite;
 }
 
 .discord-login-btn.discord-login-main svg path {
