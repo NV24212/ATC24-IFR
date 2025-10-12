@@ -190,29 +190,44 @@ END;
 $$;
 
 -- Function to update user on Discord login (FIXED for ambiguity)
-CREATE OR REPLACE FUNCTION public.update_user_from_discord_login(p_discord_id TEXT, p_username TEXT, p_email TEXT, p_avatar TEXT, p_vatsim_cid TEXT)
+CREATE OR REPLACE FUNCTION public.update_user_from_discord_login(
+    in_discord_id TEXT,
+    in_username TEXT,
+    in_email TEXT,
+    in_avatar TEXT,
+    in_vatsim_cid TEXT
+)
 RETURNS TABLE(id UUID, discord_id TEXT, username TEXT, email TEXT, avatar TEXT, is_admin BOOLEAN, roles JSONB, vatsim_cid TEXT, is_controller BOOLEAN)
 LANGUAGE plpgsql AS $$
 BEGIN
-    INSERT INTO public.discord_users (discord_id, username, email, avatar, vatsim_cid)
-    VALUES (p_discord_id, p_username, p_email, p_avatar, p_vatsim_cid)
+    -- Use ON CONFLICT to handle both INSERT and UPDATE in one atomic operation.
+    INSERT INTO public.discord_users (discord_id, username, email, avatar, vatsim_cid, last_login, updated_at)
+    VALUES (in_discord_id, in_username, in_email, in_avatar, in_vatsim_cid, NOW(), NOW())
     ON CONFLICT (discord_id) DO UPDATE SET
         username = EXCLUDED.username,
         email = EXCLUDED.email,
         avatar = EXCLUDED.avatar,
         vatsim_cid = COALESCE(EXCLUDED.vatsim_cid, public.discord_users.vatsim_cid),
         last_login = NOW(),
-        updated_at = NOW()
-    WHERE public.discord_users.discord_id = p_discord_id;
+        updated_at = NOW();
 
+    -- After the user is guaranteed to exist, handle pending admin activation.
+    -- This checks if a placeholder admin was created for this username.
     UPDATE public.discord_users
     SET is_admin = TRUE, roles = '["admin"]'::jsonb
-    WHERE public.discord_users.discord_id = p_discord_id AND EXISTS (
-        SELECT 1 FROM public.discord_users pending WHERE pending.username = p_username AND pending.discord_id LIKE 'pending_%' AND pending.is_admin = TRUE
+    WHERE public.discord_users.discord_id = in_discord_id AND EXISTS (
+        SELECT 1 FROM public.discord_users AS pending
+        WHERE pending.username = in_username AND pending.discord_id LIKE 'pending_%' AND pending.is_admin = TRUE
     );
-    DELETE FROM public.discord_users WHERE public.discord_users.username = p_username AND public.discord_users.discord_id LIKE 'pending_%';
 
-    RETURN QUERY SELECT du.id, du.discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles, du.vatsim_cid, du.is_controller FROM public.discord_users AS du WHERE du.discord_id = p_discord_id;
+    -- Clean up the placeholder user now that the real user is activated.
+    DELETE FROM public.discord_users WHERE public.discord_users.username = in_username AND public.discord_users.discord_id LIKE 'pending_%';
+
+    -- Return the final state of the user.
+    RETURN QUERY
+    SELECT du.id, du.discord_id, du.username, du.email, du.avatar, du.is_admin, du.roles, du.vatsim_cid, du.is_controller
+    FROM public.discord_users AS du
+    WHERE du.discord_id = in_discord_id;
 END;
 $$;
 
