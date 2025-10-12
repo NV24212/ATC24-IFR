@@ -7,7 +7,10 @@ class Config:
     """Flask configuration variables."""
     # General Config
     SECRET_KEY = os.environ.get('SESSION_SECRET') or 'a_very_secret_key_that_should_be_changed'
-    SESSION_COOKIE_DOMAIN = os.environ.get('SESSION_COOKIE_DOMAIN')
+    # Sets the session cookie domain. Use a parent domain (e.g., '.hasmah.xyz')
+    # to allow the cookie to be shared across subdomains (api.hasmah.xyz, 24ifr.hasmah.xyz).
+    # Fallback to '.hasmah.xyz' if not set in the environment.
+    SESSION_COOKIE_DOMAIN = os.environ.get('SESSION_COOKIE_DOMAIN') or '.hasmah.xyz'
     SESSION_COOKIE_SAMESITE = 'None'
     SESSION_COOKIE_SECURE = True
 
