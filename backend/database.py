@@ -47,3 +47,25 @@ def log_to_db(level, message, source='backend', data=None):
         supabase_admin.from_('debug_logs').insert(log_entry).execute()
     except Exception as e:
         print(f"CRITICAL: Failed to write log to database: {e}")
+
+def track_page_visit(session, request):
+    """Tracks a page visit in the database."""
+    if not supabase_admin:
+        return
+
+    try:
+        is_first_visit = session.get('page_views', 0) == 0
+        session['page_views'] = session.get('page_views', 0) + 1
+
+        visit_data = {
+            "page_path": request.path,
+            "user_agent": request.user_agent.string,
+            "referrer": request.referrer,
+            "session_id": session.get('session_id'),
+            "is_first_visit": is_first_visit,
+            "user_id": session.get('user', {}).get('id'),
+            "discord_username": session.get('user', {}).get('username')
+        }
+        supabase_admin.from_('page_visits').insert(visit_data).execute()
+    except Exception as e:
+        log_to_db('error', 'Failed to track page visit', data={'error': str(e)})

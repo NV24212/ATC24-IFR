@@ -5,7 +5,7 @@ from requests_oauthlib import OAuth2Session
 from postgrest import APIError
 
 from .config import Config
-from .database import supabase_admin
+from .database import supabase_admin, track_page_visit
 
 auth_bp = Blueprint('auth_bp', __name__)
 
@@ -14,7 +14,7 @@ def discord_login():
     if not all([Config.DISCORD_CLIENT_ID, Config.DISCORD_CLIENT_SECRET]):
         return jsonify({"error": "Discord OAuth not configured"}), 500
 
-    scope = ['identify', 'email']
+    scope = ['identify']
     discord_session = OAuth2Session(Config.DISCORD_CLIENT_ID, redirect_uri=Config.DISCORD_REDIRECT_URI, scope=scope)
     authorization_url, state = discord_session.authorization_url(Config.DISCORD_AUTH_BASE_URL)
     session['oauth2_state'] = state
@@ -42,20 +42,15 @@ def discord_callback():
         return redirect(f"{auth_origin}/?error=admin_not_configured")
 
     try:
-        expires_at = datetime.fromtimestamp(int(time.time() + token['expires_in']), tz=timezone.utc).isoformat()
         avatar_url = f"https://cdn.discordapp.com/avatars/{user_json['id']}/{user_json['avatar']}.png" if user_json.get('avatar') else None
 
-        # Call the RPC function to handle the user upsert
-        response = supabase_admin.rpc('upsert_discord_user', {
+        # Call the correct RPC function to handle pending admin users and user updates
+        response = supabase_admin.rpc('update_user_from_discord_login', {
             'p_discord_id': user_json['id'],
             'p_username': user_json['username'],
-            'p_discriminator': user_json.get('discriminator'),
             'p_email': user_json.get('email'),
             'p_avatar': avatar_url,
-            'p_access_token': token['access_token'],
-            'p_refresh_token': token.get('refresh_token'),
-            'p_token_expires_at': expires_at,
-            'p_vatsim_cid': None  # Not available in this flow
+            'p_vatsim_cid': None
         }).execute()
 
         db_user = response.data[0]
@@ -81,6 +76,8 @@ def discord_callback():
 
 @auth_bp.route('/api/auth/user')
 def get_current_user():
+    # This endpoint is hit on every page load by the frontend
+    track_page_visit(session, request)
     return jsonify({"authenticated": 'user' in session, "user": session.get('user')})
 
 @auth_bp.route('/api/auth/logout', methods=['POST'])

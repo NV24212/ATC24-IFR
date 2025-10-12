@@ -105,7 +105,7 @@ def track_clearance_generation():
             "discord_username": session.get('user', {}).get('username'),
             **data
         }
-        supabase.table('clearance_generations').insert(clearance_data).execute()
+        supabase.from_('clearance_generations').insert(clearance_data).execute()
 
         log_to_db('info', f"Clearance generated for {clearance_data.get('callsign')}", data={'user': clearance_data.get('discord_username')})
         return jsonify({"success": True})
@@ -312,54 +312,17 @@ def get_current_users():
         return jsonify({"error": "Unauthorized"}), 403
     try:
         from datetime import datetime, timedelta
-        time_threshold = datetime.utcnow() - timedelta(minutes=5)
+        time_threshold = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
 
-        # Get active sessions from page visits
-        active_visits_res = supabase_admin.from_('page_visits').select('session_id, created_at').gt('created_at', time_threshold.isoformat()).execute()
+        response = supabase_admin.from_('user_sessions').select('*').gt('last_activity', time_threshold).execute()
 
-        sessions = {}
-        if active_visits_res.data:
-            for visit in active_visits_res.data:
-                sid = visit['session_id']
-                if sid not in sessions:
-                    sessions[sid] = {
-                        "session_id": sid,
-                        "page_views": 0,
-                        "clearances_generated": 0, # Initialize
-                        "last_activity": "1970-01-01T00:00:00Z",
-                        "source": "db"
-                    }
-                sessions[sid]["page_views"] += 1
-                if visit['created_at'] > sessions[sid]['last_activity']:
-                    sessions[sid]['last_activity'] = visit['created_at']
-
-        # Get recent clearances
-        recent_clearances_res = supabase_admin.from_('clearance_generations').select('session_id, created_at').gt('created_at', time_threshold.isoformat()).execute()
-
-        if recent_clearances_res.data:
-            for clearance in recent_clearances_res.data:
-                sid = clearance['session_id']
-                if sid not in sessions:
-                     sessions[sid] = {
-                        "session_id": sid,
-                        "page_views": 0,
-                        "clearances_generated": 0,
-                        "last_activity": "1970-01-01T00:00:00Z",
-                        "source": "db"
-                    }
-                sessions[sid]['clearances_generated'] += 1
-                if clearance['created_at'] > sessions[sid]['last_activity']:
-                    sessions[sid]['last_activity'] = clearance['created_at']
-
-
-        if not sessions:
-            return jsonify({"activeCount": 0, "users": [], "memorySessionsCount": 0, "supabaseSessionsCount": 0})
+        active_users = response.data or []
 
         return jsonify({
-            "activeCount": len(sessions),
-            "users": list(sessions.values()),
-            "memorySessionsCount": len(sessions),
-            "supabaseSessionsCount": 0
+            "activeCount": len(active_users),
+            "users": active_users,
+            "memorySessionsCount": 0,  # This is a Python backend, so no in-memory session store
+            "supabaseSessionsCount": len(active_users)
         })
     except Exception as e:
         current_app.logger.error(f"Failed to fetch current users: {e}", exc_info=True)

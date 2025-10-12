@@ -754,11 +754,28 @@ async function initializeApp() {
     handleSimpleRouting();
 
     document.getElementById('backToTopBtn')?.addEventListener('click', backToTop);
-    document.querySelector('.auth-logged-out .leaderboard-btn')?.addEventListener('click', showLeaderboard);
-    document.querySelector('.discord-login-main')?.addEventListener('click', loginWithDiscord);
-    document.querySelector('.auth-logged-in .leaderboard-btn')?.addEventListener('click', showLeaderboard);
-    document.getElementById('profileBtn')?.addEventListener('click', showProfile);
-    document.querySelector('.logout-btn')?.addEventListener('click', () => logout(updateAuthUI));
+
+    // Event delegation for auth section
+    const authSection = document.getElementById('authSection');
+    if (authSection) {
+        authSection.addEventListener('click', (event) => {
+            const target = event.target.closest('button');
+            if (!target) return;
+
+            if (target.classList.contains('leaderboard-btn')) {
+                showLeaderboard();
+            } else if (target.classList.contains('discord-login-main')) {
+                loginWithDiscord();
+            } else if (target.classList.contains('profile-btn')) {
+                showProfile();
+            } else if (target.classList.contains('logout-btn')) {
+                if (confirm('Are you sure you want to log out?')) {
+                    logout(updateAuthUI);
+                }
+            }
+        });
+    }
+
     document.getElementById('refreshPlansBtn')?.addEventListener('click', loadFlightPlans);
     document.getElementById('flightPlans')?.addEventListener('click', (event) => {
         const flightPlanElement = event.target.closest('.flight-plan');
