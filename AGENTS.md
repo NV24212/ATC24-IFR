@@ -2,7 +2,7 @@
 
 This document contains important context about the application's history and architecture. It is intended to help me, Jules, understand the intended functionality of the application, especially for features that may be missing or broken after a recent migration.
 
-**Do not copy this code directly into the current codebase. The backend has been migrated from Express.js (in `server.js`) to Flask. This code is for reference only.**
+**Do not copy this code directly into the current codebase. The backend has been smigrated from Express.js (in `server.js`) to Flask. This code is for reference only.**
 
 The following code represents the state of the application *before* it was split into a separate frontend and a Flask backend.
 
