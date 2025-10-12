@@ -18,14 +18,14 @@ export async function checkAuthStatus(updateUI, options = { requireAuth: false }
         currentUser = null;
         updateUI(false);
         if (options.requireAuth) {
-          loginWithDiscord();
+          window.location.href = '/login.html';
         }
       }
     } else {
       currentUser = null;
       updateUI(false);
       if (options.requireAuth) {
-        loginWithDiscord();
+        window.location.href = '/login.html';
       }
     }
   } catch (error) {
@@ -33,7 +33,7 @@ export async function checkAuthStatus(updateUI, options = { requireAuth: false }
     currentUser = null;
     updateUI(false);
     if (options.requireAuth) {
-      loginWithDiscord();
+      window.location.href = '/login.html';
     }
   }
 }

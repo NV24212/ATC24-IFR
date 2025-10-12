@@ -891,9 +891,10 @@ input[type="text"]::placeholder {
 .user-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.logout-btn, .admin-btn {
+.logout-btn, .admin-btn, .profile-btn, .leaderboard-btn {
   background: transparent;
   border: 1px solid var(--border-color);
   color: var(--text-muted);
@@ -2424,9 +2425,30 @@ details.section {
     display: none;
 }
 
-.login-box h1 {
-    color: var(--primary-color);
-    margin-bottom: 20px;
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.login-container {
+  text-align: center;
+}
+
+.login-logo {
+  width: 150px;
+  margin-bottom: 20px;
+}
+
+.login-container h1 {
+  color: var(--primary-color);
+  margin-bottom: 10px;
+}
+
+.login-container p {
+  color: var(--text-muted);
+  margin-bottom: 30px;
 }
 
 .auth-loading-message {
