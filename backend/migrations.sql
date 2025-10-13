@@ -105,6 +105,7 @@ CREATE TABLE public.clearance_generations (
     runway TEXT,
     squawk_code TEXT,
     flight_level TEXT,
+    initial_altitude TEXT,
     atis_info JSONB,
     clearance_text TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
