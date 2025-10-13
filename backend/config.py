@@ -13,6 +13,7 @@ class Config:
     SESSION_COOKIE_DOMAIN = os.environ.get('SESSION_COOKIE_DOMAIN') or '.hasmah.xyz'
     SESSION_COOKIE_SAMESITE = 'None'
     SESSION_COOKIE_SECURE = True
+    PERMANENT_SESSION_LIFETIME = os.environ.get('PERMANENT_SESSION_LIFETIME', 2592000) # 30 days in seconds
 
     # Supabase
     SUPABASE_URL = os.environ.get("SUPABASE_URL")
