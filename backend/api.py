@@ -90,28 +90,13 @@ def track_clearance_generation():
     try:
         data = request.json
 
-        # Define the list of valid columns for the clearance_generations table
-        valid_columns = [
-            'session_id', 'user_id', 'discord_username', 'callsign', 'destination',
-            'route', 'runway', 'squawk_code', 'flight_level', 'initial_altitude',
-            'atis_info', 'clearance_text'
-        ]
-
-        # Ensure atis_info is in a JSONB-compatible format
-        if 'atis_info' in data and isinstance(data['atis_info'], str):
-            data['atis_info'] = {'letter': data['atis_info']}
-
-        # Start with session-related data
+        # Create a dictionary with only the essential data
         clearance_data = {
-            "user_agent": request.user_agent.string,
             "session_id": session.get('session_id'),
             "user_id": session.get('user', {}).get('id'),
-            "discord_username": session.get('user', {}).get('username')
+            "discord_username": session.get('user', {}).get('username'),
+            "clearance_text": data.get('clearance_text')
         }
-
-        # Filter incoming data to only include valid columns
-        filtered_data = {k: v for k, v in data.items() if k in valid_columns}
-        clearance_data.update(filtered_data)
 
         supabase.from_('clearance_generations').insert(clearance_data).execute()
 
