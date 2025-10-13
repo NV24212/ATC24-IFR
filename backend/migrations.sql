@@ -299,6 +299,7 @@ CREATE POLICY "Allow anon insert on clearance_generations" ON public.clearance_g
 -- Policies for authenticated users
 CREATE POLICY "Allow users to see their own data" ON public.discord_users FOR SELECT TO authenticated USING (id = auth.uid());
 CREATE POLICY "Allow users to update their own settings" ON public.discord_users FOR UPDATE TO authenticated USING (id = auth.uid());
+CREATE POLICY "Allow authenticated users to insert clearances" ON public.clearance_generations FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Allow users to view their own clearances" ON public.clearance_generations FOR SELECT TO authenticated USING (user_id = auth.uid());
 CREATE POLICY "Allow users to view their own session" ON public.user_sessions FOR SELECT TO authenticated USING (user_id = auth.uid());
 
