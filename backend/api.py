@@ -98,7 +98,6 @@ def track_clearance_generation():
             data['atis_info'] = {'letter': data['atis_info']}
 
         clearance_data = {
-            "ip_address": request.remote_addr,
             "user_agent": request.user_agent.string,
             "session_id": session.get('session_id'),
             "user_id": session.get('user', {}).get('id'),
