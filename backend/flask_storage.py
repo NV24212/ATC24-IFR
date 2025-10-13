@@ -1,11 +1,12 @@
 from gotrue import SyncSupportedStorage
 from flask import session
+from typing import Union
 
 class FlaskSessionStorage(SyncSupportedStorage):
     def __init__(self):
         self.storage = session
 
-    def get_item(self, key: str) -> str | None:
+    def get_item(self, key: str) -> Union[str, None]:
         if key in self.storage:
             return self.storage[key]
 
