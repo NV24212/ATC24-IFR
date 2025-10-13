@@ -1,4 +1,5 @@
 from supabase import create_client, Client
+from supabase.lib.client_options import ClientOptions
 from .config import Config
 from .flask_storage import FlaskSessionStorage
 
@@ -16,7 +17,7 @@ def get_supabase_client():
     return create_client(
         Config.SUPABASE_URL,
         Config.SUPABASE_ANON_KEY,
-        options={'storage': FlaskSessionStorage()}
+        options=ClientOptions(storage=FlaskSessionStorage())
     )
 
 def init_db():
