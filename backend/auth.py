@@ -65,6 +65,7 @@ def discord_callback():
             'is_admin': db_user.get('is_admin', False),
             'roles': db_user.get('roles', [])
         }
+        session.permanent = True
     except APIError as e:
         current_app.logger.error(f"Supabase API Error: {e.message}", exc_info=True)
         return redirect(f"{auth_origin}/?error=db_error")
