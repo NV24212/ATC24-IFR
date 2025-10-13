@@ -27,7 +27,8 @@ class TestAuth(unittest.TestCase):
             self.assertEqual(response.status_code, 302)
             self.assertTrue(response.location.startswith('https://discord.com/api/oauth2/authorize'))
 
-    def test_get_current_user_unauthenticated(self):
+    @patch('backend.auth.track_page_visit')
+    def test_get_current_user_unauthenticated(self, mock_track_page_visit):
         """
         Tests that the /api/auth/user endpoint returns an unauthenticated status
         when no user is logged in.
@@ -38,8 +39,10 @@ class TestAuth(unittest.TestCase):
             data = response.get_json()
             self.assertFalse(data['authenticated'])
             self.assertIsNone(data['user'])
+            mock_track_page_visit.assert_called_once()
 
-    def test_logout(self):
+    @patch('backend.auth.track_page_visit')
+    def test_logout(self, mock_track_page_visit):
         """
         Tests that the /api/auth/logout endpoint successfully clears the user session.
         """
@@ -59,6 +62,8 @@ class TestAuth(unittest.TestCase):
             data = response.get_json()
             self.assertFalse(data['authenticated'])
             self.assertIsNone(data['user'])
+            # The user endpoint is called once after logout, so the page visit should be tracked
+            mock_track_page_visit.assert_called_once()
 
 if __name__ == '__main__':
     unittest.main()
