@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, session, current_app
-from .database import supabase, supabase_admin, log_to_db
+from .database import get_supabase_client, supabase_admin, log_to_db
 from .services import external_api_service, flight_plans_cache
 from .auth_utils import require_auth
 
@@ -9,7 +9,7 @@ api_bp = Blueprint('api_bp', __name__)
 def health_check():
     return jsonify({
         "status": "ok",
-        "supabase_status": "connected" if supabase else "not configured",
+        "supabase_status": "connected",
         "flight_plan_cache_size": len(flight_plans_cache)
     })
 
@@ -31,9 +31,8 @@ def get_atis():
 def get_flight_plans():
     if flight_plans_cache:
         return jsonify(list(flight_plans_cache))
-    if not supabase:
-        return jsonify([])
     try:
+        supabase = get_supabase_client()
         response = supabase.from_('flight_plans_received').select("*").order('created_at', desc=True).limit(20).execute()
         return jsonify(response.data or [])
     except Exception as e:
@@ -42,8 +41,8 @@ def get_flight_plans():
 
 @api_bp.route('/api/leaderboard')
 def get_leaderboard():
-    if not supabase: return jsonify({"error": "Supabase not configured"}), 503
     try:
+        supabase = get_supabase_client()
         response = supabase.rpc('get_clearance_leaderboard', {'p_limit': 20}).execute()
         return jsonify(response.data or [])
     except Exception as e:
@@ -53,8 +52,8 @@ def get_leaderboard():
 @api_bp.route('/api/user/clearances')
 @require_auth
 def get_user_clearances():
-    if not supabase: return jsonify({"error": "Supabase not configured"}), 503
     try:
+        supabase = get_supabase_client()
         user_id = session['user']['id']
         response = supabase.rpc('get_user_clearances', {'p_user_id': user_id}).execute()
         return jsonify(response.data)
@@ -65,9 +64,8 @@ def get_user_clearances():
 @api_bp.route('/api/user/settings', methods=['POST'])
 @require_auth
 def save_user_settings():
-    if not supabase:
-        return jsonify({"error": "Supabase not configured"}), 503
     try:
+        supabase = get_supabase_client()
         user_id = session['user']['id']
         settings = request.json.get('settings')
 
@@ -86,8 +84,8 @@ def save_user_settings():
 
 @api_bp.route('/api/clearance-generated', methods=['POST'])
 def track_clearance_generation():
-    if not supabase: return jsonify({"success": False, "error": "Supabase not configured"}), 503
     try:
+        supabase = get_supabase_client()
         data = request.json
 
         # Create a dictionary with only the essential data

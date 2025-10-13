@@ -1,29 +1,38 @@
 from supabase import create_client, Client
 from .config import Config
+from .flask_storage import FlaskSessionStorage
 
-supabase: Client = None
 supabase_admin: Client = None
+
+def get_supabase_client():
+    """
+    Returns a Supabase client that is aware of the user's session.
+    """
+    if not Config.SUPABASE_URL or 'your_supabase_url' in Config.SUPABASE_URL:
+        raise ValueError("SUPABASE_URL is not set or is a placeholder.")
+    if not Config.SUPABASE_ANON_KEY:
+        raise ValueError("SUPABASE_ANON_KEY is not set.")
+
+    return create_client(
+        Config.SUPABASE_URL,
+        Config.SUPABASE_ANON_KEY,
+        options={'storage': FlaskSessionStorage()}
+    )
 
 def init_db():
     """
     Initializes the database clients.
     Raises ValueError if essential Supabase configuration is missing.
     """
-    global supabase, supabase_admin
+    global supabase_admin
 
     if not Config.SUPABASE_URL or 'your_supabase_url' in Config.SUPABASE_URL:
         raise ValueError("SUPABASE_URL is not set or is a placeholder. Please check your .env file.")
-
-    if not Config.SUPABASE_ANON_KEY:
-        raise ValueError("SUPABASE_ANON_KEY is not set. Please check your .env file.")
 
     if not Config.SUPABASE_SERVICE_KEY or 'your_secret_service_role_key' in Config.SUPABASE_SERVICE_KEY:
         raise ValueError("SUPABASE_SERVICE_KEY is not set or is a placeholder. Admin operations will fail.")
 
     try:
-        supabase = create_client(Config.SUPABASE_URL, Config.SUPABASE_ANON_KEY)
-        print("Supabase client initialized successfully.")
-
         supabase_admin = create_client(Config.SUPABASE_URL, Config.SUPABASE_SERVICE_KEY)
         print("Supabase admin client initialized successfully.")
 
@@ -50,7 +59,8 @@ def log_to_db(level, message, source='backend', data=None):
 
 def track_page_visit(session, request):
     """Tracks a page visit in the database."""
-    if not supabase_admin:
+    supabase = get_supabase_client()
+    if not supabase:
         return
 
     try:
@@ -66,6 +76,6 @@ def track_page_visit(session, request):
             "user_id": session.get('user', {}).get('id'),
             "discord_username": session.get('user', {}).get('username')
         }
-        supabase_admin.from_('page_visits').insert(visit_data).execute()
+        supabase.from_('page_visits').insert(visit_data).execute()
     except Exception as e:
         log_to_db('error', 'Failed to track page visit', data={'error': str(e)})
