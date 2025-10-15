@@ -15,7 +15,7 @@ import {
     loadUserClearances as apiLoadUserClearances,
     getSystemHealth
 } from './src/api.js';
-import { showNotification, showAuthError } from './src/notifications.js';
+import { showNotification, showAuthError, hideNotification } from './src/notifications.js';
 
 let selectedFlightPlan = null;
 let selectedFlightPlanCallsign = null;
@@ -800,7 +800,7 @@ async function initializeApp() {
     progressBar.style.width = '20%';
     const authHandled = checkAuthParams(updateAuthUI);
     if (!authHandled) {
-      await checkAuthStatus(updateUI, { requireAuth: false });
+      await checkAuthStatus(updateAuthUI, { requireAuth: false });
     }
 
     loadingStatus.textContent = 'Loading ATC Data...';
