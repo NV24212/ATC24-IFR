@@ -2837,6 +2837,23 @@ details.section {
   animation: fadeIn 1.5s infinite alternate ease-in-out;
 }
 
+.progress-bar-container {
+  width: 200px;
+  height: 8px;
+  background-color: var(--surface-color);
+  border-radius: 4px;
+  margin-top: 20px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  width: 0;
+  height: 100%;
+  background-color: var(--primary-color);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
 @keyframes pulse {
   0% {
     transform: scale(1);

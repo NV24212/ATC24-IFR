@@ -746,6 +746,7 @@ function backToTop() {
 async function initializeApp() {
   const loadingScreen = document.getElementById('loadingScreen');
   const loadingStatus = document.getElementById('loadingStatus');
+  const progressBar = document.getElementById('progressBar');
   const mainContainer = document.querySelector('.container');
 
   mainContainer.style.opacity = '0'; // Hide main content initially
@@ -796,12 +797,14 @@ async function initializeApp() {
     document.querySelector('#profileModal .modal-close')?.addEventListener('click', hideProfile);
 
     loadingStatus.textContent = 'Authenticating...';
+    progressBar.style.width = '20%';
     const authHandled = checkAuthParams(updateAuthUI);
     if (!authHandled) {
-      await checkAuthStatus(updateAuthUI, { requireAuth: true });
+      await checkAuthStatus(updateUI, { requireAuth: false });
     }
 
     loadingStatus.textContent = 'Loading ATC Data...';
+    progressBar.style.width = '50%';
     await Promise.all([
         loadControllers(),
         loadFlightPlans(),
@@ -810,14 +813,18 @@ async function initializeApp() {
     ]);
 
     loadingStatus.textContent = 'Finalizing...';
+    progressBar.style.width = '80%';
 
     loadLeaderboard();
     loadUserSettings();
     updateUIFromSettings();
 
     // Hide loading screen and show app
-    loadingScreen.classList.add('hidden');
-    mainContainer.style.opacity = '1';
+    progressBar.style.width = '100%';
+    setTimeout(() => {
+      loadingScreen.classList.add('hidden');
+      mainContainer.style.opacity = '1';
+    }, 500);
 
     const healthData = await getSystemHealth();
     if (healthData.environment === 'serverless') {
