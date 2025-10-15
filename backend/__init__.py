@@ -1,9 +1,10 @@
 import logging
 from logging.handlers import RotatingFileHandler
-from flask import Flask, jsonify
+from flask import Flask, jsonify, session
 from flask_cors import CORS
 from whitenoise import WhiteNoise
 from werkzeug.middleware.proxy_fix import ProxyFix
+import uuid
 
 import threading
 from .config import Config
@@ -29,6 +30,12 @@ def create_app(config_class=Config):
     CORS(app, supports_credentials=True)
     # WhiteNoise will automatically serve files from the folder set in app.static_folder
     app.wsgi_app = WhiteNoise(app.wsgi_app)
+
+    # --- Session ID Management ---
+    @app.before_request
+    def ensure_session_id():
+        if 'session_id' not in session:
+            session['session_id'] = str(uuid.uuid4())
 
     # --- Database ---
     with app.app_context():
