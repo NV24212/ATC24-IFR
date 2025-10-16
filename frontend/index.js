@@ -15,7 +15,7 @@ import {
     loadUserClearances as apiLoadUserClearances,
     getSystemHealth
 } from './src/api.js';
-import { showNotification, showAuthError, hideNotification } from './src/notifications.js';
+import { showNotification, showAuthError } from './src/notifications.js';
 
 let selectedFlightPlan = null;
 let selectedFlightPlanCallsign = null;
@@ -862,18 +862,6 @@ function setupModalEventlisteners() {
         });
     });
 
-    const notificationOverlay = document.getElementById('notificationOverlay');
-    if(notificationOverlay) {
-        const closeButton = notificationOverlay.querySelector('.notification-close-x');
-        const closeBtn = notificationOverlay.querySelector('.notification-close-btn');
-        if(closeButton) closeButton.addEventListener('click', hideNotification);
-        if(closeBtn) closeBtn.addEventListener('click', hideNotification);
-        notificationOverlay.addEventListener('click', (event) => {
-            if(event.target === notificationOverlay) {
-                hideNotification();
-            }
-        });
-    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -1,40 +1,45 @@
 export function showNotification(type, title, message) {
-  const overlay = document.getElementById('notificationOverlay');
-  const popup = document.getElementById('notificationPopup');
-  const icon = document.getElementById('notificationIcon');
-  const titleEl = document.getElementById('notificationTitle');
-  const messageEl = document.getElementById('notificationMessage');
-
-  if (!overlay || !popup || !icon || !titleEl || !messageEl) {
-    console.error('Notification elements not found in the DOM.');
-    alert(`${title}: ${message}`);
+  const container = document.getElementById('notification-container');
+  if (!container) {
+    console.error('Notification container not found.');
     return;
   }
 
-  // Reset classes and styles
-  popup.className = 'notification-popup';
-  icon.className = 'notification-icon';
-  overlay.classList.remove('show');
+  const notification = document.createElement('div');
+  notification.className = `notification ${type}`;
 
-  // Set content
-  titleEl.textContent = title;
-  messageEl.textContent = message;
-
-  // Set type-specific styles
-  popup.classList.add(type); // 'success', 'error', 'warning', 'info'
-  if (type === 'success') {
-    icon.textContent = '✓';
-  } else if (type === 'error') {
-    icon.textContent = '❌';
-  } else if (type === 'warning') {
-    icon.textContent = '⚠️';
-  } else { // info
-    icon.textContent = 'ℹ️';
+  let iconContent = '';
+  switch (type) {
+    case 'success': iconContent = '✓'; break;
+    case 'error': iconContent = '❌'; break;
+    case 'warning': iconContent = '⚠️'; break;
+    case 'info': iconContent = 'ℹ️'; break;
   }
 
+  notification.innerHTML = `
+    <span class="notification-icon">${iconContent}</span>
+    <div class="notification-content">
+      <div class="notification-title">${title}</div>
+      <div class="notification-message">${message}</div>
+    </div>
+  `;
+
+  container.appendChild(notification);
+
+  // Animate in
   setTimeout(() => {
-      overlay.classList.add('show');
+    notification.classList.add('show');
   }, 10);
+
+  // Animate out and remove after a delay
+  setTimeout(() => {
+    notification.classList.remove('show');
+    notification.addEventListener('transitionend', () => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    });
+  }, 5000); // Notification stays for 5 seconds
 }
 
 export function showAuthError(error) {
@@ -55,11 +60,4 @@ export function showAuthError(error) {
       break;
   }
   showNotification('error', errorTitle, errorMessage);
-}
-
-export function hideNotification() {
-  const overlay = document.getElementById('notificationOverlay');
-  if (overlay) {
-    overlay.classList.remove('show');
-  }
 }
