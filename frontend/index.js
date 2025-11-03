@@ -743,7 +743,7 @@ function backToTop() {
   }, 300);
 }
 
-const SERVER_MAINTENANCE = false;
+const SERVER_MAINTENANCE = '__SERVER_MAINTENANCE__';
 
 async function initializeApp() {
   const loadingScreen = document.getElementById('loadingScreen');
@@ -757,7 +757,7 @@ async function initializeApp() {
   const maintenanceTitle = document.getElementById('maintenance-title');
   const maintenanceMessage = document.getElementById('maintenance-message');
 
-  if (SERVER_MAINTENANCE) {
+  if (SERVER_MAINTENANCE === 'true') {
     maintenanceTitle.textContent = 'Under Maintenance';
     maintenanceMessage.textContent = 'The application is currently undergoing scheduled maintenance. Please check back later.';
     maintenancePopup.classList.remove('hidden');
