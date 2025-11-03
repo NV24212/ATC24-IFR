@@ -2,7 +2,6 @@ import uuid
 import threading
 from flask import Flask, session, request
 from flask_cors import CORS
-from whitenoise import WhiteNoise
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import Config
@@ -15,7 +14,6 @@ def create_app(config_class=Config):
 
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
     CORS(app, supports_credentials=True)
-    app.wsgi_app = WhiteNoise(app.wsgi_app, root='static/')
 
     @app.before_request
     def before_request_tasks():
