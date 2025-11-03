@@ -6,3 +6,4 @@ workers = multiprocessing.cpu_count() * 2 + 1
 loglevel = os.environ.get('GUNICORN_LOGLEVEL', 'info')
 accesslog = "-"
 errorlog = "-"
+pythonpath = "/app/backend"

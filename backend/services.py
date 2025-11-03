@@ -6,7 +6,7 @@ from threading import Thread
 import requests
 import websockets
 
-from .config import Config
+from config import Config
 
 flight_plans_cache = deque(maxlen=50)
 
