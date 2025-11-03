@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import Blueprint, jsonify, request, session
-from ..database import admin_rpc, supabase_admin_client
+from database import admin_rpc, supabase_admin_client
 
 admin_bp = Blueprint('admin_bp', __name__)
 
