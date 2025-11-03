@@ -1,0 +1,64 @@
+:root {
+  --primary-color: #f5de40;
+  --background-color: #0a0a0a;
+  --surface-color: #151515;
+  --surface-hover: #1f1f1f;
+  --border-color: #222; /* Made border more subtle */
+  --text-color: #e5e5e5;
+  --text-muted: #a0a0a0;
+  --shadow: 0 2px 8px rgba(0,0,0,0.2); /* Softer, more modern shadow */
+  --shadow-hover: 0 6px 16px rgba(0,0,0,0.25); /* Subtle lift effect */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Noto Sans Mono', monospace;
+  font-weight: 300;
+  background: var(--background-color);
+  color: var(--text-color);
+  line-height: 1.6;
+  padding: 20px;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  padding-bottom: 30px;
+  border-bottom: 2px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes expandLine {
+  to { width: 100px; }
+}
+
+.header h1 {
+  color: var(--primary-color);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--primary-color), #ffd700);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
