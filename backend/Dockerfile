@@ -6,7 +6,7 @@ COPY . /app
 
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-ENV SERVER_MAINTENANCE=false
+ENV SERVER_MAINTENANCE=true
 
 EXPOSE 5000
 
