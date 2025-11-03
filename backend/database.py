@@ -1,19 +1,27 @@
+from threading import Lock, Thread
+from time import sleep
+from typing import Union, List, Dict, Any
+from flask import session
+from gotrue import SyncSupportedStorage
 from supabase import create_client, Client
 from supabase.lib.client_options import ClientOptions
 from .config import Config
-from .flask_storage import FlaskSessionStorage
 
-supabase_admin: Client = None
+supabase_admin_client: Client = None
+page_visits_batch: List[Dict[str, Any]] = []
+batch_lock = Lock()
 
-def get_supabase_client():
-    """
-    Returns a Supabase client that is aware of the user's session.
-    """
-    if not Config.SUPABASE_URL or 'your_supabase_url' in Config.SUPABASE_URL:
-        raise ValueError("SUPABASE_URL is not set or is a placeholder.")
-    if not Config.SUPABASE_ANON_KEY:
-        raise ValueError("SUPABASE_ANON_KEY is not set.")
+class FlaskSessionStorage(SyncSupportedStorage):
+    def get_item(self, key: str) -> Union[str, None]:
+        return session.get(key)
 
+    def set_item(self, key: str, value: str) -> None:
+        session[key] = value
+
+    def remove_item(self, key: str) -> None:
+        session.pop(key, None)
+
+def get_supabase_client() -> Client:
     return create_client(
         Config.SUPABASE_URL,
         Config.SUPABASE_ANON_KEY,
@@ -21,62 +29,36 @@ def get_supabase_client():
     )
 
 def init_db():
-    """
-    Initializes the database clients.
-    Raises ValueError if essential Supabase configuration is missing.
-    """
-    global supabase_admin
+    global supabase_admin_client
+    supabase_admin_client = create_client(Config.SUPABASE_URL, Config.SUPABASE_SERVICE_KEY)
 
-    if not Config.SUPABASE_URL or 'your_supabase_url' in Config.SUPABASE_URL:
-        raise ValueError("SUPABASE_URL is not set or is a placeholder. Please check your .env file.")
+    def batch_processor():
+        while True:
+            sleep(10)
+            process_page_visits_batch()
 
-    if not Config.SUPABASE_SERVICE_KEY or 'your_secret_service_role_key' in Config.SUPABASE_SERVICE_KEY:
-        raise ValueError("SUPABASE_SERVICE_KEY is not set or is a placeholder. Admin operations will fail.")
+    thread = Thread(target=batch_processor, daemon=True)
+    thread.start()
 
-    try:
-        supabase_admin = create_client(Config.SUPABASE_URL, Config.SUPABASE_SERVICE_KEY)
-        print("Supabase admin client initialized successfully.")
+def add_page_visit_to_batch(visit_data: Dict[str, Any]):
+    with batch_lock:
+        page_visits_batch.append(visit_data)
+        if len(page_visits_batch) >= 50:
+            process_page_visits_batch()
 
-    except Exception as e:
-        print(f"CRITICAL: Supabase client failed to initialize: {e}")
-        raise
+def process_page_visits_batch():
+    with batch_lock:
+        if not page_visits_batch:
+            return
+        try:
+            supabase_admin_client.from_('page_visits').insert(page_visits_batch).execute()
+            page_visits_batch.clear()
+        except Exception:
+            pass # Fail silently as per instructions
 
-def log_to_db(level, message, source='backend', data=None):
-    """Inserts a log entry into the debug_logs table."""
-    if not supabase_admin:
-        print(f"[{level.upper()}] DB_LOG_FAIL: {message}")
-        return
-
-    try:
-        log_entry = {
-            "level": level,
-            "message": message,
-            "source": source,
-            "data": data
-        }
-        supabase_admin.from_('debug_logs').insert(log_entry).execute()
-    except Exception as e:
-        print(f"CRITICAL: Failed to write log to database: {e}")
-
-def track_page_visit(session, request):
-    """Tracks a page visit in the database."""
+def rpc(function_name: str, params: Dict[str, Any] = None):
     supabase = get_supabase_client()
-    if not supabase:
-        return
+    return supabase.rpc(function_name, params or {}).execute()
 
-    try:
-        is_first_visit = session.get('page_views', 0) == 0
-        session['page_views'] = session.get('page_views', 0) + 1
-
-        visit_data = {
-            "page_path": request.path,
-            "user_agent": request.user_agent.string,
-            "referrer": request.referrer,
-            "session_id": session.get('session_id'),
-            "is_first_visit": is_first_visit,
-            "user_id": session.get('user', {}).get('id'),
-            "discord_username": session.get('user', {}).get('username')
-        }
-        supabase.from_('page_visits').insert(visit_data).execute()
-    except Exception as e:
-        log_to_db('error', 'Failed to track page visit', data={'error': str(e)})
+def admin_rpc(function_name: str, params: Dict[str, Any] = None):
+    return supabase_admin_client.rpc(function_name, params or {}).execute()
