@@ -5,7 +5,7 @@ from flask import session
 from gotrue import SyncSupportedStorage
 from supabase import create_client, Client
 from supabase.lib.client_options import ClientOptions
-from .config import Config
+from config import Config
 
 supabase_admin_client: Client = None
 page_visits_batch: List[Dict[str, Any]] = []

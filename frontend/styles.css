@@ -10,8 +10,8 @@
   --shadow-hover: 0 6px 16px rgba(0,0,0,0.25); /* Subtle lift effect */
 }
 
-* { 
-  box-sizing: border-box; 
+* {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
@@ -26,9 +26,9 @@ body {
   min-height: 100vh;
 }
 
-.container { 
-  max-width: 1400px; 
-  margin: 0 auto; 
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
   animation: fadeIn 0.3s ease-out;
 }
 
@@ -373,7 +373,7 @@ input[type="text"]::placeholder {
   left: 0;
   right: 0;
   bottom: 0;
-  background: 
+  background:
     radial-gradient(circle at 20% 80%, rgba(245, 222, 64, 0.03) 0%, transparent 50%),
     radial-gradient(circle at 80% 20%, rgba(245, 222, 64, 0.03) 0%, transparent 50%);
   pointer-events: none;
@@ -2753,4 +2753,8 @@ details.section {
     transform: scale(1);
     opacity: 1;
   }
+}
+
+#maintenance-popup p {
+  color: var(--text-muted);
 }

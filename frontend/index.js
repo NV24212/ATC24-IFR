@@ -752,6 +752,20 @@ async function initializeApp() {
   mainContainer.style.opacity = '0'; // Hide main content initially
 
   try {
+    const response = await fetch('/api/maintenance');
+    const data = await response.json();
+    if (data.maintenance) {
+      document.getElementById('maintenance-popup').classList.remove('hidden');
+      loadingScreen.classList.add('hidden');
+      return;
+    } else {
+      document.getElementById('maintenance-popup').classList.add('hidden');
+    }
+  } catch (error) {
+    console.error('Failed to check maintenance status:', error);
+  }
+
+  try {
     handleSimpleRouting();
 
     document.getElementById('backToTopBtn')?.addEventListener('click', backToTop);
