@@ -37,12 +37,10 @@ def create_app(config_class=Config):
     from routes.auth import auth_bp
     from routes.public import public_bp
     from routes.admin import admin_bp
-    from routes.user import user_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(public_bp)
     app.register_blueprint(admin_bp)
-    app.register_blueprint(user_bp)
 
     if app.config.get("ENV") != "development":
         thread = threading.Thread(target=run_websocket_in_background, daemon=True)

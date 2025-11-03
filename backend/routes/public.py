@@ -1,12 +1,17 @@
 from flask import Blueprint, jsonify, request, Response, session
 from services import external_api_service, flight_plans_cache
-from database import rpc, get_supabase_client, supabase_admin_client
+from database import rpc, get_supabase_client
+from config import Config
 
 public_bp = Blueprint('public_bp', __name__)
 
 @public_bp.route('/api/health')
 def health_check():
     return jsonify({"status": "ok"})
+
+@public_bp.route('/api/maintenance')
+def maintenance_status():
+    return jsonify({"maintenance": Config.SERVER_MAINTENANCE})
 
 @public_bp.route('/api/controllers')
 def get_controllers():
@@ -29,7 +34,14 @@ def get_leaderboard():
     response.headers['Cache-Control'] = 'public, max-age=300'
     return response
 
-@public_bp.route('/api/settings')
-def get_public_settings():
-    settings_res = supabase_admin_client.from_('admin_settings').select('settings').eq('id', 1).execute()
-    return jsonify(settings_res.data[0].get('settings', {}) if settings_res.data else {})
+@public_bp.route('/api/clearance-generated', methods=['POST'])
+def track_clearance_generation():
+    data = request.json
+    clearance_data = {
+        "session_id": session.get('session_id'),
+        "user_id": session.get('user', {}).get('id'),
+        "discord_username": session.get('user', {}).get('username'),
+        "clearance_text": data.get('clearance_text')
+    }
+    get_supabase_client().from_('clearance_generations').insert(clearance_data).execute()
+    return jsonify({"success": True})

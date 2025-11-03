@@ -1,4 +1,3 @@
-// shared.js - Code used by both pages
 export function showNotification(type, title, message) {
   const container = document.getElementById('notification-container');
   const overlay = document.getElementById('notificationOverlay');
@@ -68,10 +67,29 @@ export function showNotification(type, title, message) {
   console.error('Notification container or overlay not found.');
 }
 
-export function setupModalListeners() {
-  // Your modal code here
+export function showAuthError(error) {
+  let errorMessage = 'Authentication failed';
+  let errorTitle = 'Authentication Error';
+  switch (error) {
+    case 'oauth_cancelled':
+      errorMessage = 'Discord login was cancelled by the user.';
+      break;
+    case 'missing_code':
+      errorMessage = 'The authentication code from Discord was missing. Please try again.';
+      break;
+    case 'invalid_state':
+      errorMessage = 'There was a problem with the authentication session. Please try again.';
+      break;
+    case 'auth_failed':
+      errorMessage = 'The server was unable to authenticate you with Discord. Please try again.';
+      break;
+  }
+  showNotification('error', errorTitle, errorMessage);
 }
 
-export function handleLogout(updateUI) {
-  // Your logout code here
+export function hideNotification() {
+    const overlay = document.getElementById('notificationOverlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
 }
