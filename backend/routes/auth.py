@@ -1,7 +1,7 @@
 from flask import Blueprint, session, redirect, request, jsonify
 from requests_oauthlib import OAuth2Session
-from config import Config
-from database import admin_rpc
+from ..config import Config
+from ..database import admin_rpc
 
 auth_bp = Blueprint('auth_bp', __name__)
 

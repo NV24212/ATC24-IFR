@@ -4,9 +4,9 @@ from flask import Flask, session, request
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from config import Config
-from database import init_db, add_page_visit_to_batch
-from services import run_websocket_in_background
+from .config import Config
+from .database import init_db, add_page_visit_to_batch
+from .services import run_websocket_in_background
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -34,9 +34,9 @@ def create_app(config_class=Config):
     with app.app_context():
         init_db()
 
-    from routes.auth import auth_bp
-    from routes.public import public_bp
-    from routes.admin import admin_bp
+    from .routes.auth import auth_bp
+    from .routes.public import public_bp
+    from .routes.admin import admin_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(public_bp)

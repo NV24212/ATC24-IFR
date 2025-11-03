@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, Response, session
-from services import external_api_service, flight_plans_cache
-from database import rpc, get_supabase_client
+from ..services import external_api_service, flight_plans_cache
+from ..database import rpc, get_supabase_client
 
 public_bp = Blueprint('public_bp', __name__)
 
