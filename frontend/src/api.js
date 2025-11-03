@@ -188,11 +188,16 @@ export async function loadUserClearances() {
 }
 
 export async function getSystemHealth() {
-    const response = await fetch(`${API_BASE_URL}/api/health`, { credentials: 'include' });
-    if (!response.ok) {
-        throw new Error(`Health check failed with status ${response.status}`);
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/health`, { credentials: 'include' });
+        if (!response.ok) {
+            throw new Error(`Health check failed with status ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('System health check failed:', error);
+        throw error;
     }
-    return await response.json();
 }
 
 // =============================================================================

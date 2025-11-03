@@ -1,17 +1,12 @@
 from flask import Blueprint, jsonify, request, Response, session
 from services import external_api_service, flight_plans_cache
 from database import rpc, get_supabase_client
-from config import Config
 
 public_bp = Blueprint('public_bp', __name__)
 
 @public_bp.route('/api/health')
 def health_check():
     return jsonify({"status": "ok"})
-
-@public_bp.route('/api/maintenance')
-def maintenance_status():
-    return jsonify({"maintenance": Config.SERVER_MAINTENANCE})
 
 @public_bp.route('/api/controllers')
 def get_controllers():

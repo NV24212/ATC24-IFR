@@ -28,5 +28,3 @@ class Config:
     DATA_API_CONTROLLERS_URL = f'{DATA_API_BASE_URL}/controllers'
     DATA_API_ATIS_URL = f'{DATA_API_BASE_URL}/atis'
     DATA_API_WSS_URL = 'wss://24data.ptfs.app/wss'
-
-    SERVER_MAINTENANCE = os.environ.get("SERVER_MAINTENANCE", "false").lower() == "true"

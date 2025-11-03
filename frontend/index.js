@@ -743,6 +743,8 @@ function backToTop() {
   }, 300);
 }
 
+const SERVER_MAINTENANCE = false;
+
 async function initializeApp() {
   const loadingScreen = document.getElementById('loadingScreen');
   const loadingStatus = document.getElementById('loadingStatus');
@@ -751,18 +753,29 @@ async function initializeApp() {
 
   mainContainer.style.opacity = '0'; // Hide main content initially
 
+  const maintenancePopup = document.getElementById('maintenance-popup');
+  const maintenanceTitle = document.getElementById('maintenance-title');
+  const maintenanceMessage = document.getElementById('maintenance-message');
+
+  if (SERVER_MAINTENANCE) {
+    maintenanceTitle.textContent = 'Under Maintenance';
+    maintenanceMessage.textContent = 'The application is currently undergoing scheduled maintenance. Please check back later.';
+    maintenancePopup.classList.remove('hidden');
+    loadingScreen.classList.add('hidden');
+    return;
+  }
+
   try {
-    const response = await fetch('/api/maintenance');
-    const data = await response.json();
-    if (data.maintenance) {
-      document.getElementById('maintenance-popup').classList.remove('hidden');
-      loadingScreen.classList.add('hidden');
-      return;
-    } else {
-      document.getElementById('maintenance-popup').classList.add('hidden');
+    const health = await getSystemHealth();
+    if (health.status !== 'ok') {
+      throw new Error('Backend is not healthy');
     }
   } catch (error) {
-    console.error('Failed to check maintenance status:', error);
+    maintenanceTitle.textContent = 'Backend Offline';
+    maintenanceMessage.textContent = 'The application is temporarily unavailable as the backend is offline. Please try again later.';
+    maintenancePopup.classList.remove('hidden');
+    loadingScreen.classList.add('hidden');
+    return;
   }
 
   try {
