@@ -13,6 +13,7 @@ from .config import Config
 # --- In-memory Cache ---
 MAX_FLIGHT_PLANS = 50
 flight_plans_cache = deque(maxlen=MAX_FLIGHT_PLANS)
+flight_plan_lock = threading.Lock()
 
 # --- External API Service ---
 class ExternalApiService:
@@ -55,7 +56,25 @@ async def flight_plan_websocket_client():
                         if flight_plan:
                             flight_plan["timestamp"] = time.time()
                             flight_plan["source"] = data.get("t")
-                            flight_plans_cache.appendleft(flight_plan)
+
+                            with flight_plan_lock:
+                                # Create a composite key to uniquely identify flight plans
+                                composite_key = (
+                                    flight_plan.get("callsign"),
+                                    flight_plan.get("departure"),
+                                    flight_plan.get("arrival")
+                                )
+
+                                # Check if a flight plan with the same composite key exists and replace it
+                                found = False
+                                for i, fp in enumerate(flight_plans_cache):
+                                    if (fp.get("callsign"), fp.get("departure"), fp.get("arrival")) == composite_key:
+                                        flight_plans_cache[i] = flight_plan
+                                        found = True
+                                        break
+
+                                if not found:
+                                    flight_plans_cache.appendleft(flight_plan)
         except Exception as e:
             # Use print here as we are outside the Flask app context
             print(f"WebSocket error: {e}. Reconnecting in 5 seconds...")
